@@ -71,7 +71,9 @@ run source =
           print skiExpr
           print g
           print (spine 1 g [])
-          return $ snd(head(loop 1 g))
+          let result = snd(head(loop 1 g))
+          print result
+          return result
 
 loop :: Pointer -> AllocatedGraph -> AllocatedGraph
 loop rootP aGraph =
@@ -146,7 +148,7 @@ apply "eq" ((_p1, Node _ xP) : (p2, Node _ yP):_) aGraph =
       result  = if x == y then 1 else 0
   in poke p2 (Num result) aGraph
 
-apply k _ _  = error $ "undefined combinator " ++ k 
+apply k _ aGraph  = aGraph --error $ "undefined combinator " ++ k 
 
 subEval :: Pointer -> AllocatedGraph -> Graph
 subEval p g = snd ( head (loop p g))

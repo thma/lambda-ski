@@ -20,31 +20,35 @@ main = do
 
 testSource =
 --     "f = \\x y -> + x 3 \n"
---  ++ "g = λx. * x 7\n"
---  ++ "fact = λn. if (is0 n) 1 (* n (fact (sub1 n))) \n"
---  ++ "compose = λf g. f g \n"
---  ++ "main = fact 7"
+--  ++ "g = λx. * x 7 \n"
+--  ++ "h = λx -> (compose f g) x \n"  
+--  ++ "compose = λf g x. f (g x) \n"
+--  ++ "main = h 5"
 
--- "main = c i 2 (+ 1)"
-   "main = s k i 4 \n"
-
--- testSource =
---    "fact = y(λf n. if (eq 0 n) 1 (* n (f (sub n 1)))) \n" ++
---    "main = fact 0 \n"
+--   "main = c i 2 (+ 1)"
+--   "main = s k i 4 \n"
 
 
---testSource = "id = \\x -> x \n" ++
---             "1 = \\f x -> f x \n" ++
---             "main = id 1"
+  "Y = λf -> (λx -> x x)(λx -> f(x x)) \n" ++
+  "fact = Y(λf n. if (eq 0 n) 1 (* n (f (sub n 1)))) \n" ++
+  "main = fact 10 \n"
 
--- testSource = "true = \\x y -> x \n" ++
---             "false = \\x y -> y \n" ++
---             "0 = \\f x -> x \n" ++
---             "1 = \\f x -> f x \n" ++
---             "succ = \\n f x -> f(n f x) \n" ++
---             "pred = \\n f x -> n(\\g h -> h (g f)) (\\u -> x) (\\u ->u) \n" ++
---             "mul = \\m n f -> m(n f) \n" ++
---             "is0 = \\n -> n (\\x -> false) true \n" ++
---             "Y = \\f -> (\\x -> x x)(\\x -> f(x x)) \n" ++
---             "fact = Y(\\f n -> (is0 n) 1 (mul n (f (pred n)))) \n" ++
---             "main = fact (succ (succ (succ 1))) \n"
+
+--testSource = 
+-- "add = λx y -> + x y\n" ++
+-- "mul = λx y -> * x y\n" ++
+-- "main = mul (add 2 3) (mul 7 6)"
+
+-- testSource = 
+  -- "true = λx y -> x\n" ++
+  -- "false = λx y -> y\n" ++
+  -- "zero = λf x -> x\n" ++
+  -- "one = λf x -> f x\n" ++
+  -- "succ = λn f x -> f(n f x)\n" ++
+  -- "pred = λn f x -> n(λg h -> h (g f)) (λu -> x) (λu ->u)\n" ++
+  -- "mul = λm n f -> m(n f)\n" ++
+  -- "is0 = λn -> n (λx -> false) true\n" ++
+  -- "Y = λf -> (λx -> x x)(λx -> f(x x))\n" ++
+  -- "fact = Y(λf n -> (is0 n) one (mul n (f (pred n))))\n" ++
+  -- "main = fact one \n" -- (succ (succ (succ one)))  -- Compute 4!\n"
+
