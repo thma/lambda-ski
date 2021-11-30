@@ -18,3 +18,5 @@ This graph is then reduced by applying combinator graph-reduction.
 
 this part is based on a SML implementation i did some 30 years ago:
 [https://github.com/thma/mg-book-sml-sources/blob/main/sml-sources/com41.sml](https://github.com/thma/mg-book-sml-sources/blob/main/sml-sources/com41.sml)
+
+this is heavliy
