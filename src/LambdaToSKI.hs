@@ -48,31 +48,21 @@ noLamEq _ _ = False
 
 
 opt :: Expr -> Expr
-opt (Var "i" :@ n@(Int _n)) = n
-opt ((Var "s" :@ e1) :@ (Var "k" :@ e2)) = (Var "c" :@ e1) :@ e2
-
---opt (x :@ y) = opt x :@ opt y
-opt x = x
+opt (Var "i" :@ n@(Int _n))                           = n
+opt ((Var "s" :@ (Var "k" :@ e1)) :@ (Var "k" :@ e2)) = Var "k" :@ (e1 :@ e2)
+opt ((Var "s" :@ e1) :@ (Var "k" :@ e2))              = (Var "c" :@ e1) :@ e2
+opt ((Var "s" :@ (Var "k" :@ e1)) :@ e2)              = (Var "b" :@ e1) :@ e2
+opt (x :@ y)                                          = opt x :@ opt y
+opt x                                                 = x
 
 ropt :: Expr -> Expr
 ropt expr =
   let expr' = opt expr
   in  if expr' == expr
         then expr
-        else ropt expr'
-
-{-
-fun opt (sapp(sapp(scomb S,sapp(scomb K,e)),scomb I)) = (e : snode)
-   |opt (sapp(sapp(scomb S,sapp(scomb K,e1)),sapp(scomb K,e2))) =
-       sapp(scomb K,sapp(e1,e2))
-   |opt (sapp(sapp(scomb S,sapp(scomb K,e1)),e2)) =
-       sapp(sapp(scomb B,e1),e2)
-   |opt (sapp(sapp(scomb S,e1),sapp(scomb K,e2))) =
-       sapp(sapp(scomb C,e1),e2)
-   |opt (sapp(e1,e2)) = sapp(opt e1,opt e2)
-   |opt x = x;
-
--}
+        else case expr' of
+          (x :@ y) -> ropt $ ropt x :@ ropt y
+          _        -> ropt expr'
 
 compile :: Environment-> Either Error Expr
 compile env = case lookup "main" env of
@@ -81,17 +71,6 @@ compile env = case lookup "main" env of
 
 compileToSKI :: Environment -> Expr -> Expr
 compileToSKI e = ropt . babs e
-
--- toSK :: String -> Either ParseError Expr
--- toSK s = do
---   env <- parseEnvironment s 
---   case lookup "main" env of
---     Nothing -> Left $ error "missing main function!"
---     Just t -> pure $ compileToSKI env t
-
--- getSK :: Either ParseError Expr -> Expr
--- getSK (Right exp) = exp
--- getSK (Left err)  = error $ show err
 
 showSK :: Expr -> String
 showSK (Var s)  = s ++ " "
