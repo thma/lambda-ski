@@ -110,8 +110,17 @@ apply "c" ((_p1, Node _ xP):(_p2, Node _ yP):(p3, Node _ zP):_) aGraph =
   let maxp = maxPointer aGraph
       node1 = (maxp+1, Node xP zP)
   in  node1 : poke p3 (Node (maxp+1) yP) aGraph
-apply "y" ((p1, Node _ fP) : _) aGraph =
-  poke p1 (Node fP p1) aGraph
+apply "y" ((p1, Node yP fP) : _) aGraph =
+  -- copying version of Y-combinator works nicely
+  let maxp = maxPointer aGraph
+      node1 = (maxp+1, Node yP fP)
+  in  node1 : poke p1 (Node fP (maxp+1)) aGraph
+  -- the not-copying version does not yet work, sigh...
+  --poke p1 (Node fP p1) aGraph
+{--
+|apply (Y,(node as ref(app((_,f),m,q)))::_) =
+        node := app((f,node),ref Eval,q)
+--}
 
 apply "if" ((_p1, Node _ testP):(_p2, Node _ xP):(p3, Node _ yP):_) aGraph =
   case subEval testP aGraph of

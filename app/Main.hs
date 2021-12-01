@@ -30,8 +30,8 @@ testSource =
 
 
   "Y = λf -> (λx -> x x)(λx -> f(x x)) \n" ++
-  "fact = Y(λf n. if (eq 0 n) 1 (* n (f (sub n 1)))) \n" ++
-  "main = fact 10 \n"
+  "fact = y(λf n. if (eq 0 n) 1 (* n (f (sub n 1)))) \n" ++
+  "main = fact 50 \n"
 
 
 --testSource = 
