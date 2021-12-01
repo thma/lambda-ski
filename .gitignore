@@ -22,6 +22,4 @@ cabal.project.local~
 .HTF/
 .ghc.environment.*
 .vscode/
-stack.yaml
 stack.yaml.lock
-*.cabal
