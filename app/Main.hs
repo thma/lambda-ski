@@ -15,9 +15,6 @@ main = do
   run testSource
   putStrLn ""
 
-
-
-
 testSource =
 --     "f = \\x y -> + x 3 \n"
 --  ++ "g = λx. * x 7 \n"
@@ -28,11 +25,9 @@ testSource =
 --   "main = c i 2 (+ 1)"
 --   "main = s k i 4 \n"
 
-
   "Y = λf -> (λx -> x x)(λx -> f(x x)) \n" ++
-  "fact = y(λf n. if (eq 0 n) 1 (* n (f (sub n 1)))) \n" ++
+  "fact = y(λf n. if (is0 n) 1 (* n (f (sub1 n)))) \n" ++
   "main = fact 200 \n"
-
 
 --testSource = 
 -- "add = λx y -> + x y\n" ++

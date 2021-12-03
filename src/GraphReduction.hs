@@ -52,7 +52,6 @@ collectAllReachables rootP aGraph result =
 compactify :: Pointer -> AllocatedGraph -> AllocatedGraph
 compactify rootP aGraph = (rootP, peek rootP aGraph) : collectAllReachables rootP aGraph []
 
-
 allocate :: Expr -> AllocatedGraph
 allocate expr =
   alloc expr 1 []
@@ -166,6 +165,9 @@ apply SUB ((_p1, _ :@: xP) : (p2, _ :@: yP):_) aGraph =
       (Num y) = subEval yP aGraph
       result  = x - y
   in poke p2 (Num result) aGraph
+apply SUB1 ((p1, _ :@: xP) : _) aGraph = 
+  let (Num x) = subEval xP aGraph
+  in poke p1 (Num $ x-1) aGraph  
 apply DIV ((_p1, _ :@: xP) : (p2, _ :@: yP):_) aGraph = 
   let (Num x) = subEval xP aGraph
       (Num y) = subEval yP aGraph
@@ -177,76 +179,15 @@ apply EQL ((_p1, _ :@: xP) : (p2, _ :@: yP):_) aGraph =
       y = subEval yP aGraph
       result  = if x == y then 1 else 0
   in poke p2 (Num result) aGraph
+apply ZEROP ((p1, _ :@: xP) :_) aGraph = 
+  let x = subEval xP aGraph
+      result  = if x == Num 0 then 1 else 0
+  in poke p1 (Num result) aGraph
 
 apply k _ aGraph  = aGraph --error $ "undefined combinator " ++ k 
 
 subEval :: Pointer -> AllocatedGraph -> Graph
 subEval p g = snd ( head (loop p g))
-
-  --  |apply (I,(node as ref(app((_,ref x),_,ref q)))::_) =
-  --       (node := x; set_q node q)
-  --  |apply (K,ref(app((_,ref x),_,ref q))::(node as ref(app(_,_,_)))::_) =
-  --       (node := x; set_q node q)
-  --  |apply (S,(ref(app((_,x),_,_)))::(ref(app((_,y),_,_)))
-  --             ::(node as (ref(app((_,z),m,q))))::_) =
-  --       node := app((ref(app((x,z),ref Eval,q)),
-  --                    ref(app((y,z),ref Eval,q))),
-  --                   ref Eval,q)
-  --  |apply (B,(ref(app((_,x),_,_)))::(ref(app((_,y),_,_)))
-  --             ::(node as (ref(app((_,z),m,q))))::_) =
-  --       node := app((x,ref (app((y,z),ref Eval,q))),ref Eval,q)
-  --  |apply (C,(ref(app((_,x),_,_)))::(ref(app((_,y),_,_)))
-  --             ::(node as (ref(app((_,z),m,q))))::_) =
-  --       node := app((ref(app((x,z),ref Eval,q)),y),ref Eval,q)
-
-  --  |apply (Y,(node as ref(app((_,f),m,q)))::_) =
-  --       node := app((f,node),ref Eval,q)
-  --  |apply (DEF(name),(node as ref(app((_,_),_,_)))::_) =
-  --       node := !(copy(lookup name))
-  --  |apply (PLUS,ref(app((_,ref(atom(int x,_,_))),_,_))::(node as 
-  --               ref(app((_,ref(atom(int y,_,_))),_,q)))::_) =
-  --       node := atom(int(x+y),ref Ready,q)
-  --  |apply (PLUS,(stack as ref(app((_,x),_,_))::
-  --                         ref(app((_,y),_,_))::_)) =
-  --       (subEval (last stack,x);
-  --        subEval (last stack,y); ())
-  --  |apply (MINUS,ref(app((_,ref(atom(int x,_,_))),_,_))::(node as 
-  --                ref(app((_,ref(atom(int y,_,_))),_,q)))::_) =
-  --       node := atom(int(x-y),ref Ready,q)
-  --  |apply (MINUS,(stack as ref(app((_,x),_,_))::
-  --                         ref(app((_,y),_,_))::_)) =
-  --       (subEval (last stack,x);
-  --        subEval (last stack,y); ())
-  --  |apply (TIMES,ref(app((_,ref(atom(int x,_,_))),_,_))::(node as 
-  --                ref(app((_,ref(atom(int y,_,_))),_,q)))::_) =
-  --       node := atom(int(x*y),ref Ready,q)
-  --  |apply (TIMES,(stack as ref(app((_,x),_,_))::
-  --                         ref(app((_,y),_,_))::_)) =
-  --       (subEval (last stack,x);
-  --        subEval (last stack,y); ())
-  --  |apply (DIV,ref(app((_,ref(atom(int x,_,_))),_,_))::(node as 
-  --              ref(app((_,ref(atom(int y,_,_))),_,q)))::_) =
-  --       node := atom(int(x div y),ref Ready,q)
-  --  |apply (DIV,(stack as ref(app((_,x),_,_))::
-  --                         ref(app((_,y),_,_))::_)) =
-  --       (subEval (last stack,x);
-  --        subEval (last stack,y); ())
-  --  |apply (EQ,(stack as ref(app((_,x),_,_))::(node as
-  --                         ref(app((_,y),_,q)))::_)) =
-  --       if (!(get_mark x)) = Ready andalso
-  --          (!(get_mark y)) = Ready 
-  --         then node := atom(bool(equal x y),ref Ready,q)
-  --       else
-  --         (subEval (last stack,x);
-  --         subEval (last stack,y); ())
-  --  |apply (IF,(ref(app((_,ref(atom(bool test,_,_))),_,_))):: 
-  --             (ref(app((_,x),_,_)))::(node as (ref(app((_,y),_,_))))::_) =
-  --       if test then node := !x
-  --       else node := !y
-  --  |apply (IF,(stack as (ref(app((_,test),_,_)):: 
-  --             ref(app((_,x),_,_))::(node as ref(app((_,y),_,q)))::_))) =
-  --       subEval (last stack,test)
-
 
 peek :: Pointer -> AllocatedGraph -> Graph
 peek pointer graph = fromMaybe (error "merde") (lookup pointer graph)
