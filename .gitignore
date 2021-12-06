@@ -23,3 +23,6 @@ cabal.project.local~
 .ghc.environment.*
 .vscode/
 stack.yaml.lock
+.idea/
+out/
+*.iml

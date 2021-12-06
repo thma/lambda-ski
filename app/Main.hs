@@ -1,19 +1,17 @@
 module Main where
 
-import Parser (Expr(..), Environment, parseEnvironment)
-import Text.Parsec
-import LambdaToSKI (compile)
-import GraphReduction (run)
 import           System.IO            (hSetEncoding, stdin, stdout, utf8)
+import           GraphReductionSTRef (run)
+
 
 main :: IO ()
 main = do
   hSetEncoding stdin  utf8
   hSetEncoding stdout utf8
   putStrLn testSource
+  putStrLn $ run testSource
 
-  run testSource
-  putStrLn ""
+
 
 testSource =
 --     "f = \\x y -> + x 3 \n"
@@ -25,9 +23,11 @@ testSource =
 --   "main = c i 2 (+ 1)"
 --   "main = s k i 4 \n"
 
+  --"main = if (sub 3 2) (* 4 4) (+ 5 5)"
+
   "Y = λf -> (λx -> x x)(λx -> f(x x)) \n" ++
   "fact = y(λf n. if (is0 n) 1 (* n (f (sub1 n)))) \n" ++
-  "main = fact 200 \n"
+  "main = fact 10000 \n"
 
 --testSource = 
 -- "add = λx y -> + x y\n" ++
