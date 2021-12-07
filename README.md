@@ -1,6 +1,8 @@
 # lambda-ski
 Implementing a small functional language with a combinator based graph-reduction machine
 
+[![Actions Status](https://github.com/thma/lambda-ski/workflows/Haskell%20CI/badge.svg)](https://github.com/thma/lambda-ski/actions)
+
 I took a parser for tiny functional language from [https://crypto.stanford.edu/~blynn/lambda/sk.html](https://crypto.stanford.edu/~blynn/lambda/sk.html) which allows 
 to write programs like the following:
 
