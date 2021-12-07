@@ -25,7 +25,6 @@ source-repository head
 
 library
   exposed-modules:
-      GraphReduction
       GraphReductionSTRef
       LambdaToSKI
       Parser
