@@ -1,11 +1,13 @@
 module LambdaToSKI
 (
-  compile
+    compile
+  , compileToSKI
+  , compileToCCC
 )
 where
 
 import Data.List (union, (\\))
-import Parser (Environment, Expr(..))  
+import Parser (Environment, Expr(..))
 
 type Error = String
 
@@ -63,13 +65,35 @@ ropt expr =
           (x :@ y) -> ropt $ ropt x :@ ropt y
           _        -> ropt expr'
 
-compile :: Environment-> Either Error Expr
-compile env = case lookup "main" env of
+compile :: Environment-> (Environment -> Expr -> Expr) -> Either Error Expr
+compile env compileFun = case lookup "main" env of
   Nothing -> Left $ "main function missing in " ++ show env
-  Just main -> Right $ compileToSKI env main
+  Just main -> Right $ compileFun env main
 
 compileToSKI :: Environment -> Expr -> Expr
-compileToSKI e = ropt . babs e
+compileToSKI main = ropt . babs main
+
+compileToCCC :: Environment -> Expr -> Expr
+compileToCCC = cccAbs
+
+cccAbs :: Environment -> Expr -> Expr
+cccAbs env (Lam x e)
+  | Var "id" :@ _x <- t                          = t
+  | x `notElem` fv [] t                          = Var "const" :@ t
+  | Var y <- t, x == y                           = Var "id"
+  | m :@ Var y <- t, x == y, x `notElem` fv [] m = m
+  | Var y :@ m :@ Var z <- t, x == y, x == z     = cccAbs env $ Lam x $ Var "s" :@ Var "s" :@ Var "k" :@ Var x :@ m
+  | m :@ (n :@ l) <- t, isComb m, isComb n       = cccAbs env $ Lam x $ Var "s" :@ Lam x m :@ n :@ l
+  | (m :@ n) :@ l <- t, isComb m, isComb l       = cccAbs env $ Lam x $ Var "s" :@ m :@ Lam x l :@ n
+  | (m :@ l) :@ (n :@ l') <- t,
+     l `noLamEq` l', isComb m, isComb n          = cccAbs env $ Lam x $ Var "s" :@ m :@ n :@ l
+  | m :@ n <- t                                  = Var "s" :@ cccAbs env (Lam x m) :@ cccAbs env (Lam x n)
+  where t = cccAbs env e
+cccAbs env (Var s)
+  | Just t <- lookup s env = cccAbs env t
+  | otherwise              = Var s
+cccAbs env  (m :@ n)         = cccAbs env m :@ cccAbs env n
+cccAbs _env x                = x
 
 --showSK :: Expr -> String
 --showSK (Var s)  = s ++ " "

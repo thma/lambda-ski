@@ -1,13 +1,40 @@
 module Main where
 
-import           GraphReductionSTRef (run)
+import           GraphReductionSTRef (run, allocate, toString)
 import           System.IO           (hSetEncoding, stdin, stdout, utf8)
+import Parser (parseEnvironment, Environment, Expr)
+import LambdaToSKI (compile, compileToSKI, compileToCCC)
+
+parseEnv :: String -> Environment
+parseEnv source =
+  case parseEnvironment source of
+    Left err  -> error $ show err
+    Right env -> env
+
+compileEnv :: Environment -> (Environment -> Expr -> Expr) -> Expr
+compileEnv env compileFun =
+  case compile env compileFun of
+    Left err      -> error $ show err
+    Right expr    -> expr
 
 main :: IO ()
 main = do
   hSetEncoding stdin utf8
   hSetEncoding stdout utf8
   putStrLn testSource
+  putStrLn ""
+
+  let env = parseEnv testSource
+  mapM print env
+  putStrLn ""
+
+  let expr = compileEnv env compileToSKI
+  print expr
+  putStrLn ""
+
+  -- let graph = allocate expr
+  -- print $ toString graph
+
   putStrLn $ run testSource
 
 testSource :: String
@@ -25,7 +52,7 @@ testSource =
 
   "Y = λf -> (λx -> x x)(λx -> f(x x)) \n"
     ++ "fact = y(λf n. if (is0 n) 1 (* n (f (sub1 n)))) \n"
-    ++ "main = fact 10000 \n"
+    ++ "main = fact 100 \n"
 
 --testSource =
 -- "add = λx y -> + x y\n" ++

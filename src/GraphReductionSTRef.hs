@@ -3,6 +3,8 @@ module GraphReductionSTRef
     toString,
     sourceToGraph,
     step,
+    allocate,
+    spine,
     Graph (..),
   )
 where
@@ -11,7 +13,7 @@ import           Control.Monad    (forM_, (<=<))
 import           Control.Monad.ST (ST, runST)
 import           Data.STRef       (STRef, modifySTRef, newSTRef, readSTRef,
                                    writeSTRef)
-import           LambdaToSKI      (compile)
+import           LambdaToSKI      (compile, compileToSKI)
 import           Parser           (Expr (..), parseEnvironment)
 
 -- this just demonstrates the basic functiong of ST and STRef
@@ -91,7 +93,7 @@ sourceToGraph :: String -> ST s (STRef s (Graph s))
 sourceToGraph source =
   case parseEnvironment source of
     Left err  -> error $ show err
-    Right env -> case compile env of
+    Right env -> case compile env compileToSKI of
       Left err      -> error $ show err
       Right skiExpr -> allocate skiExpr
 
