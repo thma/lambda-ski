@@ -55,6 +55,16 @@ type Environment = [(String, Expr)]
 
 ## Performing graph-reduction
 
+## CCC
+
+```haskell
+absCL (\x -> p q) = s (\x -> p) (\x -> q)
+
+absCCC (\x -> p q) = apply . ((\x -> p) △ (\x -> q))
+
+absCCC (\x -> p q) = apply . ((△) (\x -> p) (\x -> q))
+
+```
 
 
 

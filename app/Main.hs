@@ -1,9 +1,11 @@
 module Main where
 
-import           GraphReductionSTRef (run, allocate, toString)
+import           GraphReductionSTRef (run, allocate, toString, Graph, loop)
 import           System.IO           (hSetEncoding, stdin, stdout, utf8)
 import Parser (parseEnvironment, Environment, Expr)
 import LambdaToSKI (compile, compileToSKI, compileToCCC)
+import Data.STRef 
+import Control.Monad.ST 
 
 parseEnv :: String -> Environment
 parseEnv source =
@@ -17,25 +19,41 @@ compileEnv env compileFun =
     Left err      -> error $ show err
     Right expr    -> expr
 
+printGraph :: ST s (STRef s (Graph s)) -> ST s String
+printGraph graph = do
+ gP <- graph
+ toString gP
+
+reduceGraph :: ST s (STRef s (Graph s)) -> ST s (STRef s (Graph s))
+reduceGraph graph = do
+  gP <- graph
+  loop gP
+
 main :: IO ()
 main = do
   hSetEncoding stdin utf8
   hSetEncoding stdout utf8
+  putStrLn "The sourcecode: "
   putStrLn testSource
-  putStrLn ""
 
   let env = parseEnv testSource
-  mapM print env
+  putStrLn "The parsed environment of named lambda expressions:"
+  mapM_ print env
   putStrLn ""
 
   let expr = compileEnv env compileToSKI
+  putStrLn "The main expression compiled to SICKYB combinator expressions:"
   print expr
   putStrLn ""
 
-  -- let graph = allocate expr
-  -- print $ toString graph
+  let graph = allocate expr
+  putStrLn "The allocated graph:"
+  putStrLn $ runST $ printGraph graph
 
-  putStrLn $ run testSource
+  let reducedGraph = reduceGraph graph
+
+  putStrLn "The result after reducing the graph:"
+  putStrLn $ runST $ printGraph reducedGraph
 
 testSource :: String
 testSource =

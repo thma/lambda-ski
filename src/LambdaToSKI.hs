@@ -40,7 +40,7 @@ fv vs _                     = vs
 
 
 isComb :: Expr -> Bool
-isComb e = null $ fv [] e \\ ["s", "k"]
+isComb e = null $ fv [] e \\ ["s", "k", "i", "b", "c", "y"]
 
 noLamEq :: Expr -> Expr -> Bool
 noLamEq (Var x) (Var y) = x == y
@@ -82,11 +82,6 @@ cccAbs env (Lam x e)
   | x `notElem` fv [] t                          = Var "const" :@ t
   | Var y <- t, x == y                           = Var "id"
   | m :@ Var y <- t, x == y, x `notElem` fv [] m = m
-  | Var y :@ m :@ Var z <- t, x == y, x == z     = cccAbs env $ Lam x $ Var "s" :@ Var "s" :@ Var "k" :@ Var x :@ m
-  | m :@ (n :@ l) <- t, isComb m, isComb n       = cccAbs env $ Lam x $ Var "s" :@ Lam x m :@ n :@ l
-  | (m :@ n) :@ l <- t, isComb m, isComb l       = cccAbs env $ Lam x $ Var "s" :@ m :@ Lam x l :@ n
-  | (m :@ l) :@ (n :@ l') <- t,
-     l `noLamEq` l', isComb m, isComb n          = cccAbs env $ Lam x $ Var "s" :@ m :@ n :@ l
   | m :@ n <- t                                  = Var "s" :@ cccAbs env (Lam x m) :@ cccAbs env (Lam x n)
   where t = cccAbs env e
 cccAbs env (Var s)
@@ -95,9 +90,3 @@ cccAbs env (Var s)
 cccAbs env  (m :@ n)         = cccAbs env m :@ cccAbs env n
 cccAbs _env x                = x
 
---showSK :: Expr -> String
---showSK (Var s)  = s ++ " "
---showSK (x :@ y) = showSK x ++ showR y where
---  showR (Var s) = s ++ " "
---  showR _       = "(" ++ showSK y ++ ")"
---showSK x        = show x ++ " "

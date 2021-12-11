@@ -5,6 +5,7 @@ module GraphReductionSTRef
     step,
     allocate,
     spine,
+    loop,
     Graph (..),
   )
 where
@@ -33,15 +34,18 @@ data Graph s
   | Num Integer
   deriving (Eq)
 
-toString :: Graph s -> ST s String
-toString (Comb c) = return $ show c
-toString (Num i) = return $ show i
-toString (lP :@: rP) = do
-  lG <- readSTRef lP
-  rG <- readSTRef rP
-  lStr <- toString lG
-  rStr <- toString rG
-  return $ "(" ++ lStr ++ " :@: " ++ rStr ++ ")"
+toString :: STRef s (Graph s) -> ST s String
+toString graph = do
+  g <- readSTRef graph
+  toString' g where
+    toString' (Comb c) = return $ show c
+    toString' (Num i) = return $ show i
+    toString' (lP :@: rP) = do
+      lG <- readSTRef lP
+      rG <- readSTRef rP
+      lStr <- toString' lG
+      rStr <- toString' rG
+      return $ "(" ++ lStr ++ " :@: " ++ rStr ++ ")"
 
 data Combinator = I | K | S | B | C | Y | P | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | ZEROP | IF
   deriving (Eq, Show)
@@ -74,19 +78,22 @@ allocate (l :@ r)   = do
   newSTRef $ lg :@: rg
 allocate (Lam _ _)  = error "lambdas must already be abstracted away!"
 
-spine :: STRef s (Graph s) -> [STRef s (Graph s)] -> ST s (Graph s, [STRef s (Graph s)])
-spine graph stack = do
-  g <- readSTRef graph
-  case g of
-    c@(Comb _)  -> return (c, stack)
-    n@(Num _)   -> return (n, stack)
-    (l :@: _r)  -> spine l (graph : stack)
+spine :: STRef s (Graph s) -> ST s (Graph s, [STRef s (Graph s)])
+spine graph = spine' graph [] 
+  where
+    spine' :: STRef s (Graph s) -> [STRef s (Graph s)] -> ST s (Graph s, [STRef s (Graph s)])
+    spine' graph stack = do
+      g <- readSTRef graph
+      case g of
+        c@(Comb _)  -> return (c, stack)
+        n@(Num _)   -> return (n, stack)
+        (l :@: _r)  -> spine' l (graph : stack)
 
 step :: STRef s (Graph s) -> ST s ()
 step graph = do
-  (g, stack) <- spine graph []
+  (g, stack) <- spine graph
   case g of
-    (Comb k) -> apply k stack
+    (Comb k) -> reduce k stack
     _        -> return ()
 
 sourceToGraph :: String -> ST s (STRef s (Graph s))
@@ -99,9 +106,9 @@ sourceToGraph source =
 
 loop :: STRef s (Graph s) -> ST s (STRef s (Graph s))
 loop graph = do
-  spine1 <- spine graph []
+  spine1 <- spine graph
   step graph
-  spine2 <- spine graph []
+  spine2 <- spine graph
   g <- readSTRef graph
   case g of
     _lP :@: _rP -> if spine1 == spine2 then return graph else loop graph
@@ -112,45 +119,44 @@ run :: String -> String
 run source = runST $ do
   gP <- sourceToGraph source
   _  <- loop gP
-  g  <- readSTRef gP
-  toString g
+  toString gP
 
-apply :: Combinator -> [STRef s (Graph s)] -> ST s ()
-apply I (p : _) = do
+reduce :: Combinator -> [STRef s (Graph s)] -> ST s ()
+reduce I (p : _) = do
   (_ :@: xP) <- readSTRef p
   xVal <- readSTRef xP
   writeSTRef p xVal
-apply K (p1 : p2 : _) = do
+reduce K (p1 : p2 : _) = do
   (_ :@: xP) <- readSTRef p1
   xVal <- readSTRef xP
   writeSTRef p2 xVal
-apply S (p1 : p2 : p3 : _) = do
+reduce S (p1 : p2 : p3 : _) = do
   (_ :@: xP) <- readSTRef p1
   (_ :@: yP) <- readSTRef p2
   (_ :@: zP) <- readSTRef p3
   node1 <- newSTRef $ xP :@: zP
   node2 <- newSTRef $ yP :@: zP
   writeSTRef p3 (node1 :@: node2)
-apply B (p1 : p2 : p3 : _) = do
+reduce B (p1 : p2 : p3 : _) = do
   (_ :@: xP) <- readSTRef p1
   (_ :@: yP) <- readSTRef p2
   (_ :@: zP) <- readSTRef p3
   node1 <- newSTRef $ yP :@: zP
   writeSTRef p3 (xP :@: node1)
-apply C (p1 : p2 : p3 : _) = do
+reduce C (p1 : p2 : p3 : _) = do
   (_ :@: xP) <- readSTRef p1
   (_ :@: yP) <- readSTRef p2
   (_ :@: zP) <- readSTRef p3
   node1 <- newSTRef $ xP :@: zP
   writeSTRef p3 (node1 :@: yP)
-apply Y (p1 : _) = do
+reduce Y (p1 : _) = do
   (_yP :@: fP) <- readSTRef p1
   writeSTRef p1 (fP :@: p1)
-apply IF (p1 : p2 : p3 : _) = do
+reduce IF (p1 : p2 : p3 : _) = do
   (_ :@: testP) <- readSTRef p1
   (_ :@: xP) <- readSTRef p2
   (_ :@: yP) <- readSTRef p3
-  test <- (readSTRef <=< subEval) testP
+  test <- (readSTRef <=< strictReduce) testP
   thenPart <- readSTRef xP
   elsePart <- readSTRef yP
   case test of
@@ -160,32 +166,32 @@ apply IF (p1 : p2 : p3 : _) = do
       if n == 1
         then writeSTRef p3 thenPart
         else writeSTRef p3 elsePart
-apply ADD (p1 : p2 : _) = binaryMathOp (+) p1 p2
-apply MUL (p1 : p2 : _) = binaryMathOp (*) p1 p2
-apply DIV (p1 : p2 : _) = binaryMathOp div p1 p2
-apply SUB (p1 : p2 : _) = binaryMathOp (-) p1 p2
-apply REM (p1 : p2 : _) = binaryMathOp rem p1 p2
-apply SUB1 (p1 : _) = do
+reduce ADD (p1 : p2 : _) = binaryMathOp (+) p1 p2
+reduce MUL (p1 : p2 : _) = binaryMathOp (*) p1 p2
+reduce DIV (p1 : p2 : _) = binaryMathOp div p1 p2
+reduce SUB (p1 : p2 : _) = binaryMathOp (-) p1 p2
+reduce REM (p1 : p2 : _) = binaryMathOp rem p1 p2
+reduce SUB1 (p1 : _) = do
   (_ :@: xP) <- readSTRef p1
-  x <- subEval xP
+  x <- strictReduce xP
   (Num xVal) <- readSTRef x
   writeSTRef p1 (Num $ xVal - 1)
-apply EQL (p1 : p2 : _) = do
+reduce EQL (p1 : p2 : _) = do
   (_ :@: xP) <- readSTRef p1
   (_ :@: yP) <- readSTRef p2
-  (Num xVal) <- (readSTRef <=< subEval) xP
-  (Num yVal) <- (readSTRef <=< subEval) yP
+  (Num xVal) <- (readSTRef <=< strictReduce) xP
+  (Num yVal) <- (readSTRef <=< strictReduce) yP
   let result = if xVal == yVal then 1 else 0
   writeSTRef p2 (Num result)
-apply ZEROP (p1 : _) = do
+reduce ZEROP (p1 : _) = do
   (_ :@: xP) <- readSTRef p1
-  (Num xVal) <- (readSTRef <=< subEval) xP
+  (Num xVal) <- (readSTRef <=< strictReduce) xP
   let result = if xVal == 0 then 1 else 0
   writeSTRef p1 (Num result)
-apply _ _ = return ()
+reduce _ _ = return ()
 
-subEval :: STRef s (Graph s) -> ST s (STRef s (Graph s))
-subEval g = do
+strictReduce :: STRef s (Graph s) -> ST s (STRef s (Graph s))
+strictReduce g = do
   _ <- loop g
   return g
 
@@ -197,6 +203,6 @@ binaryMathOp ::
 binaryMathOp op p1 p2 = do
   (_ :@: xP) <- readSTRef p1
   (_ :@: yP) <- readSTRef p2
-  (Num xVal) <- (readSTRef <=< subEval) xP
-  (Num yVal) <- (readSTRef <=< subEval) yP
+  (Num xVal) <- (readSTRef <=< strictReduce) xP
+  (Num yVal) <- (readSTRef <=< strictReduce) yP
   writeSTRef p2 (Num $ xVal `op` yVal)
