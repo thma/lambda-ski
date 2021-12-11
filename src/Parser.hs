@@ -1,7 +1,8 @@
 module Parser
   ( Environment,
     Expr (..),
-    parseEnvironment,
+    parseEnvironmentEither,
+    parseEnvironment
   )
 where
 
@@ -65,5 +66,11 @@ source = catMaybes <$> many maybeLet
 ws :: ParsecT String u Identity ()
 ws = many (oneOf " \t") >> optional (try $ string "--" >> many (noneOf "\n"))
 
-parseEnvironment :: String -> Either ParseError Environment
-parseEnvironment s = parse source "" (s ++ "\n")
+parseEnvironmentEither :: String -> Either ParseError Environment
+parseEnvironmentEither s = parse source "" (s ++ "\n")
+
+parseEnvironment :: String -> Environment
+parseEnvironment source =
+  case parseEnvironmentEither source of
+    Left err  -> error $ show err
+    Right env -> env

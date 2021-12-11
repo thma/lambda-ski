@@ -1,11 +1,10 @@
 module GraphReductionSTRef
-  ( run,
+  ( 
     toString,
-    sourceToGraph,
     step,
     allocate,
     spine,
-    loop,
+    normalForm,
     Graph (..),
   )
 where
@@ -14,8 +13,8 @@ import           Control.Monad    (forM_, (<=<))
 import           Control.Monad.ST (ST, runST)
 import           Data.STRef       (STRef, modifySTRef, newSTRef, readSTRef,
                                    writeSTRef)
-import           LambdaToSKI      (compile, compileToSKI)
-import           Parser           (Expr (..), parseEnvironment)
+import           LambdaToSKI      (compile, abstractToSKI)
+import           Parser           (Expr (..))
 
 -- this just demonstrates the basic functiong of ST and STRef
 sumST :: Num a => [a] -> a
@@ -96,30 +95,17 @@ step graph = do
     (Comb k) -> reduce k stack
     _        -> return ()
 
-sourceToGraph :: String -> ST s (STRef s (Graph s))
-sourceToGraph source =
-  case parseEnvironment source of
-    Left err  -> error $ show err
-    Right env -> case compile env compileToSKI of
-      Left err      -> error $ show err
-      Right skiExpr -> allocate skiExpr
-
-loop :: STRef s (Graph s) -> ST s (STRef s (Graph s))
-loop graph = do
+normalForm :: STRef s (Graph s) -> ST s (STRef s (Graph s))
+normalForm graph = do
   spine1 <- spine graph
   step graph
   spine2 <- spine graph
   g <- readSTRef graph
   case g of
-    _lP :@: _rP -> if spine1 == spine2 then return graph else loop graph
+    _lP :@: _rP -> normalForm graph --if spine1 == spine2 then return graph else normalForm graph
     Comb _com   -> return graph
     Num _n      -> return graph
 
-run :: String -> String
-run source = runST $ do
-  gP <- sourceToGraph source
-  _  <- loop gP
-  toString gP
 
 reduce :: Combinator -> [STRef s (Graph s)] -> ST s ()
 reduce I (p : _) = do
@@ -156,7 +142,7 @@ reduce IF (p1 : p2 : p3 : _) = do
   (_ :@: testP) <- readSTRef p1
   (_ :@: xP) <- readSTRef p2
   (_ :@: yP) <- readSTRef p3
-  test <- (readSTRef <=< strictReduce) testP
+  test <- (readSTRef <=< normalForm) testP
   thenPart <- readSTRef xP
   elsePart <- readSTRef yP
   case test of
@@ -173,27 +159,27 @@ reduce SUB (p1 : p2 : _) = binaryMathOp (-) p1 p2
 reduce REM (p1 : p2 : _) = binaryMathOp rem p1 p2
 reduce SUB1 (p1 : _) = do
   (_ :@: xP) <- readSTRef p1
-  x <- strictReduce xP
+  x <- normalForm xP
   (Num xVal) <- readSTRef x
   writeSTRef p1 (Num $ xVal - 1)
 reduce EQL (p1 : p2 : _) = do
   (_ :@: xP) <- readSTRef p1
   (_ :@: yP) <- readSTRef p2
-  (Num xVal) <- (readSTRef <=< strictReduce) xP
-  (Num yVal) <- (readSTRef <=< strictReduce) yP
+  (Num xVal) <- (readSTRef <=< normalForm) xP
+  (Num yVal) <- (readSTRef <=< normalForm) yP
   let result = if xVal == yVal then 1 else 0
   writeSTRef p2 (Num result)
 reduce ZEROP (p1 : _) = do
   (_ :@: xP) <- readSTRef p1
-  (Num xVal) <- (readSTRef <=< strictReduce) xP
+  (Num xVal) <- (readSTRef <=< normalForm) xP
   let result = if xVal == 0 then 1 else 0
   writeSTRef p1 (Num result)
 reduce _ _ = return ()
 
-strictReduce :: STRef s (Graph s) -> ST s (STRef s (Graph s))
-strictReduce g = do
-  _ <- loop g
-  return g
+-- normalForm :: STRef s (Graph s) -> ST s (STRef s (Graph s))
+-- normalForm g = do
+--   _ <- normalForm g
+--   return g
 
 binaryMathOp ::
   (Integer -> Integer -> Integer) ->
@@ -203,6 +189,6 @@ binaryMathOp ::
 binaryMathOp op p1 p2 = do
   (_ :@: xP) <- readSTRef p1
   (_ :@: yP) <- readSTRef p2
-  (Num xVal) <- (readSTRef <=< strictReduce) xP
-  (Num yVal) <- (readSTRef <=< strictReduce) yP
+  (Num xVal) <- (readSTRef <=< normalForm) xP
+  (Num yVal) <- (readSTRef <=< normalForm) yP
   writeSTRef p2 (Num $ xVal `op` yVal)

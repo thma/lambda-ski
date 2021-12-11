@@ -1,23 +1,12 @@
 module Main where
 
-import           GraphReductionSTRef (run, allocate, toString, Graph, loop)
+import           GraphReductionSTRef (allocate, toString, Graph, normalForm)
 import           System.IO           (hSetEncoding, stdin, stdout, utf8)
 import Parser (parseEnvironment, Environment, Expr)
-import LambdaToSKI (compile, compileToSKI, compileToCCC)
+import LambdaToSKI (compile, abstractToSKI)
 import Data.STRef 
 import Control.Monad.ST 
 
-parseEnv :: String -> Environment
-parseEnv source =
-  case parseEnvironment source of
-    Left err  -> error $ show err
-    Right env -> env
-
-compileEnv :: Environment -> (Environment -> Expr -> Expr) -> Expr
-compileEnv env compileFun =
-  case compile env compileFun of
-    Left err      -> error $ show err
-    Right expr    -> expr
 
 printGraph :: ST s (STRef s (Graph s)) -> ST s String
 printGraph graph = do
@@ -27,21 +16,21 @@ printGraph graph = do
 reduceGraph :: ST s (STRef s (Graph s)) -> ST s (STRef s (Graph s))
 reduceGraph graph = do
   gP <- graph
-  loop gP
+  normalForm gP
 
 main :: IO ()
 main = do
-  hSetEncoding stdin utf8
-  hSetEncoding stdout utf8
+  hSetEncoding stdin utf8   -- this is required to handle UTF-8 characters like λ
+  hSetEncoding stdout utf8  -- this is required to handle UTF-8 characters like λ
   putStrLn "The sourcecode: "
   putStrLn testSource
 
-  let env = parseEnv testSource
+  let env = parseEnvironment testSource
   putStrLn "The parsed environment of named lambda expressions:"
   mapM_ print env
   putStrLn ""
 
-  let expr = compileEnv env compileToSKI
+  let expr = compile env abstractToSKI
   putStrLn "The main expression compiled to SICKYB combinator expressions:"
   print expr
   putStrLn ""
@@ -68,9 +57,26 @@ testSource =
 
   --"main = if (sub 3 2) (* 4 4) (+ 5 5)"
 
-  "Y = λf -> (λx -> x x)(λx -> f(x x)) \n"
-    ++ "fact = y(λf n. if (is0 n) 1 (* n (f (sub1 n)))) \n"
-    ++ "main = fact 100 \n"
+       "Y    = λf -> (λx -> x x)(λx -> f(x x)) \n"
+    ++ "fact = Y(λf n. if (is0 n) 1 (* n (f (sub1 n)))) \n"
+    ++ "main = fact 10 \n"
+
+  --    "isEven = \\n -> eq (rem n 2) 0 \n"
+  -- ++ "not    = \\b -> if (eq b 1) 0 1 \n"
+  -- ++ "isOdd  = \\n -> not (isEven n) \n"
+  -- ++ "main   = isOdd 23333 \n"  
+
+  --    "isEven = λn -> or (is0 n) (isOdd (sub1 n)) \n"
+  -- ++ "isOdd  = λn -> and (not (is0 n)) (isEven (sub1 n)) \n"
+  -- ++ "not    = \\b -> if (eq b 1) 0 1 \n"
+  -- ++ "or     = λx y -> if (eq x 1) 1 (if (eq y 1) 1 0) \n"  
+  -- ++ "and    = λx y -> if (eq x 1) (if (eq y 1) 1 0) 0 \n"
+  -- ++ "main   = isEven 0 \n"  
+
+  {--
+       (is-even? (lambda (n) (or (eq 0 n) (is-odd? (- n 1)))))
+     (is-odd? (lambda (n) (and (not (eq 0 n)) (is-even? (- n 1)))))
+  --}
 
 --testSource =
 -- "add = λx y -> + x y\n" ++

@@ -1,8 +1,9 @@
 module LambdaToSKI
 (
-    compile
-  , compileToSKI
-  , compileToCCC
+    compileEither
+  , compile
+  , abstractToSKI
+  , abstractToCCC
 )
 where
 
@@ -65,16 +66,22 @@ ropt expr =
           (x :@ y) -> ropt $ ropt x :@ ropt y
           _        -> ropt expr'
 
-compile :: Environment-> (Environment -> Expr -> Expr) -> Either Error Expr
-compile env compileFun = case lookup "main" env of
+compileEither :: Environment-> (Environment -> Expr -> Expr) -> Either Error Expr
+compileEither env abstractFun = case lookup "main" env of
   Nothing -> Left $ "main function missing in " ++ show env
-  Just main -> Right $ compileFun env main
+  Just main -> Right $ abstractFun env main
 
-compileToSKI :: Environment -> Expr -> Expr
-compileToSKI main = ropt . babs main
+compile :: Environment -> (Environment -> Expr -> Expr) -> Expr
+compile env abstractFun =
+  case compileEither env abstractFun of
+    Left err      -> error $ show err
+    Right expr    -> expr  
 
-compileToCCC :: Environment -> Expr -> Expr
-compileToCCC = cccAbs
+abstractToSKI :: Environment -> Expr -> Expr
+abstractToSKI main = ropt . babs main
+
+abstractToCCC :: Environment -> Expr -> Expr
+abstractToCCC = cccAbs
 
 cccAbs :: Environment -> Expr -> Expr
 cccAbs env (Lam x e)
