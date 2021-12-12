@@ -47,7 +47,7 @@ main = fact 10
 ```
 As you can see it's possible to use classical λ-calculus notation `λx . x x` as well as Haskell syntax: `\x -> x x`. It's also possible to freely mix both styles.
 
-λ-expressions can be assigned to names in a top-level environment by using the `=` sign. those names may be refrred to in other λ-expressions.
+λ-expressions can be assigned to names in a top-level environment by using the `=` sign. those names may be referred to in other λ-expressions.
 As of now recursive (also mutually recursive) references are not supported.
 
 The `main` expression has a special meaning; it is interpreted as the entry point to a program.
@@ -77,19 +77,25 @@ type Environment = [(String, Expr)]
 
 There is not much to see in [this area](https://github.com/thma/lambda-ski/blob/main/src/Parser.hs). It's just a simple Parsec based parser. Most of the code was taken from [A Combinatory Compiler](https://crypto.stanford.edu/~blynn/lambda/sk.html). I just added the parsing of Integers.
 
-The parser module exports to function `parseEnvironmentEither` and `parseEnvironment`. The former is a total function returning an `Either ParseError Environment` whereas the latter simply returns an `Environment` but may throw run time errors.
+The parser module exports to function `parseEnvironmentEither` and `parseEnvironment`. The former is a total function returning an Either: `parseEnvironmentEither :: String -> Either ParseError Environment`, whereas the latter simply returns an `Environment` but may throw run-time errors.
 
-https://github.com/thma/lambda-ski/blob/main/app/Main.hs
+The following [snippet](https://github.com/thma/lambda-ski/blob/main/app/Main.hs) demonstrates how a program is parsed into an Environment:
 
 
 ```haskell
+testSource :: String
+testSource =
+       "Y    = λf -> (λx -> x x)(λx -> f(x x)) \n"
+    ++ "fact = Y(λf n -> if (is0 n) 1 (* n (f (sub1 n)))) \n"
+    ++ "main = fact 10 \n"
+
 main = do
   let env = parseEnvironment testSource
   mapM_ print env
   putStrLn ""
 ```
 
-results in the following output:
+This code results in the following output, which shows all `(String, Expr)` tuples in the environment:
 
 ```haskell
 ("Y",   Lam "f" (Lam "x" (Var "x" :@ Var "x") :@ Lam "x" (Var "f" :@ (Var "x" :@ Var "x"))))
@@ -99,6 +105,23 @@ results in the following output:
 ```
 
 ## Bracket abstraction
+
+### Motivation
+
+Of course it is possible to write interpreters that evaluate these λ-expression to normalform.
+This is what any Lisp or Scheme eval/apply interpreter does at its core [(See a tiny example here)](http://www.sicpdistilled.com/section/4.1/).
+
+One of the most problematic areas of these interpreters is the handling of variables. In order to provide static binding you will need closures that captures the current environment of variable bindings and thread them through the whole interpreter execution.
+
+Language implemetors hav thus experimented with many ways to tackle this issue. One of the most influential ideas was to completely get rid of variables by abstracting them. 
+
+The earliest version of this approach was [the SKI combinator calculus](https://en.wikipedia.org/wiki/SKI_combinator_calculus) invented by Haskell Curry and Moses Schönfinkel.
+
+## The basic abstraction rules
+
+
+
+<img src="https://latex.codecogs.com/gif.latex?\begin{array}{rcl}&space;\left&space;\lceil&space;\lambda&space;x.x&space;\right&space;\rceil&space;&&space;=&space;&&space;I&space;\\&space;\left&space;\lceil&space;\lambda&space;x.y&space;\right&space;\rceil&space;&&space;=&space;&&space;K&space;y&space;\\&space;\left&space;\lceil&space;\lambda&space;x.M&space;N&space;\right&space;\rceil&space;&&space;=&space;&&space;S&space;\left&space;\lceil&space;\lambda&space;x.M&space;\right&space;\rceil&space;\left&space;\lceil&space;\lambda&space;x.N&space;\right&space;\rceil&space;\end{array}" title="\begin{array}{rcl} \left \lceil \lambda x.x \right \rceil & = & I \\ \left \lceil \lambda x.y \right \rceil & = & K y \\ \left \lceil \lambda x.M N \right \rceil & = & S \left \lceil \lambda x.M \right \rceil \left \lceil \lambda x.N \right \rceil \end{array}" />
 
 ### Optimization
 
