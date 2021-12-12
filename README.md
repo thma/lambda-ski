@@ -119,6 +119,13 @@ The earliest version of this approach was [the SKI combinator calculus](https://
 
 ## The basic abstraction rules
 
+Let's have a look at some simple λ-terms to get behind the idea of bracket abstraction. 
+Let's start with `λx.x`. When we apply this anonymous function to an arbitrary argument it will just return that argument: `(λx.x) Z = Z`. So this term represents the identity function. 
+
+```haskell
+id x = x
+```
+
 
 
 <img src="https://latex.codecogs.com/gif.latex?\begin{array}{rcl}&space;\left&space;\lceil&space;\lambda&space;x.x&space;\right&space;\rceil&space;&&space;=&space;&&space;I&space;\\&space;\left&space;\lceil&space;\lambda&space;x.y&space;\right&space;\rceil&space;&&space;=&space;&&space;K&space;y&space;\\&space;\left&space;\lceil&space;\lambda&space;x.M&space;N&space;\right&space;\rceil&space;&&space;=&space;&&space;S&space;\left&space;\lceil&space;\lambda&space;x.M&space;\right&space;\rceil&space;\left&space;\lceil&space;\lambda&space;x.N&space;\right&space;\rceil&space;\end{array}" title="\begin{array}{rcl} \left \lceil \lambda x.x \right \rceil & = & I \\ \left \lceil \lambda x.y \right \rceil & = & K y \\ \left \lceil \lambda x.M N \right \rceil & = & S \left \lceil \lambda x.M \right \rceil \left \lceil \lambda x.N \right \rceil \end{array}" />
