@@ -117,18 +117,73 @@ Language implemetors hav thus experimented with many ways to tackle this issue. 
 
 The earliest version of this approach was [the SKI combinator calculus](https://en.wikipedia.org/wiki/SKI_combinator_calculus) invented by Haskell Curry and Moses Schönfinkel.
 
+A λ-term that does not contain any free variables is said to be closed. Closed lambda terms are also called *combinators*. 
+
+Schönfinkel and Curry found out that any closed λ-term can be rewritten in terms of three basic combinators I, K and S (in fact only *K* and *S* are essential, as *I* can be expressed as SKK):
+
+<center>
+<img src="https://latex.codecogs.com/gif.latex?\begin{array}{rcl}&space;I&space;&&space;=&space;&&space;\lambda&space;x.x&space;\\&space;K&space;&&space;=&space;&&space;\lambda&space;x.&space;\lambda&space;y.x&space;\\&space;S&space;&&space;=&space;&&space;\lambda&space;f.(\lambda&space;g.(\lambda&space;x.fx(gx)))&space;\end{array}" title="\begin{array}{rcl} I & = & \lambda x.x \\ K & = & \lambda x. \lambda y.x \\ S & = & \lambda f.(\lambda g.(\lambda x.fx(gx))) \end{array}" />
+</center>
+
+In Haskell these combinators can simply be defined as:
+
+```haskell
+i x = x
+k x y = x
+s f g x = f x (g x)
+```
+
+
+
 ## The basic abstraction rules
 
+The idea of bracket abstraction is to rewrite any closed λ-term in terms of I, K and S.
+This recursive transformation is defined by the following equations:
+
+<center>
+<img src="https://latex.codecogs.com/gif.latex?\begin{array}{rcl}&space;\left&space;\lceil&space;\lambda&space;x.x&space;\right&space;\rceil&space;&&space;=&space;&&space;I&space;\\&space;\left&space;\lceil&space;\lambda&space;x.y&space;\right&space;\rceil&space;&&space;=&space;&&space;K&space;y&space;\\&space;\left&space;\lceil&space;\lambda&space;x.M&space;N&space;\right&space;\rceil&space;&&space;=&space;&&space;S&space;\left&space;\lceil&space;\lambda&space;x.M&space;\right&space;\rceil&space;\left&space;\lceil&space;\lambda&space;x.N&space;\right&space;\rceil&space;\end{array}" title="\begin{array}{rcl} \left \lceil \lambda x.x \right \rceil & = & I \\ \left \lceil \lambda x.y \right \rceil & = & K y \\ \left \lceil \lambda x.M N \right \rceil & = & S \left \lceil \lambda x.M \right \rceil \left \lceil \lambda x.N \right \rceil \end{array}" />
+</center>
+
+This can be implemented in Haskell as follows:
+
+```haskell
+-- | perform bracket abstraction on a lambda term and resolve free variables in the environment.
+babs :: Environment -> Expr -> Expr
+babs env (Lam x e)
+  -- this implements the three equations for bracket abstraction given above
+  | Var y <- t, x == y     = Var "i"
+  | x `notElem` fv [] t    = Var "k" :@ t
+  | m :@ n <- t            = Var "s" :@ babs env (Lam x m) :@ babs env (Lam x n)
+  where t = babs env e
+babs env (Var s)
+  -- this tries to resolve free variables in the environment env
+  | Just t <- lookup s env = babs env t
+  | otherwise              = Var s 
+babs env  (m :@ n)         = babs env m :@ babs env n
+babs _env x                = x
+
+-- | compute the list of free variables of a lambda expression
+fv :: [String] -> Expr -> [String]
+fv vs (Var s) | s `elem` vs = []
+              | otherwise   = [s]
+fv vs (x :@ y)              = fv vs x `union` fv vs y
+fv vs (Lam s f)             = fv (s:vs) f
+fv vs _                     = vs
+```
+
+<!-- 
+An expression that contains no free variables is said to be closed. Closed lambda expressions are also known as combinators
+
+closed expressions 
+
 Let's have a look at some simple λ-terms to get behind the idea of bracket abstraction. 
-Let's start with `λx.x`. When we apply this anonymous function to an arbitrary argument it will just return that argument: `(λx.x) Z = Z`. So this term represents the identity function. 
+Let's start with `λx.x`. When we apply this anonymous function to an arbitrary argument it will just return that argument: `(λx.x) Z = Z`. So this term represents the *identity* function, which is defined in Haskell as:
 
 ```haskell
 id x = x
 ```
 
-
-
-<img src="https://latex.codecogs.com/gif.latex?\begin{array}{rcl}&space;\left&space;\lceil&space;\lambda&space;x.x&space;\right&space;\rceil&space;&&space;=&space;&&space;I&space;\\&space;\left&space;\lceil&space;\lambda&space;x.y&space;\right&space;\rceil&space;&&space;=&space;&&space;K&space;y&space;\\&space;\left&space;\lceil&space;\lambda&space;x.M&space;N&space;\right&space;\rceil&space;&&space;=&space;&&space;S&space;\left&space;\lceil&space;\lambda&space;x.M&space;\right&space;\rceil&space;\left&space;\lceil&space;\lambda&space;x.N&space;\right&space;\rceil&space;\end{array}" title="\begin{array}{rcl} \left \lceil \lambda x.x \right \rceil & = & I \\ \left \lceil \lambda x.y \right \rceil & = & K y \\ \left \lceil \lambda x.M N \right \rceil & = & S \left \lceil \lambda x.M \right \rceil \left \lceil \lambda x.N \right \rceil \end{array}" />
+-->
 
 ### Optimization
 
