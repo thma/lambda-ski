@@ -4,6 +4,7 @@ module LambdaToSKI
   , compile
   , abstractToSKI
   , abstractToCCC
+  , babs
 )
 where
 
@@ -14,16 +15,16 @@ type Error = String
 
 babs :: Environment -> Expr -> Expr
 babs env (Lam x e)
-  | Var "i" :@ _x <- t                           = t
-  | Var "s" :@ Var"k" :@ _ <- t                  = Var "s" :@ Var "k"
+--  | Var "i" :@ _x <- t                           = t
+--  | Var "s" :@ Var"k" :@ _ <- t                  = Var "s" :@ Var "k"
   | x `notElem` fv [] t                          = Var "k" :@ t
   | Var y <- t, x == y                           = Var "i"
-  | m :@ Var y <- t, x == y, x `notElem` fv [] m = m
-  | Var y :@ m :@ Var z <- t, x == y, x == z     = babs env $ Lam x $ Var "s" :@ Var "s" :@ Var "k" :@ Var x :@ m
-  | m :@ (n :@ l) <- t, isComb m, isComb n       = babs env $ Lam x $ Var "s" :@ Lam x m :@ n :@ l
-  | (m :@ n) :@ l <- t, isComb m, isComb l       = babs env $ Lam x $ Var "s" :@ m :@ Lam x l :@ n
-  | (m :@ l) :@ (n :@ l') <- t,
-     l `noLamEq` l', isComb m, isComb n          = babs env $ Lam x $ Var "s" :@ m :@ n :@ l
+--  | m :@ Var y <- t, x == y, x `notElem` fv [] m = m
+--  | Var y :@ m :@ Var z <- t, x == y, x == z     = babs env $ Lam x $ Var "s" :@ Var "s" :@ Var "k" :@ Var x :@ m
+--  | m :@ (n :@ l) <- t, isComb m, isComb n       = babs env $ Lam x $ Var "s" :@ Lam x m :@ n :@ l
+--  | (m :@ n) :@ l <- t, isComb m, isComb l       = babs env $ Lam x $ Var "s" :@ m :@ Lam x l :@ n
+--  | (m :@ l) :@ (n :@ l') <- t,
+--     l `noLamEq` l', isComb m, isComb n          = babs env $ Lam x $ Var "s" :@ m :@ n :@ l
   | m :@ n <- t                                  = Var "s" :@ babs env (Lam x m) :@ babs env (Lam x n)
   where t = babs env e
 babs env (Var s)

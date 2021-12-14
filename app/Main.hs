@@ -3,7 +3,7 @@ module Main where
 import           GraphReductionSTRef (allocate, toString, Graph, normalForm)
 import           System.IO           (hSetEncoding, stdin, stdout, utf8)
 import Parser (parseEnvironment, Environment, Expr)
-import LambdaToSKI (compile, abstractToSKI)
+import LambdaToSKI (compile, abstractToSKI, babs)
 import Data.STRef 
 import Control.Monad.ST 
 
@@ -30,7 +30,7 @@ main = do
   mapM_ print env
   putStrLn ""
 
-  let expr = compile env abstractToSKI
+  let expr = compile env babs --abstractToSKI
   putStrLn "The main expression compiled to SICKYB combinator expressions:"
   print expr
   putStrLn ""
@@ -46,20 +46,16 @@ main = do
 
 testSource :: String
 testSource =
-  --     "f = \\x y -> + x 3 \n"
-  --  ++ "g = λx. * x 7 \n"
-  --  ++ "h = λx -> (compose f g) x \n"
-  --  ++ "compose = λf g x. f (g x) \n"
-  --  ++ "main = h 5"
+    "main = (λx -> (+ x 4)) 5"
 
   --   "main = c i 2 (+ 1)"
   --   "main = s k i 4 \n"
 
   --"main = if (sub 3 2) (* 4 4) (+ 5 5)"
 
-       "Y    = λf -> (λx -> x x)(λx -> f(x x)) \n"
-    ++ "fact = Y(λf n. if (is0 n) 1 (* n (f (sub1 n)))) \n"
-    ++ "main = fact 10 \n"
+    --    "Y    = λf -> (λx -> x x)(λx -> f(x x)) \n"
+    -- ++ "fact = Y(λf n. if (is0 n) 1 (* n (f (sub1 n)))) \n"
+    -- ++ "main = fact 10 \n"
 
   --    "isEven = \\n -> eq (rem n 2) 0 \n"
   -- ++ "not    = \\b -> if (eq b 1) 0 1 \n"

@@ -171,19 +171,15 @@ fv vs (Lam s f)             = fv (s:vs) f
 fv vs _                     = vs
 ```
 
-<!-- 
-An expression that contains no free variables is said to be closed. Closed lambda expressions are also known as combinators
-
-closed expressions 
-
-Let's have a look at some simple λ-terms to get behind the idea of bracket abstraction. 
-Let's start with `λx.x`. When we apply this anonymous function to an arbitrary argument it will just return that argument: `(λx.x) Z = Z`. So this term represents the *identity* function, which is defined in Haskell as:
-
 ```haskell
-id x = x
-```
+(((Var "s" :@ (Var "k" :@ ((Var "s" :@ Var "i") :@ Var "i"))) :@ ((Var "s" :@ ((Var "s" :@ (Var "k" :@ Var "s")) :@ ((Var "s" :@ (Var "k" :@ Var "k")) :@ Var "i"))) :@ (Var "k" :@ ((Var "s" :@ Var "i") :@ Var "i")))) :@ ((Var "s" :@ (Var "k" :@ (Var "s" :@ ((Var "s" :@ ((Var "s" :@ (Var "k" :@ Var "if")) :@ ((Var "s" :@ (Var "k" :@ Var "is0")) :@ Var "i"))) :@ (Var "k" :@ Int 1))))) :@ ((Var "s" :@ (Var "k" :@ (Var "s" :@ ((Var "s" :@ (Var "k" :@ Var "*")) :@ Var "i")))) :@ ((Var "s" :@ ((Var "s" :@ (Var "k" :@ Var "s")) :@ ((Var "s" :@ (Var "k" :@ Var "k")) :@ Var "i"))) :@ (Var "k" :@ ((Var "s" :@ (Var "k" :@ Var "sub1")) :@ Var "i")))))) :@ Int 10
 
--->
+
+
+main = (λx -> (+ x 4)) 5
+
+((Var "s" :@ ((Var "s" :@ (Var "k" :@ Var "+")) :@ Var "i")) :@ (Var "k" :@ Int 4)) :@ Int 5
+```
 
 ### Optimization
 

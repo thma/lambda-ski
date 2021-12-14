@@ -1,0 +1,6 @@
+\begin{array}{rcl}
+\left \lceil \lambda x.x \right \rceil & = & I \\
+\left \lceil \lambda x.y \right \rceil & = & K y \\
+\left \lceil \lambda x.M N \right \rceil & = & S \left \lceil \lambda x.M \right \rceil \left \lceil \lambda x.N \right \rceil
+\end{array}
+
