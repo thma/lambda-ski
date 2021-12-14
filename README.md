@@ -178,7 +178,13 @@ fv vs _                     = vs
 
 main = (λx -> (+ x 4)) 5
 
+("main",Lam "x" ((Var "+" :@ Var "x") :@ Int 4) :@ Int 5)
+
 ((Var "s" :@ ((Var "s" :@ (Var "k" :@ Var "+")) :@ Var "i")) :@ (Var "k" :@ Int 4)) :@ Int 5
+
+after optimization:
+
+((Var "c" :@ ((Var "b" :@ Var "+") :@ Var "i")) :@ Int 4) :@ Int 5
 ```
 
 ### Optimization

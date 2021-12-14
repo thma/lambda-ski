@@ -30,7 +30,7 @@ main = do
   mapM_ print env
   putStrLn ""
 
-  let expr = compile env babs --abstractToSKI
+  let expr = compile env abstractToSKI
   putStrLn "The main expression compiled to SICKYB combinator expressions:"
   print expr
   putStrLn ""
