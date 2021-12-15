@@ -5,6 +5,7 @@ module LambdaToSKI
   , abstractToSKI
   , abstractToCCC
   , babs
+  , ropt
 )
 where
 

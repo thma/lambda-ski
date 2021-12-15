@@ -171,23 +171,67 @@ fv vs (Lam s f)             = fv (s:vs) f
 fv vs _                     = vs
 ```
 
+Let's have a look at a simple example. first we parse a simple expression into a lambda-term:
+
 ```haskell
-(((Var "s" :@ (Var "k" :@ ((Var "s" :@ Var "i") :@ Var "i"))) :@ ((Var "s" :@ ((Var "s" :@ (Var "k" :@ Var "s")) :@ ((Var "s" :@ (Var "k" :@ Var "k")) :@ Var "i"))) :@ (Var "k" :@ ((Var "s" :@ Var "i") :@ Var "i")))) :@ ((Var "s" :@ (Var "k" :@ (Var "s" :@ ((Var "s" :@ ((Var "s" :@ (Var "k" :@ Var "if")) :@ ((Var "s" :@ (Var "k" :@ Var "is0")) :@ Var "i"))) :@ (Var "k" :@ Int 1))))) :@ ((Var "s" :@ (Var "k" :@ (Var "s" :@ ((Var "s" :@ (Var "k" :@ Var "*")) :@ Var "i")))) :@ ((Var "s" :@ ((Var "s" :@ (Var "k" :@ Var "s")) :@ ((Var "s" :@ (Var "k" :@ Var "k")) :@ Var "i"))) :@ (Var "k" :@ ((Var "s" :@ (Var "k" :@ Var "sub1")) :@ Var "i")))))) :@ Int 10
+ghci> env = parseEnvironment "main = (λx -> (+ x 4)) 5 \n"
+ghci> env
+[("main",Lam "x" ((Var "+" :@ Var "x") :@ Int 4) :@ Int 5)]
+```
 
+Next we apply bracket abstraction:
 
-
-main = (λx -> (+ x 4)) 5
-
-("main",Lam "x" ((Var "+" :@ Var "x") :@ Int 4) :@ Int 5)
-
+```
+ghci> skiExpr = babs env (snd . head $ env)
+ghci> skiExpr
 ((Var "s" :@ ((Var "s" :@ (Var "k" :@ Var "+")) :@ Var "i")) :@ (Var "k" :@ Int 4)) :@ Int 5
+```
 
-after optimization:
+The result of bracket abstraction is still a lambda-term, but one where all `Lam`-expression have been eliminated.
 
+### Optimization
+
+Even from this simple example it is obvious that the SKI-combinator terms become larger than the original expressions. This will be an impediment to efficient implementation. So many different approaches have been conceived to mitigate this issue. 
+
+The earliest solution, already suggested by Schönfinkel, is to introduce additional combinators B and C that cover specific patterns in the source code. Here are the reduction rules for B and C.
+
+```haskell
+C f g x = ((f x) g)
+B f g x = (f (g x))
+```
+
+We could extend `babs` to cover B and C. But the most common way is to run a second optimization pass over the SKI-expression.
+
+Here is is a simple example of such an optimization:
+
+```haskell
+opt :: Expr -> Expr
+opt (Var "i" :@ n@(Int _n))                           = n
+opt ((Var "s" :@ (Var "k" :@ e1)) :@ (Var "k" :@ e2)) = Var "k" :@ (e1 :@ e2)
+opt ((Var "s" :@ e1) :@ (Var "k" :@ e2))              = (Var "c" :@ e1) :@ e2
+opt ((Var "s" :@ (Var "k" :@ e1)) :@ e2)              = (Var "b" :@ e1) :@ e2
+opt (x :@ y)                                          = opt x :@ opt y
+opt x                                                 = x
+
+ropt :: Expr -> Expr
+ropt expr =
+  let expr' = opt expr
+  in  if expr' == expr
+        then expr
+        else case expr' of
+          (x :@ y) -> ropt $ ropt x :@ ropt y
+          _        -> ropt expr'
+```
+
+Let's try this out:
+
+```haskell
+ghci> ropt skiExpr
 ((Var "c" :@ ((Var "b" :@ Var "+") :@ Var "i")) :@ Int 4) :@ Int 5
 ```
 
-### Optimization
+This looks much better than before. See [this project for a more in depth coverage of optimization techniques](https://crypto.stanford.edu/~blynn/lambda/logski.html)
+
 
 ## Allocating a Graph with mutable references
 

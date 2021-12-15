@@ -3,7 +3,7 @@ module Main where
 import           GraphReductionSTRef (allocate, toString, Graph, normalForm)
 import           System.IO           (hSetEncoding, stdin, stdout, utf8)
 import Parser (parseEnvironment, Environment, Expr)
-import LambdaToSKI (compile, abstractToSKI, babs)
+import LambdaToSKI (compile, abstractToSKI, babs, ropt)
 import Data.STRef 
 import Control.Monad.ST 
 
