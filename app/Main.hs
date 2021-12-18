@@ -1,11 +1,12 @@
 module Main where
 
-import           GraphReductionSTRef (allocate, toString, Graph, normalForm)
+import           GraphReductionSTRef -- (allocate, toString, Graph, step, normalForm, nf)
 import           System.IO           (hSetEncoding, stdin, stdout, utf8)
 import Parser (parseEnvironment, Environment, Expr)
-import LambdaToSKI (compile, abstractToSKI, babs, ropt)
+import LambdaToSKI -- (compile, abstractToSKI, babs, babs0, ropt)
 import Data.STRef 
 import Control.Monad.ST 
+import GraphReductionSTRef (mToString)
 
 
 printGraph :: ST s (STRef s (Graph s)) -> ST s String
@@ -46,16 +47,16 @@ main = do
 
 testSource :: String
 testSource =
-    "main = (λx -> (+ x 4)) 5"
-
+  --  "main = (λx -> (+ x 4)) 5"
+  --"main = (λx -> (+ 1 x)) 2"
   --   "main = c i 2 (+ 1)"
   --   "main = s k i 4 \n"
 
   --"main = if (sub 3 2) (* 4 4) (+ 5 5)"
 
-    --    "Y    = λf -> (λx -> x x)(λx -> f(x x)) \n"
-    -- ++ "fact = Y(λf n. if (is0 n) 1 (* n (f (sub1 n)))) \n"
-    -- ++ "main = fact 10 \n"
+       "Y    = λf -> (λx -> x x)(λx -> f(x x)) \n"
+    ++ "fact = Y(λf n. if (is0 n) 1 (* n (f (sub1 n)))) \n"
+    ++ "main = fact 10 \n"
 
   --    "isEven = \\n -> eq (rem n 2) 0 \n"
   -- ++ "not    = \\b -> if (eq b 1) 0 1 \n"
@@ -91,3 +92,14 @@ testSource =
 -- "Y = λf -> (λx -> x x)(λx -> f(x x))\n" ++
 -- "fact = Y(λf n -> (is0 n) one (mul n (f (pred n))))\n" ++
 -- "main = fact one \n" -- (succ (succ (succ one)))  -- Compute 4!\n"
+
+env = parseEnvironment "main = (λx -> + 4 x) 5\n"
+skiExpr = babs0 env (snd . head $ env)
+optExpr = ropt skiExpr
+graph = allocate optExpr
+
+str = runST $ mToString graph
+
+reduce gr = do 
+  g <- gr
+  nf g

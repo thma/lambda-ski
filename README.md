@@ -147,20 +147,18 @@ This recursive transformation is defined by the following equations:
 This can be implemented in Haskell as follows:
 
 ```haskell
--- | perform bracket abstraction on a lambda term and resolve free variables in the environment.
-babs :: Environment -> Expr -> Expr
-babs env (Lam x e)
-  -- this implements the three equations for bracket abstraction given above
+-- | most basic bracket abstraction (plus resolution of free variables in the environment).
+babs0 :: Environment -> Expr -> Expr
+babs0 env (Lam x e) -- this clause implements the three basic equations for bracket abstraction
   | Var y <- t, x == y     = Var "i"
   | x `notElem` fv [] t    = Var "k" :@ t
-  | m :@ n <- t            = Var "s" :@ babs env (Lam x m) :@ babs env (Lam x n)
-  where t = babs env e
-babs env (Var s)
-  -- this tries to resolve free variables in the environment env
-  | Just t <- lookup s env = babs env t
-  | otherwise              = Var s 
-babs env  (m :@ n)         = babs env m :@ babs env n
-babs _env x                = x
+  | m :@ n <- t            = Var "s" :@ babs0 env (Lam x m) :@ babs0 env (Lam x n)
+  where t = babs0 env e
+babs0 env (Var s) -- this clause resolves free variables by looking them up in the environment env
+  | Just t <- lookup s env = babs0 env t
+  | otherwise              = Var s
+babs0 env  (m :@ n)        = babs0 env m :@ babs0 env n  -- this clause recurses into applications
+babs0 _env x               = x                           -- returns anything else unchanged
 
 -- | compute the list of free variables of a lambda expression
 fv :: [String] -> Expr -> [String]
@@ -174,9 +172,9 @@ fv vs _                     = vs
 Let's have a look at a simple example. first we parse a simple expression into a lambda-term:
 
 ```haskell
-ghci> env = parseEnvironment "main = (λx -> (+ x 4)) 5 \n"
+ghci> env = parseEnvironment "main = (λx -> + 4 x) 5\n"
 ghci> env
-[("main",Lam "x" ((Var "+" :@ Var "x") :@ Int 4) :@ Int 5)]
+[("main",Lam "x" ((Var "+" :@ Int 4) :@ Var "x") :@ Int 5)]
 ```
 
 Next we apply bracket abstraction:
@@ -184,7 +182,7 @@ Next we apply bracket abstraction:
 ```
 ghci> skiExpr = babs env (snd . head $ env)
 ghci> skiExpr
-((Var "s" :@ ((Var "s" :@ (Var "k" :@ Var "+")) :@ Var "i")) :@ (Var "k" :@ Int 4)) :@ Int 5
+((Var "s" :@ (Var "k" :@ (Var "+" :@ Int 4))) :@ Var "i") :@ Int 5
 ```
 
 The result of bracket abstraction is still a lambda-term, but one where all `Lam`-expression have been eliminated.
@@ -226,8 +224,9 @@ ropt expr =
 Let's try this out:
 
 ```haskell
-ghci> ropt skiExpr
-((Var "c" :@ ((Var "b" :@ Var "+") :@ Var "i")) :@ Int 4) :@ Int 5
+ghci> optExpr = ropt skiExpr
+ghci> optEpr
+((Var "b" :@ (Var "+" :@ Int 4)) :@ Var "i") :@ Int 5
 ```
 
 This looks much better than before. See [this project for a more in depth coverage of optimization techniques](https://crypto.stanford.edu/~blynn/lambda/logski.html)

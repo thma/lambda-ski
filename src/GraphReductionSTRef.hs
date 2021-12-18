@@ -1,15 +1,17 @@
 module GraphReductionSTRef
   ( 
     toString,
+    mToString,
     step,
     allocate,
     spine,
     normalForm,
+    nf,
     Graph (..),
   )
 where
 
-import           Control.Monad    (forM_, (<=<))
+import           Control.Monad    --(forM_, (<=<), liftM)
 import           Control.Monad.ST (ST, runST)
 import           Data.STRef       (STRef, modifySTRef, newSTRef, readSTRef,
                                    writeSTRef)
@@ -33,6 +35,22 @@ data Graph s
   | Num Integer
   deriving (Eq)
 
+
+copy :: STRef s (Graph s) -> ST s (STRef s (Graph s))
+copy graph = do
+  g <- readSTRef graph
+  copy' g where
+    copy' (Comb c) = newSTRef (Comb c)
+    copy' (Num n)  = newSTRef (Num n)
+    copy' (lP :@: rP) = do
+      lG <- readSTRef lP
+      rG <- readSTRef rP
+      lP' <- newSTRef lG
+      rP' <- newSTRef rG
+      newSTRef (lP' :@: rP') 
+
+
+
 toString :: STRef s (Graph s) -> ST s String
 toString graph = do
   g <- readSTRef graph
@@ -45,6 +63,10 @@ toString graph = do
       lStr <- toString' lG
       rStr <- toString' rG
       return $ "(" ++ lStr ++ " :@: " ++ rStr ++ ")"
+
+mToString :: ST s (STRef s (Graph s)) -> ST s String
+mToString g = toString =<< g     
+ 
 
 data Combinator = I | K | S | B | C | Y | P | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | ZEROP | IF
   deriving (Eq, Show)
@@ -97,15 +119,29 @@ step graph = do
 
 normalForm :: STRef s (Graph s) -> ST s (STRef s (Graph s))
 normalForm graph = do
-  spine1 <- spine graph
+  before <- toString graph
   step graph
-  spine2 <- spine graph
+  after <- toString graph
   g <- readSTRef graph
   case g of
-    _lP :@: _rP -> normalForm graph --if spine1 == spine2 then return graph else normalForm graph
+    _lP :@: _rP -> if before == after then return graph else normalForm graph
     Comb _com   -> return graph
     Num _n      -> return graph
 
+nf :: STRef s (Graph s) -> ST s [String]
+nf g = nf' g []
+
+nf' :: STRef s (Graph s) -> [String] -> ST s [String]
+nf' graph l = do
+  before <- toString graph
+  step graph
+  after <- toString graph
+  let steplist = l ++ [after] 
+  g <- readSTRef graph
+  case g of
+    _lP :@: _rP -> if before == after then return steplist else nf' graph steplist
+    Comb _com   -> return steplist
+    Num _n      -> return steplist
 
 reduce :: Combinator -> [STRef s (Graph s)] -> ST s ()
 reduce I (p : _) = do
