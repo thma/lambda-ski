@@ -1,4 +1,4 @@
-module GraphReductionSTRef
+module GraphReduction
   ( 
     toString,
     mToString,
@@ -119,12 +119,12 @@ step graph = do
 
 normalForm :: STRef s (Graph s) -> ST s (STRef s (Graph s))
 normalForm graph = do
-  before <- toString graph
+  before <- readSTRef graph
   step graph
-  after <- toString graph
+  after <- readSTRef graph
   g <- readSTRef graph
   case g of
-    _lP :@: _rP -> if before == after then return graph else normalForm graph
+    _lP :@: _rP -> normalForm graph -- if before == after then return graph else normalForm graph
     Comb _com   -> return graph
     Num _n      -> return graph
 

@@ -1,12 +1,13 @@
 module Main where
 
-import           GraphReductionSTRef -- (allocate, toString, Graph, step, normalForm, nf)
+import           GraphReduction -- (allocate, toString, Graph, step, normalForm, nf)
 import           System.IO           (hSetEncoding, stdin, stdout, utf8)
 import Parser (parseEnvironment, Environment, Expr)
 import LambdaToSKI -- (compile, abstractToSKI, babs, babs0, ropt)
-import Data.STRef 
-import Control.Monad.ST 
-import GraphReductionSTRef (mToString)
+import Data.STRef
+import Control.Monad.ST
+import Data.List (lookup)
+import Data.Maybe
 
 
 printGraph :: ST s (STRef s (Graph s)) -> ST s String
@@ -55,8 +56,8 @@ testSource =
   --"main = if (sub 3 2) (* 4 4) (+ 5 5)"
 
        "Y    = λf -> (λx -> x x)(λx -> f(x x)) \n"
-    ++ "fact = Y(λf n. if (is0 n) 1 (* n (f (sub1 n)))) \n"
-    ++ "main = fact 10 \n"
+    ++ "fact = y(λf n. if (is0 n) 1 (* n (f (sub1 n)))) \n"
+    ++ "main = fact 10000 \n"
 
   --    "isEven = \\n -> eq (rem n 2) 0 \n"
   -- ++ "not    = \\b -> if (eq b 1) 0 1 \n"
@@ -93,13 +94,15 @@ testSource =
 -- "fact = Y(λf n -> (is0 n) one (mul n (f (pred n))))\n" ++
 -- "main = fact one \n" -- (succ (succ (succ one)))  -- Compute 4!\n"
 
-env = parseEnvironment "main = (λx -> + 4 x) 5\n"
-skiExpr = babs0 env (snd . head $ env)
+env = parseEnvironment "sqr = λx -> * x x \n main = sqr (+ 3 2)\n"
+
+mainExpr = fromMaybe (error "main is undefined") $ lookup "main" env
+skiExpr = babs env mainExpr
 optExpr = ropt skiExpr
 graph = allocate optExpr
 
 str = runST $ mToString graph
 
-reduce gr = do 
+reduce gr = do
   g <- gr
   nf g

@@ -229,7 +229,78 @@ ghci> optEpr
 ((Var "b" :@ (Var "+" :@ Int 4)) :@ Var "i") :@ Int 5
 ```
 
-This looks much better than before. See [this project for a more in depth coverage of optimization techniques](https://crypto.stanford.edu/~blynn/lambda/logski.html)
+This looks much better than before. See [this project for a more in depth coverage of optimization techniques](https://crypto.stanford.edu/~blynn/lambda/logski.html). 
+I'm also planning to write a separate blog post on this subtopic.
+
+## Why graph reduction ?
+
+So now that we have eliminated lambda abstractions from our lambda terms it should be straight forward to evaluate these expressions with a simple interpreter. 
+
+Let's have a look at a simple example:
+
+```haskell
+sqr  = λx -> * x x
+main = sqr (+ 3 2)
+```
+
+When we implement a strict interpreter with applicative-order semantics, `(+ 3 2)` will be computed first and the result bound to the variable `x` in the local environment and then the body of `sqr` will be evaluated in this environment. That's fine. but it's not normal-order reduction.
+
+When implementing a lazy interpreter with normal-order semantics, we can not compute `(+ 3 2)` before binding it to `x`. Thus we will have to bind an un-evaluated *thunk* to `x`. We will also have to make sure that `x` is only evaluated when needed and only once, even when it is used at several places in the body of `sqr`. (See [these lecture notes for all the intricacies of this approach](https://academic.udayton.edu/saverioperugini/courses/cps343/lecture_notes/lazyevaluation.html))
+
+Graph-reduction on the other hand, has some very interesting features:
+- It maintains normal-order reduction (that is lazy evaluation)
+- double evaluations of terms is avoided
+- dealing with local environments, variable scope, etc. at run-time is avoided
+- copying of argument data is significantly reduced as compared to eval/apply interpreters
+
+Let's see this in action with our toy example. The above program can be transformed into the following SKI combinator term:
+
+```haskell
+((Var "s" :@ Var "*") :@ Var "i") :@ ((Var "+" :@ Int 3) :@ Int 2)
+```
+
+This term can be represented as a binary graph, where each application `:@` is represented as an `@` node, all combinators like `(Var "s")` are represented with 
+Constructors like `S`, `I`, `MUL`, `ADD` and integer values like `Int 2` are just shown as numeric values like `2`:
+
+```haskell 
+          @                   
+         / \              
+        /   \               
+       /     @          
+      /     / \          
+     /     @   2         
+    @     / \     
+   / \  ADD  3    
+  @   I            
+ / \             
+S  MUL   
+```
+
+In the following diagram we follow the reduction of this graph:
+
+
+```haskell 
+          @                   @                   @                  @           25
+         / \                 / \                 / \                / \
+        /   \               /   \               /   \              /   |
+       /     @             /     @             /     @            /   /
+      /     / \           @     / \           @     / \          @   /
+     /     @   2         / \   I   |         / \   I   |        / \ /
+    @     / \           /   @ ––––/         /   5 ––––/        /   5
+   / \  ADD  3         /   / \             /                  /
+  @   I               /   @   2           /                  /
+ / \                 /   / \             /                  /
+S  MUL             MUL  ADD 3           MUL                MUL
+
+Step 0             Step 1               Step 2             Step 3                Step 4
+```
+
+- **Step 0**: This is just the initial state of the graph as explained above.
+  Please note that in this state the `S` is in *spine* position (i.e. the left-most ancestor of the root node) and *saturated* (i.e all three arguments of the combinator) are polulated, so according to the reduction rule `s f g x = f x (g x)` we expect to see a reduction `S MUL I (ADD 3 2) = MUL (ADD 3 2) (I (ADD 3 2))` in step 1.
+
+- **Step 1**: As expected the first reduction step mutates the graph to represent `MUL (ADD 3 2) (I (ADD 3 2))`. Please note that both occurrences of `(ADD 3 2)` are represented by references to one and the same node. 
+
+- **Step 2**: Now `MUL` is in *spine* position and *saturated*. But this time both arguments `(ADD 3 2)` and `I (ADD 3 2)` are not in normal-form and thus have to be reduced first before `MUL` can be executed. So first `(ADD 3 2)` is reduced to `5`. Please note that all references to this `5` 
 
 
 ## Allocating a Graph with mutable references
