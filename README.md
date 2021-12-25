@@ -296,11 +296,11 @@ Step 0             Step 1               Step 2             Step 3               
 ```
 
 - **Step 0**: This is just the initial state of the graph as explained above.
-  Please note that in this state the `S` is in *spine* position (i.e. the left-most ancestor of the root node) and *saturated* (i.e all three arguments of the combinator) are polulated, so according to the reduction rule `s f g x = f x (g x)` we expect to see a reduction `S MUL I (ADD 3 2) = MUL (ADD 3 2) (I (ADD 3 2))` in step 1.
+  Please note that in this state the `S` is our *redex* (i.e. the left-most ancestor of the root node) and *saturated* (i.e all three arguments of the combinator) are populated, so according to the reduction rule `s f g x = f x (g x)` we expect to see a reduction `S MUL I (ADD 3 2) = MUL (ADD 3 2) (I (ADD 3 2))` in step 1.
 
 - **Step 1**: As expected the first reduction step mutates the graph to represent `MUL (ADD 3 2) (I (ADD 3 2))`. Please note that both occurrences of `(ADD 3 2)` are represented by references to one and the same node. 
 
-- **Step 2**: Now `MUL` is in *spine* position and *saturated*. But this time both arguments `(ADD 3 2)` and `I (ADD 3 2)` are not in normal-form and thus have to be reduced first before `MUL` can be executed. So first `(ADD 3 2)` is reduced to `5`. Please note that both references to the former `(ADD 3 2)` node now point to `5`. So in effect the `I (ADD 3 2)` node has changed to `I 5` as  `(ADD 3 2)` was a shared node.
+- **Step 2**: Now `MUL` has become the *redex* (short for reducible expression). But this time both arguments `(ADD 3 2)` and `I (ADD 3 2)` are not in normal-form and thus have to be reduced first before `MUL` can be executed. So first `(ADD 3 2)` is reduced to `5`. Please note that both references to the former `(ADD 3 2)` node now point to `5`. So in effect the `I (ADD 3 2)` node has changed to `I 5` as  `(ADD 3 2)` was a shared node.
 
 - **Step 3**: next the `I 5` node is reduced according to the equation `i x = x`. That is, the reference to the application node `I @ 5` is modified to directly point to `5` instead. Please note that both arguments point to one and the same numeric value `5`.
 
@@ -354,6 +354,7 @@ So we basically mimic the `Expr` data type used to encode λ-expression but with
 Next we define a function `allocate` that allows to allocate a 'lambda-abstracted' λ-expression (of type `Expr`) into a reference to a `Graph`:
 
 ```haskell
+-- | allocate a 'lambda-abstracted' Expr into a referenced Graph
 allocate :: Expr -> ST s (STRef s (Graph s))
 allocate (Var name) = newSTRef $ Comb $ fromString name
 allocate (Int val)  = newSTRef $ Num val
@@ -363,6 +364,7 @@ allocate (l :@ r)   = do
   newSTRef $ lg :@: rg
 allocate (Lam _ _)  = error "lambdas must already be abstracted away!"
 
+-- | lookup Combinator constructors by their names
 fromString :: String -> Combinator
 fromString "i"    = I
 fromString "k"    = K
@@ -383,10 +385,182 @@ fromString "if"   = IF
 fromString _c     = error $ "unknown combinator " ++ _c
 ```
 
+So let's see this in action:
 
+```haskell
+ghci> optExpr = ((Var "s" :@ Var "*") :@ Var "i") :@ ((Var "+" :@ Int 3) :@ Int 2)
+ghci> graph = allocate optExpr
+ghci> runST $ mToString graph 
+"(((S :@: MUL) :@: I) :@: ((ADD :@: 3) :@: 2))"
+```
+ 
+ I'm using the `mToString` helper function to render `ST s (STRef s (Graph s))` instances:
 
+ ```haskell
+mToString :: ST s (STRef s (Graph s)) -> ST s String
+mToString g = toString =<< g     
+
+toString :: STRef s (Graph s) -> ST s String
+toString graph = do
+  g <- readSTRef graph
+  toString' g where
+    toString' (Comb c) = return $ show c
+    toString' (Num i) = return $ show i
+    toString' (lP :@: rP) = do
+      lG <- readSTRef lP
+      rG <- readSTRef rP
+      lStr <- toString' lG
+      rStr <- toString' rG
+      return $ "(" ++ lStr ++ " :@: " ++ rStr ++ ")" 
+ ```
+
+Now that we have allocated our expression as an `ST s (STRef s (Graph s))` the next step will be to perform graph reduction on it.
 
 ## Performing graph-reduction
+
+As already mentioned we have to compute the stack of left ancestors - or *spine* - of a graph for an efficient reduction.
+
+In the following diagram I have marked the members of this stack with `->` arrows:
+
+```haskell 
+->           @                   
+            / \              
+           /   \               
+          /     @          
+         /     / \          
+        /     @   2         
+->     @     / \     
+      / \  ADD  3    
+->   @   I            
+    / \             
+-> S  MUL   
+```
+
+The following function `spine` computes this left ancestors' stack. It returns a tuple of the leftmost ancestor and the whole stack:
+
+```haskell
+-- we simply represent the stack as a list of references to graph nodes
+type LeftAncestorsStack s = [STRef s (Graph s)]
+
+spine :: STRef s (Graph s) -> ST s (Graph s, LeftAncestorsStack s)
+spine graph = spine' graph [] 
+  where
+    spine' :: STRef s (Graph s) -> LeftAncestorsStack s -> ST s (Graph s, LeftAncestorsStack s)
+    spine' graph stack = do
+      g <- readSTRef graph
+      case g of
+        c@(Comb _)  -> return (c, stack)
+        n@(Num _)   -> return (n, stack)
+        (l :@: _r)  -> spine' l (graph : stack)
+```
+
+Using this `spine` function we can implement a function `step` that performs a single reduction step on a `Graph` node:
+
+```haskell
+step :: STRef s (Graph s) -> ST s ()
+step graph = do
+  (g, stack) <- spine graph
+  case g of
+    (Comb k) -> reduce k stack
+    _        -> return ()
+```
+
+If a combinator is found in redex position, `reduce` is called to perform the actual reduction work according to the combinator specific reduction rules.
+
+Let's study this for some of the combinators, starting with the most simple one, `I x = x`:
+
+```haskell
+        |
+p  ->   @   
+       / \
+      I   x
+```
+
+```haskell
+reduce :: Combinator -> LeftAncestorsStack s -> ST s ()
+reduce I (p : _) = do
+  (_I :@: xP) <- readSTRef p
+  xVal <- readSTRef xP
+  writeSTRef p xVal
+```
+
+In this case a reference `p` to `(I :@: xP )` is on top of the stack. The actual value of x is read from `xP` with `readSTRef` and than `p` is made to point to this value by using `writeSTRef`.
+
+The reduction of `S f g x = f x (g x)` is already a bit more involved:
+
+```haskell
+            |
+p3 ->       @
+           / \
+p2 ->     @   x
+         / \
+p1 ->   @   g
+       / \
+      S   f
+```
+
+```haskell
+reduce S (p1 : p2 : p3 : _) = do
+  (_S :@: fP) <- readSTRef p1
+  (_  :@: gP) <- readSTRef p2
+  (_  :@: xP) <- readSTRef p3
+  node1 <- newSTRef $ fP :@: xP
+  node2 <- newSTRef $ gP :@: xP
+  writeSTRef p3 (node1 :@: node2)
+```
+
+In this case reference to f (`fP`), g (`gP`) and x (`xP`) are obtained. Then a new application node is created that represents `((f @ x) @ (g @ x))`. Then `p3` is made to point to this new node.
+
+Binary arithmentic combinators like `ADD` and `MUL` are implemented as follows:
+
+```haskell
+reduce ADD (p1 : p2 : _) = binaryMathOp (+) p1 p2
+reduce MUL (p1 : p2 : _) = binaryMathOp (*) p1 p2
+
+binaryMathOp ::
+  (Integer -> Integer -> Integer) -> -- ^ a binary arithmetic function on Integers like (+)
+  STRef s (Graph s) ->               -- ^ first node on the spine stack
+  STRef s (Graph s) ->               -- ^ second node on spine stack
+  ST s ()                            
+binaryMathOp op p1 p2 = do
+  (_ :@: xP) <- readSTRef p1
+  (_ :@: yP) <- readSTRef p2
+  (Num xVal) <- (readSTRef <=< normalForm) xP  -- reduce xP to normal form and obtain its value as xVal
+  (Num yVal) <- (readSTRef <=< normalForm) yP  -- reduce yP to normal form and obtain its value as yVal
+  writeSTRef p2 (Num $ xVal `op` yVal)         -- apply op on xVal and yVal, modify p2 to point to the resulting value
+```
+
+The interesting bit here is that the arithmetic combinators are *strict*, that is they require their arguments to be in normalform. (Please note that `S`, `I`,  `K`, etc. don't have this requirement. They are *non-strict* or *lazy*).
+
+`normalForm` just applies `step` in a loop while the graph has not been reduced to a combinator or an integer:
+
+
+```haskell
+normalForm :: STRef s (Graph s) -> ST s (STRef s (Graph s))
+normalForm graph = do
+  step graph
+  g <- readSTRef graph
+  case g of
+    _lP :@: _rP -> normalForm graph
+    Comb _com   -> return graph
+    Num _n      -> return graph
+```
+
+Using a helper function `reduceGraph` that computes the normal-form of a graph while staying entirely in the `ST`Monad, we can finally reduce our tiny toy graph:
+
+```haskell
+reduceGraph :: ST s (STRef s (Graph s)) -> ST s (STRef s (Graph s))
+reduceGraph graph = do
+  gP <- graph
+  normalForm gP
+
+
+ghci> runST $ mToString graph
+"(((S :@: MUL) :@: I) :@: ((ADD :@: 3) :@: 2))"
+ghci> runST $ mToString $ reduceGraph graph
+"25"
+```
+
 
 ## CCC
 

@@ -90,10 +90,12 @@ allocate (l :@ r)   = do
   newSTRef $ lg :@: rg
 allocate (Lam _ _)  = error "lambdas must already be abstracted away!"
 
-spine :: STRef s (Graph s) -> ST s (Graph s, [STRef s (Graph s)])
+type LeftAncestorsStack s = [STRef s (Graph s)]
+
+spine :: STRef s (Graph s) -> ST s (Graph s, LeftAncestorsStack s)
 spine graph = spine' graph [] 
   where
-    spine' :: STRef s (Graph s) -> [STRef s (Graph s)] -> ST s (Graph s, [STRef s (Graph s)])
+    spine' :: STRef s (Graph s) -> LeftAncestorsStack s -> ST s (Graph s, LeftAncestorsStack s)
     spine' graph stack = do
       g <- readSTRef graph
       case g of
@@ -134,7 +136,7 @@ nf' graph l = do
     Comb _com   -> return steplist
     Num _n      -> return steplist
 
-reduce :: Combinator -> [STRef s (Graph s)] -> ST s ()
+reduce :: Combinator -> LeftAncestorsStack s -> ST s ()
 reduce I (p : _) = do
   (_ :@: xP) <- readSTRef p
   xVal <- readSTRef xP
@@ -203,10 +205,6 @@ reduce ZEROP (p1 : _) = do
   writeSTRef p1 (Num result)
 reduce _ _ = return ()
 
--- normalForm :: STRef s (Graph s) -> ST s (STRef s (Graph s))
--- normalForm g = do
---   _ <- normalForm g
---   return g
 
 binaryMathOp ::
   (Integer -> Integer -> Integer) ->
