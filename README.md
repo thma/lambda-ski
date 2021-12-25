@@ -232,7 +232,7 @@ ghci> optEpr
 This looks much better than before. See [this project for a more in depth coverage of optimization techniques](https://crypto.stanford.edu/~blynn/lambda/logski.html). 
 I'm also planning to write a separate blog post on this subtopic.
 
-## Why graph reduction ?
+## Graph-reduction in a nutshell
 
 So now that we have eliminated lambda abstractions from our lambda terms it should be straight forward to evaluate these expressions with a simple interpreter. 
 
@@ -300,10 +300,21 @@ Step 0             Step 1               Step 2             Step 3               
 
 - **Step 1**: As expected the first reduction step mutates the graph to represent `MUL (ADD 3 2) (I (ADD 3 2))`. Please note that both occurrences of `(ADD 3 2)` are represented by references to one and the same node. 
 
-- **Step 2**: Now `MUL` is in *spine* position and *saturated*. But this time both arguments `(ADD 3 2)` and `I (ADD 3 2)` are not in normal-form and thus have to be reduced first before `MUL` can be executed. So first `(ADD 3 2)` is reduced to `5`. Please note that all references to this `5` 
+- **Step 2**: Now `MUL` is in *spine* position and *saturated*. But this time both arguments `(ADD 3 2)` and `I (ADD 3 2)` are not in normal-form and thus have to be reduced first before `MUL` can be executed. So first `(ADD 3 2)` is reduced to `5`. Please note that both references to the former `(ADD 3 2)` node now point to `5`. So in effect the `I (ADD 3 2)` node has changed to `I 5` as  `(ADD 3 2)` was a shared node.
 
+- **Step 3**: next the `I 5` node is reduced according to the equation `i x = x`. That is, the reference to the application node `I @ 5` is modified to directly point to `5` instead. Please note that both arguments point to one and the same numeric value `5`.
+
+- **Step 4**: As a result of the transformation in step 3 both arguments of `MUL` are in normal-form. So now `MUL 5 5` can be performed: Accordingly the root node is no changed to `25`.
+
+Now that we have seen the basic ideas behind graph-reduction we will have a closer look at the actual implementation in the following sections.
 
 ## Allocating a Graph with mutable references
+
+As we have seen in the last section we will have to deal with mutable references in order to implement things like node sharing and in-place mutation of nodes.
+
+
+
+
 
 ## Performing graph-reduction
 
