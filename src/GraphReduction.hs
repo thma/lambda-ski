@@ -12,20 +12,11 @@ module GraphReduction
 where
 
 import           Control.Monad    --(forM_, (<=<), liftM)
-import           Control.Monad.ST (ST, runST)
+import           Control.Monad.ST (ST)
 import           Data.STRef       (STRef, modifySTRef, newSTRef, readSTRef,
                                    writeSTRef)
 import           LambdaToSKI      (compile, abstractToSKI)
 import           Parser           (Expr (..))
-
--- this just demonstrates the basic functiong of ST and STRef
-sumST :: Num a => [a] -> a
-sumST xs = runST $ do
-  -- runST takes stateful ST code and makes it pure.
-  summed <- newSTRef 0 -- Create an STRef (a mutable variable)
-  forM_ xs $ \x ->
-    modifySTRef summed (+ x) -- add it to what we have in n.
-  readSTRef summed -- read the value of n, which will be returned by the runST above.
 
 infixl 5 :@:
 

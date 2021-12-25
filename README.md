@@ -312,6 +312,76 @@ Now that we have seen the basic ideas behind graph-reduction we will have a clos
 
 As we have seen in the last section we will have to deal with mutable references in order to implement things like node sharing and in-place mutation of nodes.
 
+I will use the Haskell datatype [`Data.STRef`](https://hackage.haskell.org/package/base-4.16.0.0/docs/Data-STRef.html) which provides mutable references in the `ST` monad.
+
+Here comes a basic example that demonstrate the basic functionality. A list of numbers is added by adding each of them to an accumulator. The accumulator is implemented by a reference `acc` pointing to an initial value of `0`. 
+Then we iterate over the list of numbers and update the value of the accumulator by adding each number `x` to it.
+Finally the result is read out from the accumulator and extracted from the ST Monad by runST. From this example we can see that `STRef`s work much like pointers in imperative languages. 
+
+
+```haskell
+import Data.STRef       (STRef, modifySTRef, newSTRef, readSTRef writeSTRef)
+import Control.Monad.ST (runST)
+
+-- | sum up a list of numerical values 
+sumST :: Num a => [a] -> a
+sumST numbers = runST $ do -- runST takes stateful ST code and makes it pure.
+  acc <- newSTRef 0        -- Create an STRef (a mutable variable) to an accumulator
+  forM_ numbers $ \x ->    -- iterate over all numbers
+    modifySTRef acc (+ x)  -- add each number to what we have in acc.
+  readSTRef acc            -- read the value of acc, which will be returned by the runST above.
+```
+
+This looks promising. So now lets implement a binary graph for our compiled combinator terms with it: 
+
+
+```haskell
+infixl 5 :@:
+
+data Graph s
+  = (STRef s (Graph s)) :@: (STRef s (Graph s))
+  | Comb Combinator
+  | Num Integer
+  deriving (Eq)
+
+data Combinator = I | K | S | B | C | Y | P | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | ZEROP | IF
+  deriving (Eq, Show)
+
+```
+
+So we basically mimic the `Expr` data type used to encode λ-expression but without variables and lambda-abstractions. The data type `Combinator` contains constructors for combinators that we intend to implement i the graph-reduction engine.
+
+Next we define a function `allocate` that allows to allocate a 'lambda-abstracted' λ-expression (of type `Expr`) into a reference to a `Graph`:
+
+```haskell
+allocate :: Expr -> ST s (STRef s (Graph s))
+allocate (Var name) = newSTRef $ Comb $ fromString name
+allocate (Int val)  = newSTRef $ Num val
+allocate (l :@ r)   = do
+  lg <- allocate l
+  rg <- allocate r
+  newSTRef $ lg :@: rg
+allocate (Lam _ _)  = error "lambdas must already be abstracted away!"
+
+fromString :: String -> Combinator
+fromString "i"    = I
+fromString "k"    = K
+fromString "s"    = S
+fromString "b"    = B
+fromString "c"    = C
+fromString "y"    = Y
+fromString "p"    = P
+fromString "+"    = ADD
+fromString "sub"  = SUB
+fromString "div"  = DIV
+fromString "rem"  = REM
+fromString "*"    = MUL
+fromString "sub1" = SUB1
+fromString "eq"   = EQL
+fromString "is0"  = ZEROP
+fromString "if"   = IF
+fromString _c     = error $ "unknown combinator " ++ _c
+```
 
 
 
