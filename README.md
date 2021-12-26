@@ -4,12 +4,12 @@
 
 ## Abstract
 
-Implementing a small functional language with a combinator based graph-reduction machine in Haskell.
+Implementing a small functional language with a classic combinator based graph-reduction machine in Haskell.
 
 I took a λ-calculus parser from [A Combinatory Compiler](https://crypto.stanford.edu/~blynn/lambda/sk.html) 
 and extended it to cover a tiny functional language based on the untyped λ-calculus.
 
-I'm then applying classic compilation from λ-calculus to combinatory logic combinators (S,K,I,B,C and Y) by bracket-abstraction and some optimization rules.
+I'm then applying compilation from λ-calculus to combinatory logic combinators (S,K,I,B,C and Y) by bracket-abstraction and some optimization rules.
 
 These combinator terms are then allocated into a graph data-structure.
 Which  is then reduced by applying combinator graph-reduction. The destructive inplace reduction of the graph is made possible by using `STRef` mutable references. 
@@ -26,19 +26,14 @@ My original intention was to extend an existing Haskell CCC implementation to a 
 
 I invested a lot of time in this idea but I failed to get it off the ground. [At least the code of these experiments has been preserved](https://github.com/thma/lambda-cat).
 
-So I came back to writing a SKI graph-reduction as the backend of my language implementation. This is a well-worn path. The basic ideas were taken from the classic [compiling functional languages](https://www.goodreads.com/book/show/3468677-compiling-functional-languages) which dates back to 1988.
-
-<!--
-I already did a similar implementation in SML some 30 years ago:
-[https://github.com/thma/mg-book-sml-sources/blob/main/sml-sources/com41.sml](https://github.com/thma/mg-book-sml-sources/blob/main/sml-sources/com41.sml)
--->
+So I came back to writing a SKI graph-reduction as the backend of my language implementation. This is a well-worn path. I took the basic ideas from the classic [compiling functional languages](https://www.goodreads.com/book/show/3468677-compiling-functional-languages) which dates back to 1988.
 
 Fortunately, I did not fail this time! 
 In the following I'm explaining my implementation approach. I'll also share some of my insights and talk about possible future extensions.
 
 ## representing λ-expressions
 
-I'm aiming at a very rudimentry language that is basically just pure λ-calculus plus integers. Here is an example:
+I'm aiming at a very rudimentary language that is basically just pure λ-calculus plus integers. Here is an example:
 
 ```haskell
 Y    = λf . (λx . x x)(λx . f(x x))
@@ -113,7 +108,7 @@ This is what any Lisp or Scheme eval/apply interpreter does at its core [(See a 
 
 One of the most problematic areas of these interpreters is the handling of variables. In order to provide static binding you will need closures that captures the current environment of variable bindings and thread them through the whole interpreter execution.
 
-Language implemetors hav thus experimented with many ways to tackle this issue. One of the most influential ideas was to completely get rid of variables by abstracting them. 
+Language implemetors have thus experimented with many ways to tackle this issue. One of the most influential ideas was to completely get rid of variables by abstracting them. 
 
 The earliest version of this approach was [the SKI combinator calculus](https://en.wikipedia.org/wiki/SKI_combinator_calculus) invented by Haskell Curry and Moses Schönfinkel.
 
@@ -121,9 +116,8 @@ A λ-term that does not contain any free variables is said to be closed. Closed 
 
 Schönfinkel and Curry found out that any closed λ-term can be rewritten in terms of three basic combinators I, K and S (in fact only *K* and *S* are essential, as *I* can be expressed as SKK):
 
-<center>
-<img src="https://latex.codecogs.com/gif.latex?\begin{array}{rcl}&space;I&space;&&space;=&space;&&space;\lambda&space;x.x&space;\\&space;K&space;&&space;=&space;&&space;\lambda&space;x.&space;\lambda&space;y.x&space;\\&space;S&space;&&space;=&space;&&space;\lambda&space;f.(\lambda&space;g.(\lambda&space;x.fx(gx)))&space;\end{array}" title="\begin{array}{rcl} I & = & \lambda x.x \\ K & = & \lambda x. \lambda y.x \\ S & = & \lambda f.(\lambda g.(\lambda x.fx(gx))) \end{array}" />
-</center>
+<img style="align:center;" src="https://latex.codecogs.com/gif.latex?\begin{array}{rcl}&space;I&space;&&space;=&space;&&space;\lambda&space;x.x&space;\\&space;K&space;&&space;=&space;&&space;\lambda&space;x.&space;\lambda&space;y.x&space;\\&space;S&space;&&space;=&space;&&space;\lambda&space;f.(\lambda&space;g.(\lambda&space;x.fx(gx)))&space;\end{array}" title="\begin{array}{rcl} I & = & \lambda x.x \\ K & = & \lambda x. \lambda y.x \\ S & = & \lambda f.(\lambda g.(\lambda x.fx(gx))) \end{array}" />
+
 
 In Haskell these combinators can simply be defined as:
 
@@ -140,9 +134,7 @@ s f g x = f x (g x)
 The idea of bracket abstraction is to rewrite any closed λ-term in terms of I, K and S.
 This recursive transformation is defined by the following equations:
 
-<center>
 <img src="https://latex.codecogs.com/gif.latex?\begin{array}{rcl}&space;\left&space;\lceil&space;\lambda&space;x.x&space;\right&space;\rceil&space;&&space;=&space;&&space;I&space;\\&space;\left&space;\lceil&space;\lambda&space;x.y&space;\right&space;\rceil&space;&&space;=&space;&&space;K&space;y&space;\\&space;\left&space;\lceil&space;\lambda&space;x.M&space;N&space;\right&space;\rceil&space;&&space;=&space;&&space;S&space;\left&space;\lceil&space;\lambda&space;x.M&space;\right&space;\rceil&space;\left&space;\lceil&space;\lambda&space;x.N&space;\right&space;\rceil&space;\end{array}" title="\begin{array}{rcl} \left \lceil \lambda x.x \right \rceil & = & I \\ \left \lceil \lambda x.y \right \rceil & = & K y \\ \left \lceil \lambda x.M N \right \rceil & = & S \left \lceil \lambda x.M \right \rceil \left \lceil \lambda x.N \right \rceil \end{array}" />
-</center>
 
 This can be implemented in Haskell as follows:
 
@@ -304,9 +296,9 @@ Step 0             Step 1               Step 2             Step 3               
 
 - **Step 3**: next the `I 5` node is reduced according to the equation `i x = x`. That is, the reference to the application node `I @ 5` is modified to directly point to `5` instead. Please note that both arguments point to one and the same numeric value `5`.
 
-- **Step 4**: As a result of the transformation in step 3 both arguments of `MUL` are in normal-form. So now `MUL 5 5` can be performed: Accordingly the root node is no changed to `25`.
+- **Step 4**: As a result of the transformation in step 3 both arguments of `MUL` are in normal-form. So now `MUL 5 5` can be performed: Accordingly the root node is now changed to `25`.
 
-Now that we have seen the basic ideas behind graph-reduction we will have a closer look at the actual implementation in the following sections.
+Now that we have a basic understanding of the ideas behind graph-reduction we will have a closer look at the actual implementation in the following sections.
 
 ## Allocating a Graph with mutable references
 
@@ -314,9 +306,9 @@ As we have seen in the last section we will have to deal with mutable references
 
 I will use the Haskell datatype [`Data.STRef`](https://hackage.haskell.org/package/base-4.16.0.0/docs/Data-STRef.html) which provides mutable references in the `ST` monad.
 
-Here comes a basic example that demonstrate the basic functionality. A list of numbers is added by adding each of them to an accumulator. The accumulator is implemented by a reference `acc` pointing to an initial value of `0`. 
+Here comes a basic example that demonstrates the basic functionality of `STRef`. A list of numbers is summed up by adding each of them to an accumulator. The accumulator is implemented by a reference `acc` pointing to an initial value of `0`. 
 Then we iterate over the list of numbers and update the value of the accumulator by adding each number `x` to it.
-Finally the result is read out from the accumulator and extracted from the ST Monad by runST. From this example we can see that `STRef`s work much like pointers in imperative languages. 
+Finally the result is read out from the accumulator and extracted from the ST Monad by runST. From this example we can see that `STRef`s work much like pointers in imperative languages:
 
 
 ```haskell
@@ -349,7 +341,7 @@ data Combinator = I | K | S | B | C | Y | P | ADD | SUB | MUL | DIV | REM | SUB1
 
 ```
 
-So we basically mimic the `Expr` data type used to encode λ-expression but without variables and lambda-abstractions. The data type `Combinator` contains constructors for combinators that we intend to implement i the graph-reduction engine.
+So we basically mimic the `Expr` data type used to encode λ-expression but without variables and lambda-abstractions. The data type `Combinator` contains constructors for combinators that we intend to implement in the graph-reduction engine.
 
 Next we define a function `allocate` that allows to allocate a 'lambda-abstracted' λ-expression (of type `Expr`) into a reference to a `Graph`:
 
@@ -418,7 +410,7 @@ Now that we have allocated our expression as an `ST s (STRef s (Graph s))` the n
 
 ## Performing graph-reduction
 
-As already mentioned we have to compute the stack of left ancestors - or *spine* - of a graph for an efficient reduction.
+First we have to compute the stack of left ancestors - or *spine* - of a graph for an efficient reduction.
 
 In the following diagram I have marked the members of this stack with `->` arrows:
 
@@ -436,22 +428,21 @@ In the following diagram I have marked the members of this stack with `->` arrow
 -> S  MUL   
 ```
 
-The following function `spine` computes this left ancestors' stack. It returns a tuple of the leftmost ancestor and the whole stack:
+The following function `spine` computes this left ancestors' stack by traversing all application nodes to the left:
 
 ```haskell
 -- we simply represent the stack as a list of references to graph nodes
 type LeftAncestorsStack s = [STRef s (Graph s)]
 
-spine :: STRef s (Graph s) -> ST s (Graph s, LeftAncestorsStack s)
+spine :: STRef s (Graph s) -> ST s (LeftAncestorsStack s)
 spine graph = spine' graph [] 
   where
-    spine' :: STRef s (Graph s) -> LeftAncestorsStack s -> ST s (Graph s, LeftAncestorsStack s)
+    spine' :: STRef s (Graph s) -> LeftAncestorsStack s -> ST s (LeftAncestorsStack s)
     spine' graph stack = do
       g <- readSTRef graph
       case g of
-        c@(Comb _)  -> return (c, stack)
-        n@(Num _)   -> return (n, stack)
-        (l :@: _r)  -> spine' l (graph : stack)
+        (l :@: _r) -> spine' l (graph : stack)
+        _          -> return (graph : stack)
 ```
 
 Using this `spine` function we can implement a function `step` that performs a single reduction step on a `Graph` node:
@@ -459,8 +450,9 @@ Using this `spine` function we can implement a function `step` that performs a s
 ```haskell
 step :: STRef s (Graph s) -> ST s ()
 step graph = do
-  (g, stack) <- spine graph
-  case g of
+  (top:stack) <- spine graph
+  node <- readSTRef top
+  case node of
     (Comb k) -> reduce k stack
     _        -> return ()
 ```
@@ -473,7 +465,7 @@ Let's study this for some of the combinators, starting with the most simple one,
         |
 p  ->   @   
        / \
-      I   x
+   -> I   x
 ```
 
 ```haskell
@@ -496,7 +488,7 @@ p2 ->     @   x
          / \
 p1 ->   @   g
        / \
-      S   f
+   -> S   f
 ```
 
 ```haskell
@@ -546,7 +538,7 @@ normalForm graph = do
     Num _n      -> return graph
 ```
 
-Using a helper function `reduceGraph` that computes the normal-form of a graph while staying entirely in the `ST`Monad, we can finally reduce our tiny toy graph:
+Using a helper function `reduceGraph` that computes the normal-form of a graph while staying entirely in the `ST`-Monad, we can finally reduce our tiny toy graph:
 
 ```haskell
 reduceGraph :: ST s (STRef s (Graph s)) -> ST s (STRef s (Graph s))
@@ -561,7 +553,48 @@ ghci> runST $ mToString $ reduceGraph graph
 "25"
 ```
 
+## Recursion
 
+λ-calculus does not directly support recursion using self-referential functions [(see this nice exposition)](https://sookocheff.com/post/fp/recursive-lambda-functions/). That's why we need a fixed-point combinator to realize recursive operation. Here once again the definition of the factorial function that makes use of the `Y`-Combinator to implement recursive behaviour: 
+
+```haskell
+Y    = λf . (λx . x x)(λx . f(x x))
+fact = Y(\f n -> if (is0 n) 1 (* n (f (sub1 n))))
+main = fact 10
+```
+
+With only a few lines of equational reasoning we can demonstrate the special property of the `Y`-combinator when applied to any function `g`:
+
+```haskell
+Y g = (λf.(λx.x x)(λx.f(x x))) g     -- (1) by definition of Y
+    = (λx.g (x x))(λx.g (x x))       -- (2) by function application of λf
+    = g((λx.g (x x))(λx.g (x x)))    -- (3) by function application of λx.g(x x) to argument λx.g(x x)
+    = g(Y g)                         -- (4) by equation (2)
+```
+
+Applying equation `(4)` repeatedly will lead to:
+
+```haskell
+Y g = g(g(Y g))                      -- (5) by equation (4)
+    = g(...g(Y g) ...)               -- (6) by repeatedly applying (4)
+```
+
+In this way the `Y`-combinator achieves recursion by reproducing a copy of the function's argument and maintaining the self-application of the function with each application.
+
+This special
+
+```haskell
+                                           
+  @    ==>    @     ==>   @         ...   @ <-\
+ / \         / \         / \             / \__/
+Y   g       g   @       g   @           g
+               / \         / \
+              Y   g       g   @
+                             / \
+                            Y   g
+```
+
+<!--
 ## CCC
 
 ```haskell
@@ -572,6 +605,6 @@ absCCC (\x -> p q) = apply . ((\x -> p) △ (\x -> q))
 absCCC (\x -> p q) = apply . ((△) (\x -> p) (\x -> q))
 
 ```
-
+-->
 
 

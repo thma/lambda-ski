@@ -92,21 +92,21 @@ allocate (Lam _ _)  = error "lambdas must already be abstracted away!"
 
 type LeftAncestorsStack s = [STRef s (Graph s)]
 
-spine :: STRef s (Graph s) -> ST s (Graph s, LeftAncestorsStack s)
+spine :: STRef s (Graph s) -> ST s (LeftAncestorsStack s)
 spine graph = spine' graph [] 
   where
-    spine' :: STRef s (Graph s) -> LeftAncestorsStack s -> ST s (Graph s, LeftAncestorsStack s)
+    spine' :: STRef s (Graph s) -> LeftAncestorsStack s -> ST s (LeftAncestorsStack s)
     spine' graph stack = do
       g <- readSTRef graph
       case g of
-        c@(Comb _)  -> return (c, stack)
-        n@(Num _)   -> return (n, stack)
-        (l :@: _r)  -> spine' l (graph : stack)
+        (l :@: _r) -> spine' l (graph : stack)
+        _          -> return (graph : stack)
 
 step :: STRef s (Graph s) -> ST s ()
 step graph = do
-  (g, stack) <- spine graph
-  case g of
+  (top:stack) <- spine graph
+  node <- readSTRef top
+  case node of
     (Comb k) -> reduce k stack
     _        -> return ()
 
