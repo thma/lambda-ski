@@ -6,12 +6,14 @@
 
 Implementing a small functional language with a classic combinator based graph-reduction machine in Haskell.
 
-I took a λ-calculus parser from [A Combinatory Compiler](https://crypto.stanford.edu/~blynn/lambda/sk.html) 
-and extended it to cover a tiny functional language based on the untyped λ-calculus.
+The implementation is structured into three parts:
 
-I'm then applying compilation from λ-calculus to combinatory logic combinators (S,K,I,B,C and Y) by bracket-abstraction and some optimization rules.
+1. A λ-calculus parser from [A Combinatory Compiler](https://crypto.stanford.edu/~blynn/lambda/sk.html) 
+which was extended to cover a tiny functional language based on the untyped λ-calculus.
 
-These combinator terms are then allocated into a graph data-structure.
+2. A compiler from λ-calculus to combinatory logic combinators (S,K,I,B,C and Y) which is based on bracket-abstraction and some optimization rules.
+
+3. A graph-reducer. Combinator terms are allocated into a graph data-structure.
 Which  is then reduced by applying combinator graph-reduction. The destructive inplace reduction of the graph is made possible by using `STRef` mutable references. 
 
 ## Introduction
