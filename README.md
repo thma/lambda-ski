@@ -579,13 +579,13 @@ Y g = g(g(Y g))                      -- (5) by equation (4)
     = g(...g(Y g) ...)               -- (6) by repeatedly applying (4)
 ```
 
-In this way the `Y`-combinator achieves recursion by reproducing a copy of the function's argument and maintaining the self-application of the function with each application.
+In this way the `Y`-combinator achieves recursion by reproducing a (self-reproducing) copy of the function's self-application with each application of `(4)`.
 
-This special
+This self-reproducing pattern becomes even more visible when looking at the graph-structure of  the reduction of `(Y g)`: 
 
 ```haskell
-                                           
-  @    ==>    @     ==>   @         ...   @ <-\
+                                            __
+  @    ==>    @     ==>   @    ==>  ...   @   \
  / \         / \         / \             / \__/
 Y   g       g   @       g   @           g
                / \         / \
@@ -593,6 +593,21 @@ Y   g       g   @       g   @           g
                              / \
                             Y   g
 ```
+
+One can see how at each application of `(4)` another copy of (Y g) is generated and incorporated into the graph as an argument of g.
+
+The last step of the diagram shows that - in the graph - self-reproduction can be achieved by simply bending the argument pointer back to the application node.
+
+
+This realization leads us to the following implementation of the Y-combinator:
+
+```haskell
+reduce Y (p1 : _) = do
+  (_YP :@: gP) <- readSTRef p1
+  writeSTRef p1 (gP :@: p1)
+```
+
+Using this implementation of the Y-combinator instead of the source level defined version `Y = λf.(λx.x x)(λx.f(x x))` reduces the execution time for the factorial function by a factor of about 250.
 
 <!--
 ## CCC
