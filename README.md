@@ -568,17 +568,17 @@ main = fact 10
 With only a few lines of equational reasoning we can demonstrate the special property of the `Y`-combinator when applied to any function `g`:
 
 ```haskell
-Y g = (λf.(λx.x x)(λx.f(x x))) g     -- (1) by definition of Y
-    = (λx.g (x x))(λx.g (x x))       -- (2) by function application of λf
-    = g((λx.g (x x))(λx.g (x x)))    -- (3) by function application of λx.g(x x) to argument λx.g(x x)
-    = g(Y g)                         -- (4) by equation (2)
+Y g = (λf.(λx.x x)(λx.f(x x))) g  -- (1) by definition of Y
+    = (λx.g (x x))(λx.g (x x))    -- (2) by function application of λf
+    = g((λx.g (x x))(λx.g (x x))) -- (3) by function application of λx.g(x x) to λx.g(x x)
+    = g(Y g)                      -- (4) by equation (2)
 ```
 
 Applying equation `(4)` repeatedly will lead to:
 
 ```haskell
-Y g = g(g(Y g))                      -- (5) by equation (4)
-    = g(...g(Y g) ...)               -- (6) by repeatedly applying (4)
+Y g = g(g(Y g))                    -- (5) by equation (4)
+    = g(...g(Y g) ...)             -- (6) by repeatedly applying (4)
 ```
 
 In this way the `Y`-combinator achieves recursion by reproducing a (self-reproducing) copy of the function's self-application with each application of `(4)`.
