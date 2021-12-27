@@ -224,6 +224,8 @@ ghci> optEpr
 This looks much better than before. See [this project for a more in depth coverage of optimization techniques](https://crypto.stanford.edu/~blynn/lambda/logski.html). 
 I'm also planning to write a separate blog post on this subtopic.
 
+The [sourcecode for this section can be found here](https://github.com/thma/lambda-ski/blob/main/src/LambdaToSKI.hs)
+
 ## Graph-reduction in a nutshell
 
 So now that we have eliminated lambda abstractions from our lambda terms it should be straight forward to evaluate these expressions with a simple interpreter. 
@@ -607,19 +609,20 @@ reduce Y (p1 : _) = do
   writeSTRef p1 (gP :@: p1)
 ```
 
-Using this implementation of the Y-combinator instead of the source level defined version `Y = λf.(λx.x x)(λx.f(x x))` reduces the execution time for the factorial function by a factor of about 250.
+Using this implementation of the Y-combinator instead of the source level defined version `Y = λf.(λx.x x)(λx.f(x x))` reduces the execution time for `fact 10000` by a factor of about 250.
 
-<!--
-## CCC
+The [sourcecode for this section can be found here](https://github.com/thma/lambda-ski/blob/main/src/LambdaToSKI.hs).
 
-```haskell
-absCL (\x -> p q) = s (\x -> p) (\x -> q)
 
-absCCC (\x -> p q) = apply . ((\x -> p) △ (\x -> q))
+## Next steps
 
-absCCC (\x -> p q) = apply . ((△) (\x -> p) (\x -> q))
+Here are some ideas for possible future extensions and improvements.
 
-```
--->
-
+- Extending this very basic setup to a fully working pogramming environment with a REPL
+- Implement direct and mutual recursion (i.e. `letrec`) for global function definitions
+- experimemnt with different bracket abstraction algorithms to improve object code size and execution time.
+- Implement bracket abstraction from λ-expressions to [closed cartesian categories](https://thma.github.io/posts/2021-04-04-Lambda-Calculus-Combinatory-Logic-and-Cartesian-Closed-Categories.html) and extend the graph-reduction to also cover the resulting combinators `apply` and `(△)`.
+- extend the language to include lists, maybe even provide it with a LISPKIT frontend.
+- Add support for implicit and explicit parallelism of the graph-reduction engine.
+  (implicit parallelism for strict operations, and an explicit `P`-combinator)
 
