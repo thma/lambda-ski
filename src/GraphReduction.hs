@@ -1,6 +1,5 @@
 module GraphReduction
-  ( 
-    toString,
+  ( toString,
     mToString,
     step,
     allocate,
@@ -8,14 +7,14 @@ module GraphReduction
     normalForm,
     nf,
     Graph (..),
+    copy,
   )
 where
 
-import           Control.Monad    --(forM_, (<=<), liftM)
+import           Control.Monad
 import           Control.Monad.ST (ST)
-import           Data.STRef       (STRef, modifySTRef, newSTRef, readSTRef,
+import           Data.STRef       (STRef, newSTRef, readSTRef,
                                    writeSTRef)
-import           LambdaToSKI      (compile, abstractToSKI)
 import           Parser           (Expr (..))
 
 infixl 5 :@:
@@ -26,26 +25,25 @@ data Graph s
   | Num Integer
   deriving (Eq)
 
-
 copy :: STRef s (Graph s) -> ST s (STRef s (Graph s))
 copy graph = do
   g <- readSTRef graph
-  copy' g where
+  copy' g
+  where
     copy' (Comb c) = newSTRef (Comb c)
-    copy' (Num n)  = newSTRef (Num n)
+    copy' (Num n) = newSTRef (Num n)
     copy' (lP :@: rP) = do
       lG <- readSTRef lP
       rG <- readSTRef rP
       lP' <- newSTRef lG
       rP' <- newSTRef rG
-      newSTRef (lP' :@: rP') 
-
-
+      newSTRef (lP' :@: rP')
 
 toString :: STRef s (Graph s) -> ST s String
 toString graph = do
   g <- readSTRef graph
-  toString' g where
+  toString' g
+  where
     toString' (Comb c) = return $ show c
     toString' (Num i) = return $ show i
     toString' (lP :@: rP) = do
@@ -56,8 +54,7 @@ toString graph = do
       return $ "(" ++ lStr ++ " :@: " ++ rStr ++ ")"
 
 mToString :: ST s (STRef s (Graph s)) -> ST s String
-mToString g = toString =<< g     
- 
+mToString g = toString =<< g
 
 data Combinator = I | K | S | B | C | Y | P | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | ZEROP | IF
   deriving (Eq, Show)
@@ -83,17 +80,17 @@ fromString _c     = error $ "unknown combinator " ++ _c
 
 allocate :: Expr -> ST s (STRef s (Graph s))
 allocate (Var name) = newSTRef $ Comb $ fromString name
-allocate (Int val)  = newSTRef $ Num val
-allocate (l :@ r)   = do
+allocate (Int val) = newSTRef $ Num val
+allocate (l :@ r) = do
   lg <- allocate l
   rg <- allocate r
   newSTRef $ lg :@: rg
-allocate (Lam _ _)  = error "lambdas must already be abstracted away!"
+allocate (Lam _ _) = error "lambdas must already be abstracted away!"
 
 type LeftAncestorsStack s = [STRef s (Graph s)]
 
 spine :: STRef s (Graph s) -> ST s (LeftAncestorsStack s)
-spine graph = spine' graph [] 
+spine graph = spine' graph []
   where
     spine' :: STRef s (Graph s) -> LeftAncestorsStack s -> ST s (LeftAncestorsStack s)
     spine' graph stack = do
@@ -104,7 +101,7 @@ spine graph = spine' graph []
 
 step :: STRef s (Graph s) -> ST s ()
 step graph = do
-  (top:stack) <- spine graph
+  (top : stack) <- spine graph
   node <- readSTRef top
   case node of
     (Comb k) -> reduce k stack
@@ -129,12 +126,12 @@ nf' graph l = do
   before <- toString graph
   step graph
   after <- toString graph
-  let steplist = l ++ [after] 
+  let steplist = l ++ [after]
   g <- readSTRef graph
   case g of
     _lP :@: _rP -> if before == after then return steplist else nf' graph steplist
-    Comb _com   -> return steplist
-    Num _n      -> return steplist
+    Comb _com -> return steplist
+    Num _n -> return steplist
 
 reduce :: Combinator -> LeftAncestorsStack s -> ST s ()
 reduce I (p : _) = do
@@ -204,7 +201,6 @@ reduce ZEROP (p1 : _) = do
   let result = if xVal == 0 then 1 else 0
   writeSTRef p1 (Num result)
 reduce _ _ = return ()
-
 
 binaryMathOp ::
   (Integer -> Integer -> Integer) ->

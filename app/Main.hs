@@ -1,19 +1,22 @@
 module Main where
 
-import           GraphReduction -- (allocate, toString, Graph, step, normalForm, nf)
-import           System.IO           (hSetEncoding, stdin, stdout, utf8)
-import Parser (parseEnvironment, Environment, Expr)
-import LambdaToSKI -- (compile, abstractToSKI, babs, babs0, ropt)
-import Data.STRef
-import Control.Monad.ST
-import Data.List (lookup)
-import Data.Maybe
+-- (allocate, toString, Graph, step, normalForm, nf)
 
+-- (compile, abstractToSKI, babs, babs0, ropt)
+
+import           Control.Monad.ST
+import           Data.List        (lookup)
+import           Data.Maybe
+import           Data.STRef
+import           GraphReduction
+import           LambdaToSKI
+import           Parser           (Environment, Expr, parseEnvironment)
+import           System.IO        (hSetEncoding, stdin, stdout, utf8)
 
 printGraph :: ST s (STRef s (Graph s)) -> ST s String
 printGraph graph = do
- gP <- graph
- toString gP
+  gP <- graph
+  toString gP
 
 reduceGraph :: ST s (STRef s (Graph s)) -> ST s (STRef s (Graph s))
 reduceGraph graph = do
@@ -22,8 +25,8 @@ reduceGraph graph = do
 
 main :: IO ()
 main = do
-  hSetEncoding stdin utf8   -- this is required to handle UTF-8 characters like λ
-  hSetEncoding stdout utf8  -- this is required to handle UTF-8 characters like λ
+  hSetEncoding stdin utf8 -- this is required to handle UTF-8 characters like λ
+  hSetEncoding stdout utf8 -- this is required to handle UTF-8 characters like λ
   putStrLn "The sourcecode: "
   putStrLn testSource
 
@@ -55,27 +58,26 @@ testSource =
 
   --"main = if (sub 3 2) (* 4 4) (+ 5 5)"
 
-       "Y    = λf -> (λx -> x x)(λx -> f(x x)) \n"
+  "Y    = λf -> (λx -> x x)(λx -> f(x x)) \n"
     ++ "fact = y(λf n. if (is0 n) 1 (* n (f (sub1 n)))) \n"
     ++ "main = fact 10000 \n"
 
+--    "isEven = \\n -> eq (rem n 2) 0 \n"
+-- ++ "not    = \\b -> if (eq b 1) 0 1 \n"
+-- ++ "isOdd  = \\n -> not (isEven n) \n"
+-- ++ "main   = isOdd 23333 \n"
 
-  --    "isEven = \\n -> eq (rem n 2) 0 \n"
-  -- ++ "not    = \\b -> if (eq b 1) 0 1 \n"
-  -- ++ "isOdd  = \\n -> not (isEven n) \n"
-  -- ++ "main   = isOdd 23333 \n"  
+--    "isEven = λn -> or (is0 n) (isOdd (sub1 n)) \n"
+-- ++ "isOdd  = λn -> and (not (is0 n)) (isEven (sub1 n)) \n"
+-- ++ "not    = \\b -> if (eq b 1) 0 1 \n"
+-- ++ "or     = λx y -> if (eq x 1) 1 (if (eq y 1) 1 0) \n"
+-- ++ "and    = λx y -> if (eq x 1) (if (eq y 1) 1 0) 0 \n"
+-- ++ "main   = isEven 0 \n"
 
-  --    "isEven = λn -> or (is0 n) (isOdd (sub1 n)) \n"
-  -- ++ "isOdd  = λn -> and (not (is0 n)) (isEven (sub1 n)) \n"
-  -- ++ "not    = \\b -> if (eq b 1) 0 1 \n"
-  -- ++ "or     = λx y -> if (eq x 1) 1 (if (eq y 1) 1 0) \n"  
-  -- ++ "and    = λx y -> if (eq x 1) (if (eq y 1) 1 0) 0 \n"
-  -- ++ "main   = isEven 0 \n"  
-
-  {--
-       (is-even? (lambda (n) (or (eq 0 n) (is-odd? (- n 1)))))
-     (is-odd? (lambda (n) (and (not (eq 0 n)) (is-even? (- n 1)))))
-  --}
+{--
+     (is-even? (lambda (n) (or (eq 0 n) (is-odd? (- n 1)))))
+   (is-odd? (lambda (n) (and (not (eq 0 n)) (is-even? (- n 1)))))
+--}
 
 --testSource =
 -- "add = λx y -> + x y\n" ++
@@ -98,8 +100,11 @@ testSource =
 env = parseEnvironment "sqr = λx -> * x x \n main = sqr (+ 3 2)\n"
 
 mainExpr = fromMaybe (error "main is undefined") $ lookup "main" env
+
 skiExpr = babs env mainExpr
+
 optExpr = ropt skiExpr
+
 graph = allocate optExpr
 
 str = runST $ mToString graph

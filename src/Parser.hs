@@ -2,7 +2,7 @@ module Parser
   ( Environment,
     Expr (..),
     parseEnvironmentEither,
-    parseEnvironment
+    parseEnvironment,
   )
 where
 
