@@ -2,8 +2,6 @@
 
 [![Actions Status](https://github.com/thma/lambda-ski/workflows/Haskell%20CI/badge.svg)](https://github.com/thma/lambda-ski/actions)
 
-[![Actions Status](https://github.com/thma/lambda-ski/workflows/Fork%20me%20on%20GitHub/badge.svg)](https://github.com/thma/lambda-ski/actions)
-
 ## Abstract
 
 Implementing a small functional language with a classic combinator based graph-reduction machine in Haskell.
