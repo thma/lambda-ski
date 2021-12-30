@@ -1,4 +1,4 @@
-name: Fork me on GitHub
+name: Haskell CI
 
 on:
   push:
