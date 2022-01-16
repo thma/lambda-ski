@@ -28,6 +28,7 @@ library
       GraphReduction
       LambdaToSKI
       Parser
+      Reducer
   other-modules:
       Paths_lambda_ski
   hs-source-dirs:

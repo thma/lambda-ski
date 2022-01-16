@@ -98,7 +98,7 @@ compile env abstractFun =
     Right expr -> expr
 
 abstractToSKI :: Environment -> Expr -> Expr
-abstractToSKI main = ropt . babs main
+abstractToSKI env = ropt . babs env
 
 abstractToCCC :: Environment -> Expr -> Expr
 abstractToCCC = cccAbs
