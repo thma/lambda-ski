@@ -51,18 +51,20 @@ infixl 0 !
 e ! x = error $ "can't apply " ++ show e ++ " to " ++ show x
 
 primitives :: [(String, CExpr)]
-primitives =
-  [ ("$I", CLam id)
-  , ("$K", CLam $ \x -> CLam $ const x)
-  , ("$S", CLam $ \f -> CLam $ \g -> CLam $ \x -> f!x!(g!x))
-  , ("if", CLam $ \(CInt cond) -> CLam $ \tr -> CLam $ \fl -> if cond == 1 then tr else fl)
-  , ("y", CLam $ \(CLam f) -> fix f)
-  , ("+", arith (+))
-  , ("sub", arith (-))
-  , ("sub1", CLam sub1)
-  , ("*", arith (*))
-  , ("eql", arith eql)
-  , ("is0", CLam isZero)
+primitives = let (-->) = (,) in
+  [ "$I"   --> CLam id
+  , "$K"   --> CLam (CLam . const)
+  , "$S"   --> CLam (\f -> CLam $ \g -> CLam $ \x -> f!x!(g!x))
+  , "$B"   --> CLam (\f -> CLam $ \g -> CLam $ \x -> f!(g!x))
+  , "$C"   --> CLam (\f -> CLam $ \g -> CLam $ \x -> f!x!g)
+  , "if"   --> CLam (\(CInt cond) -> CLam $ \tr -> CLam $ \fl -> if cond == 1 then tr else fl)
+  , "y"    --> CLam (\(CLam f) -> fix f)
+  , "+"    --> arith (+)
+  , "sub"  --> arith (-)
+  , "sub1" --> CLam sub1
+  , "*"    --> arith (*)
+  , "eql"  --> arith eql
+  , "is0"  --> CLam isZero
   ]
 
 arith :: (Integer -> Integer -> Integer) -> CExpr
@@ -71,8 +73,10 @@ arith op = CLam $ \(CInt a) -> CLam $ \(CInt b) -> CInt (op a b)
 eql :: (Eq a, Num p) => a -> a -> p
 eql n m = if n == m then 1 else 0
 
+sub1 :: CExpr -> CExpr
 sub1 (CInt n) = CInt $ n -1
 
+isZero :: CExpr -> CExpr
 isZero (CInt n) = if n == 0 then CInt 1 else CInt 0
 
 type TermEnv = [(String,CExpr)]
@@ -101,7 +105,7 @@ eval env src =
 --src = "main = (λx -> (+ 1 x)) 2"
 src = "Y    = λf -> (λx -> x x)(λx -> f(x x)) \n"
   ++ "fact = Y(λf n. if (is0 n) 1 (* n (f (sub1 n)))) \n"
-  ++ "main = fact 100000 \n"
+  ++ "main = fact 10000 \n"
 
 -- src = "main = (\\x -> * x (add1 x)) 5 \n"
 --   ++  "add1 = \\x -> + x 1"
@@ -109,7 +113,3 @@ src = "Y    = λf -> (λx -> x x)(λx -> f(x x)) \n"
 test = do
   print $ eval primitives src
 
--- runEval :: TermEnv -> String -> Expr -> (CExpr, TermEnv)
--- runEval env nm ex =
---   let res = eval env ex in
---   (res, Map.insert nm res env)
