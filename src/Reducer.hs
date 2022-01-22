@@ -1,9 +1,11 @@
 module Reducer where
 
-import Parser
+import Parser ( parseEnvironment, Environment, Expr(..) )
+import LambdaToSKI
 import Data.Maybe (fromJust)
 import Data.Bifunctor ( Bifunctor(second) )
 import Control.Monad.Fix (fix)
+import Data.Type.Coercion (trans)
 
 type Name = String
 
@@ -16,16 +18,16 @@ data CExpr
 instance Show CExpr where
   show (CVar n)   = n
   show (CApp a b) = "(" ++ show a ++ " " ++ show b ++ ")"
-  show (CLam f)   = "fn"
+  show (CLam f)   = "<function>"
   show (CInt i)   = show i
 
 
-compile :: Environment -> Expr -> CExpr
-compile env (fun :@ arg)   = CApp (compile env fun) (compile env arg)
-compile env (Lam x body)   = abstract x (compile env body)
-compile env (Int k)        = CInt k
-compile env (Var n)
-  | Just t <- lookup n env = compile env t
+compile' :: Environment -> Expr -> CExpr
+compile' env (fun :@ arg)   = CApp (compile' env fun) (compile' env arg)
+compile' env (Lam x body)   = abstract x (compile' env body)
+compile' env (Int k)        = CInt k
+compile' env (Var n)
+  | Just t <- lookup n env = compile' env t
   | otherwise              = CVar n
 
 abstract :: Name -> CExpr -> CExpr
@@ -42,6 +44,12 @@ combK = CApp (CVar "$K")
 combI :: CExpr
 combI = CVar "$I"
 
+translate :: Expr -> CExpr
+translate (fun :@ arg)   = CApp (translate fun) (translate arg)
+translate (Int k)        = CInt k
+translate (Var c)        = CVar c
+translate lam            = error $ "lambdas should be abstracted already " ++ show lam
+
 infixl 0 !
 (!) :: CExpr -> CExpr -> CExpr
 (CLam f) ! x = f x
@@ -52,11 +60,11 @@ e ! x = error $ "can't apply " ++ show e ++ " to " ++ show x
 
 primitives :: [(String, CExpr)]
 primitives = let (-->) = (,) in
-  [ "$I"   --> CLam id
-  , "$K"   --> CLam (CLam . const)
-  , "$S"   --> CLam (\f -> CLam $ \g -> CLam $ \x -> f!x!(g!x))
-  , "$B"   --> CLam (\f -> CLam $ \g -> CLam $ \x -> f!(g!x))
-  , "$C"   --> CLam (\f -> CLam $ \g -> CLam $ \x -> f!x!g)
+  [ "i"   --> CLam id
+  , "k"   --> CLam (CLam . const)
+  , "s"   --> CLam (\f -> CLam $ \g -> CLam $ \x -> f!x!(g!x))
+  , "b"   --> CLam (\f -> CLam $ \g -> CLam $ \x -> f!(g!x))
+  , "c"   --> CLam (\f -> CLam $ \g -> CLam $ \x -> f!x!g)
   , "if"   --> CLam (\(CInt cond) -> CLam $ \tr -> CLam $ \fl -> if cond == 1 then tr else fl)
   , "y"    --> CLam (\(CLam f) -> fix f)
   , "+"    --> arith (+)
@@ -88,16 +96,18 @@ le n m = if n < m then 1 else 0
 
 sub1 :: CExpr -> CExpr
 sub1 (CInt n) = CInt $ n -1
+sub1 x        = error $ show x ++ " is not a number"
 
 isZero :: CExpr -> CExpr
 isZero (CInt n) = if n == 0 then CInt 1 else CInt 0
+isZero _        = CInt 0
 
-type TermEnv = [(String,CExpr)]
+type GlobalEnv = [(String,CExpr)]
 
-compileEnv :: Environment -> TermEnv
-compileEnv env = map (second $ compile env) env
+compileEnv :: Environment -> GlobalEnv
+compileEnv env = map (second $ compile' env) env
 
-link :: TermEnv -> CExpr -> CExpr
+link :: GlobalEnv -> CExpr -> CExpr
 link bs (CApp fun arg) = link bs fun ! link bs arg
 link bs (CVar n)       = case lookup n bs of
   Nothing -> error $ n ++ " is not defined"
@@ -108,19 +118,50 @@ link _ e               = e
 getMain :: [([Char], a)] -> a
 getMain env = fromJust $ lookup "main" env
 
-eval :: TermEnv -> String -> CExpr
+eval :: GlobalEnv -> String -> CExpr
 eval env src =
   let pEnv = parseEnvironment src
-  in  link env $ compile pEnv $ getMain pEnv
+  in  link env $ compile' pEnv $ getMain pEnv
+
+eval' :: GlobalEnv -> String -> CExpr
+eval' globals src =
+  let pEnv = parseEnvironment src
+      aExp = compile pEnv abstractToSKI
+      tExp = translate aExp
+  in  link globals tExp  
+
+
+evalFile' :: FilePath -> IO CExpr
+evalFile' file = do
+  src <- readFile file
+  let pEnv = parseEnvironment src
+      aExp = compile pEnv abstractSimple
+      tExp = translate aExp  
+
+  putStrLn "compiled to SICKBY:"
+  print aExp
+  putStrLn "compiled to CExpr"
+  print tExp
+
+  return $ link primitives tExp
+
+abstractSimple :: Environment -> Expr -> Expr
+abstractSimple env = ropt . babs0 env
 
 
 evalFile :: FilePath -> IO CExpr
 evalFile file = do
   src <- readFile file
-  return $ eval primitives src
+  return $ eval' primitives src
 
 test = do
-  let testCases = ["factorial.ths","fibonacci.ths", "tak.ths", "ackermann.ths", "gaussian.ths"]
-  mapM_ (\tc -> putStrLn tc >> evalFile ("test/" ++ tc) >>= print) testCases
+  let testCases = [
+         "factorial.ths"
+       , "fibonacci.ths"
+       , "tak.ths"
+       , "ackermann.ths"
+       , "gaussian.ths"
+       ]
+  mapM_ (\tc -> putStrLn tc >> evalFile' ("test/" ++ tc) >>= print) testCases
 
 

@@ -11,11 +11,13 @@ module GraphReduction
   )
 where
 
-import           Control.Monad
+import           Control.Monad ( (<=<) )
 import           Control.Monad.ST (ST)
 import           Data.STRef       (STRef, newSTRef, readSTRef,
                                    writeSTRef)
 import           Parser           (Expr (..))
+import LambdaToSKI (Combinator(..), fromString)
+
 
 infixl 5 :@:
 
@@ -55,28 +57,6 @@ toString graph = do
 
 mToString :: ST s (STRef s (Graph s)) -> ST s String
 mToString g = toString =<< g
-
-data Combinator = I | K | S | B | C | Y | P | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | ZEROP | IF
-  deriving (Eq, Show)
-
-fromString :: String -> Combinator
-fromString "i"    = I
-fromString "k"    = K
-fromString "s"    = S
-fromString "b"    = B
-fromString "c"    = C
-fromString "y"    = Y
-fromString "p"    = P
-fromString "+"    = ADD
-fromString "sub"  = SUB
-fromString "div"  = DIV
-fromString "rem"  = REM
-fromString "*"    = MUL
-fromString "sub1" = SUB1
-fromString "eq"   = EQL
-fromString "is0"  = ZEROP
-fromString "if"   = IF
-fromString _c     = error $ "unknown combinator " ++ _c
 
 allocate :: Expr -> ST s (STRef s (Graph s))
 allocate (Var name) = newSTRef $ Comb $ fromString name

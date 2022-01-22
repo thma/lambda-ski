@@ -6,6 +6,8 @@ module LambdaToSKI
     babs,
     babs0,
     ropt,
+    Combinator (..),
+    fromString
   )
 where
 
@@ -117,3 +119,25 @@ cccAbs env (Var s)
   | otherwise = Var s
 cccAbs env (m :@ n) = cccAbs env m :@ cccAbs env n
 cccAbs _env x = x
+
+data Combinator = I | K | S | B | C | Y | P | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | ZEROP | IF
+  deriving (Eq, Show)
+
+fromString :: String -> Combinator
+fromString "i"    = I
+fromString "k"    = K
+fromString "s"    = S
+fromString "b"    = B
+fromString "c"    = C
+fromString "y"    = Y
+fromString "p"    = P
+fromString "+"    = ADD
+fromString "sub"  = SUB
+fromString "div"  = DIV
+fromString "rem"  = REM
+fromString "*"    = MUL
+fromString "sub1" = SUB1
+fromString "eq"   = EQL
+fromString "is0"  = ZEROP
+fromString "if"   = IF
+fromString _c     = error $ "unknown combinator " ++ _c
