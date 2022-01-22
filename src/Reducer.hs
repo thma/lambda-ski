@@ -1,6 +1,6 @@
 module Reducer where
 
-import Parser ( parseEnvironment, Environment, Expr(..) )
+import Parser ( Expr(..) ) 
 import LambdaToSKI
 import Data.Maybe (fromJust)
 import Data.Bifunctor ( Bifunctor(second) )
@@ -88,57 +88,11 @@ isZero (CInt n) = if n == 0 then CInt 1 else CInt 0
 isZero _        = CInt 0
 
 link :: GlobalEnv -> CExpr -> CExpr
-link bs (CApp fun arg) = link bs fun ! link bs arg
-link bs (CVar n)       = case lookup n bs of
+link globals (CApp fun arg) = link globals fun ! link globals arg
+link globals (CVar n)       = case lookup n globals of
   Nothing -> error $ n ++ " is not defined"
   Just ce -> ce
-link _ e               = e
+link _ expr                 = expr
 
-
-eval :: GlobalEnv -> String -> CExpr
-eval globals src =
-  let pEnv = parseEnvironment src
-      aExp = compile pEnv abstractToSKI
-      tExp = translate aExp
-  in  link globals tExp
-
-
-evalFile :: FilePath -> IO CExpr
-evalFile file = do
-  src <- readFile file
-  return $ eval primitives src
-
-evalFile' :: FilePath -> IO CExpr
-evalFile' file = do
-  src <- readFile file
-  let pEnv = parseEnvironment src
-      aExp = compile pEnv abstractSimple
-      tExp = translate aExp
-      expected = translate $ fromJust (lookup "expected" pEnv)
-
-  putStrLn "compiled to SICKBY:"
-  print aExp
-  putStrLn "compiled to CExpr"
-  print tExp
-
-  putStrLn "expected result:"
-  print expected
-
-  let actual = link primitives tExp
-  putStrLn "actual result:"
-  print actual
-
-  if show expected == show actual then return actual else fail $ "test " ++ file ++ " failed."
-
-demo :: IO ()
-demo = do
-  let testCases = [
-         "factorial.ths"
-       , "fibonacci.ths"
-       , "tak.ths"
-       , "ackermann.ths"
-       , "gaussian.ths"
-       ]
-  mapM_ (\tc -> putStrLn tc >> evalFile' ("test/" ++ tc) >>= print) testCases
 
 

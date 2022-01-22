@@ -12,6 +12,7 @@ import           GraphReduction
 import           LambdaToSKI
 import           Parser           (Environment, Expr(..), parseEnvironment)
 import           System.IO        (hSetEncoding, stdin, stdout, utf8)
+import Reducer
 
 printGraph :: ST s (STRef s (Graph s)) -> ST s String
 printGraph graph = do
@@ -76,3 +77,36 @@ demoG :: IO ()
 demoG = do
   src <- loadTestCase "factorial"
   runTest src
+
+evalFile' :: FilePath -> IO CExpr
+evalFile' file = do
+  src <- readFile file
+  let pEnv = parseEnvironment src
+      aExp = compile pEnv abstractSimple
+      tExp = translate aExp
+      expected = translate $ fromJust (lookup "expected" pEnv)
+
+  putStrLn "compiled to SICKBY:"
+  print aExp
+  putStrLn "compiled to CExpr"
+  print tExp
+
+  putStrLn "expected result:"
+  print expected
+
+  let actual = link primitives tExp
+  putStrLn "actual result:"
+  print actual
+
+  if show expected == show actual then return actual else fail $ "test " ++ file ++ " failed."
+
+demo :: IO ()
+demo = do
+  let testCases = [
+         "factorial.ths"
+       , "fibonacci.ths"
+       , "tak.ths"
+       , "ackermann.ths"
+       , "gaussian.ths"
+       ]
+  mapM_ (\tc -> putStrLn tc >> evalFile' ("test/" ++ tc) >>= print) testCases

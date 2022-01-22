@@ -38,6 +38,21 @@ library
     , parsec
   default-language: Haskell2010
 
+executable benchmark
+  main-is: Main.hs
+  other-modules:
+      GeneratorBench
+      Paths_lambda_ski
+  hs-source-dirs:
+      benchmark
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , criterion
+    , lambda-ski
+    , parsec
+  default-language: Haskell2010
+
 executable lambda-ski-exe
   main-is: Main.hs
   other-modules:
