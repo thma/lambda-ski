@@ -25,20 +25,31 @@ translate :: Expr -> CExpr
 translate (fun :@ arg)   = CApp (translate fun) (translate arg)
 translate (Int k)        = CInt k
 translate (Var c)        = CVar c
-translate lam            = error $ "lambdas should be abstracted already " ++ show lam
+translate lam@(Lam _ _)  = error $ "lambdas should be abstracted already " ++ show lam
 
+-- | apply a CExpr of shape (CLam f) to argument x by evaluating (f x)
 infixl 0 !
 (!) :: CExpr -> CExpr -> CExpr
 (CLam f) ! x = f x
 e ! x = error $ "can't apply " ++ show e ++ " to " ++ show x
 
-primitives :: [(String, CExpr)]
+instance Semigroup CExpr where
+  (<>) = (!)
+
+instance Monoid CExpr where
+  mempty = CLam id
+
+
+
+type GlobalEnv = [(String,CExpr)]
+
+primitives :: GlobalEnv
 primitives = let (-->) = (,) in
-  [ "i"   --> CLam id
-  , "k"   --> CLam (CLam . const)
-  , "s"   --> CLam (\f -> CLam $ \g -> CLam $ \x -> f!x!(g!x))
-  , "b"   --> CLam (\f -> CLam $ \g -> CLam $ \x -> f!(g!x))
-  , "c"   --> CLam (\f -> CLam $ \g -> CLam $ \x -> f!x!g)
+  [ "i"    --> CLam id
+  , "k"    --> CLam (CLam . const)
+  , "s"    --> CLam (\f -> CLam $ \g -> CLam $ \x -> f!x!(g!x))
+  , "b"    --> CLam (\f -> CLam $ \g -> CLam $ \x -> f!(g!x))
+  , "c"    --> CLam (\f -> CLam $ \g -> CLam $ \x -> f!x!g)
   , "if"   --> CLam (\(CInt cond) -> CLam $ \tr -> CLam $ \fl -> if cond == 1 then tr else fl)
   , "y"    --> CLam (\(CLam f) -> fix f)
   , "+"    --> arith (+)
@@ -75,8 +86,6 @@ sub1 x        = error $ show x ++ " is not a number"
 isZero :: CExpr -> CExpr
 isZero (CInt n) = if n == 0 then CInt 1 else CInt 0
 isZero _        = CInt 0
-
-type GlobalEnv = [(String,CExpr)]
 
 link :: GlobalEnv -> CExpr -> CExpr
 link bs (CApp fun arg) = link bs fun ! link bs arg
@@ -121,7 +130,8 @@ evalFile' file = do
 
   if show expected == show actual then return actual else fail $ "test " ++ file ++ " failed."
 
-test = do
+demo :: IO ()
+demo = do
   let testCases = [
          "factorial.ths"
        , "fibonacci.ths"

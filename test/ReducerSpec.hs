@@ -1,4 +1,4 @@
-module AllTestsSpec where
+module ReducerSpec where
 
 import Reducer hiding (evalFile)
 import Parser
@@ -44,11 +44,3 @@ runTest src =
       expected = translate $ fromJust (lookup "expected" pEnv)
       actual = link primitives tExp
   in show expected == show actual
-
-testCases = [
-         "factorial.ths"
-       , "fibonacci.ths"
-       , "tak.ths"
-       , "ackermann.ths"
-       , "gaussian.ths"
-       ]

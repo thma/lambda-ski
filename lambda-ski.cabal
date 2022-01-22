@@ -55,7 +55,8 @@ test-suite lambda-ski-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      AllTestsSpec
+      GraphReductionSpec
+      ReducerSpec
       Paths_lambda_ski
   hs-source-dirs:
       test

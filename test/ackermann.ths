@@ -1,4 +1,4 @@
-expected = 61
+expected = 7 --61
 ack  = y(λf n m -> if (is0 n) (+ m 1) (if (is0 m) (f (sub1 n) 1) (f (sub1 n) (f n (sub1 m)))))
-main = ack 3 3
+main = ack 2 2
 

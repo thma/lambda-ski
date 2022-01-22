@@ -10,7 +10,7 @@ import           Data.Maybe
 import           Data.STRef
 import           GraphReduction
 import           LambdaToSKI
-import           Parser           (Environment, Expr, parseEnvironment)
+import           Parser           (Environment, Expr(..), parseEnvironment)
 import           System.IO        (hSetEncoding, stdin, stdout, utf8)
 
 printGraph :: ST s (STRef s (Graph s)) -> ST s String
@@ -50,3 +50,29 @@ main = do
 
   putStrLn "The result after reducing the graph:"
   putStrLn $ runST $ printGraph reducedGraph
+
+type SourceCode = String
+
+loadTestCase :: String -> IO SourceCode
+loadTestCase name = readFile $ "test/" ++ name ++ ".ths"
+
+getInt :: Expr -> Integer 
+getInt (Int i) = i
+getInt _ = error "not an int"
+
+--runTest :: SourceCode -> Bool
+runTest src = do
+  let pEnv = parseEnvironment src
+      expr = compile pEnv abstractSimple
+      graph = allocate expr
+      expected = show $ getInt $ fromJust (lookup "expected" pEnv)
+      result = reduceGraph graph
+      actual = runST $ printGraph result
+  
+  print expected
+  print actual
+
+demoG :: IO ()
+demoG = do
+  src <- loadTestCase "factorial"
+  runTest src
