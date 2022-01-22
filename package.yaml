@@ -47,3 +47,7 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - lambda-ski
+    - hspec
+    - QuickCheck
+    - quickcheck-io
+
