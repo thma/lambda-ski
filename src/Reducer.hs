@@ -64,6 +64,7 @@ primitives = let (-->) = (,) in
   , "sub1" --> CLam sub1
   , "*"    --> arith (*)
   , "eql"  --> arith eql
+  , "geq"  --> arith geq
   , "is0"  --> CLam isZero
   ]
 
@@ -72,6 +73,18 @@ arith op = CLam $ \(CInt a) -> CLam $ \(CInt b) -> CInt (op a b)
 
 eql :: (Eq a, Num p) => a -> a -> p
 eql n m = if n == m then 1 else 0
+
+geq :: (Ord a, Num p) => a -> a -> p
+geq n m = if n >= m then 1 else 0
+
+leq :: (Ord a, Num p) => a -> a -> p
+leq n m = if n <= m then 1 else 0
+
+gre :: (Ord a, Num p) => a -> a -> p
+gre n m = if n > m then 1 else 0
+
+le :: (Ord a, Num p) => a -> a -> p
+le n m = if n < m then 1 else 0
 
 sub1 :: CExpr -> CExpr
 sub1 (CInt n) = CInt $ n -1
@@ -101,15 +114,13 @@ eval env src =
   in  link env $ compile pEnv $ getMain pEnv
 
 
-
---src = "main = (λx -> (+ 1 x)) 2"
-src = "Y    = λf -> (λx -> x x)(λx -> f(x x)) \n"
-  ++ "fact = Y(λf n. if (is0 n) 1 (* n (f (sub1 n)))) \n"
-  ++ "main = fact 10000 \n"
-
--- src = "main = (\\x -> * x (add1 x)) 5 \n"
---   ++  "add1 = \\x -> + x 1"
+evalFile :: FilePath -> IO CExpr
+evalFile file = do
+  src <- readFile file
+  return $ eval primitives src
 
 test = do
-  print $ eval primitives src
+  let testCases = ["factorial.ths","fibonacci.ths", "tak.ths", "ackermann.ths", "gaussian.ths"]
+  mapM_ (\tc -> putStrLn tc >> evalFile ("test/" ++ tc) >>= print) testCases
+
 
