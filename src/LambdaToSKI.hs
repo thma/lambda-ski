@@ -2,6 +2,7 @@ module LambdaToSKI
   ( compileEither,
     compile,
     abstractToSKI,
+    abstractSimple,
     abstractToCCC,
     babs,
     babs0,
@@ -16,6 +17,7 @@ import           Parser    (Environment, Expr (..))
 
 type Error = String
 
+-- @TODO There must be a subtle bug in here. (tak 12 6 3) won't work with this abstraction
 babs :: Environment -> Expr -> Expr
 babs env (Lam x e)
   | Var "i" :@ _x <- t = t
@@ -102,6 +104,9 @@ compile env abstractFun =
 abstractToSKI :: Environment -> Expr -> Expr
 abstractToSKI env = ropt . babs env
 
+abstractSimple :: Environment -> Expr -> Expr
+abstractSimple env = ropt . babs0 env
+
 abstractToCCC :: Environment -> Expr -> Expr
 abstractToCCC = cccAbs
 
@@ -120,7 +125,7 @@ cccAbs env (Var s)
 cccAbs env (m :@ n) = cccAbs env m :@ cccAbs env n
 cccAbs _env x = x
 
-data Combinator = I | K | S | B | C | Y | P | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | ZEROP | IF
+data Combinator = I | K | S | B | C | Y | P | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP | IF
   deriving (Eq, Show)
 
 fromString :: String -> Combinator
@@ -137,7 +142,8 @@ fromString "div"  = DIV
 fromString "rem"  = REM
 fromString "*"    = MUL
 fromString "sub1" = SUB1
-fromString "eq"   = EQL
+fromString "eql"  = EQL
+fromString "geq"  = GEQ
 fromString "is0"  = ZEROP
 fromString "if"   = IF
 fromString _c     = error $ "unknown combinator " ++ _c

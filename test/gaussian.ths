@@ -1,3 +1,5 @@
+-- gaussianSum 100 ==> 5050
+expected = 5050
 gaussianSum  = y(λf n -> (if (is0 n) 0 (+ n (f (sub1 n)))))
 main = gaussianSum 100
--- gaussianSum 100 ==> 5050
+

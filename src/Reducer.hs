@@ -21,29 +21,6 @@ instance Show CExpr where
   show (CLam f)   = "<function>"
   show (CInt i)   = show i
 
-
-compile' :: Environment -> Expr -> CExpr
-compile' env (fun :@ arg)   = CApp (compile' env fun) (compile' env arg)
-compile' env (Lam x body)   = abstract x (compile' env body)
-compile' env (Int k)        = CInt k
-compile' env (Var n)
-  | Just t <- lookup n env = compile' env t
-  | otherwise              = CVar n
-
-abstract :: Name -> CExpr -> CExpr
-abstract x (CApp fun arg)    = combS (abstract x fun) (abstract x arg)
-abstract x (CVar n) | x == n = combI
-abstract _ k                 = combK k
-
-combS :: CExpr -> CExpr -> CExpr
-combS f = CApp (CApp (CVar "$S") f)
-
-combK :: CExpr -> CExpr
-combK = CApp (CVar "$K")
-
-combI :: CExpr
-combI = CVar "$I"
-
 translate :: Expr -> CExpr
 translate (fun :@ arg)   = CApp (translate fun) (translate arg)
 translate (Int k)        = CInt k
@@ -53,9 +30,6 @@ translate lam            = error $ "lambdas should be abstracted already " ++ sh
 infixl 0 !
 (!) :: CExpr -> CExpr -> CExpr
 (CLam f) ! x = f x
--- (CApp f x) ! y = (f ! x) ! y
--- (CVar n) ! x = error $ n ++ " was not properly compiled"
--- (CInt i) ! x = CInt i
 e ! x = error $ "can't apply " ++ show e ++ " to " ++ show x
 
 primitives :: [(String, CExpr)]
@@ -104,9 +78,6 @@ isZero _        = CInt 0
 
 type GlobalEnv = [(String,CExpr)]
 
-compileEnv :: Environment -> GlobalEnv
-compileEnv env = map (second $ compile' env) env
-
 link :: GlobalEnv -> CExpr -> CExpr
 link bs (CApp fun arg) = link bs fun ! link bs arg
 link bs (CVar n)       = case lookup n bs of
@@ -115,44 +86,40 @@ link bs (CVar n)       = case lookup n bs of
 link _ e               = e
 
 
-getMain :: [([Char], a)] -> a
-getMain env = fromJust $ lookup "main" env
-
 eval :: GlobalEnv -> String -> CExpr
-eval env src =
-  let pEnv = parseEnvironment src
-  in  link env $ compile' pEnv $ getMain pEnv
-
-eval' :: GlobalEnv -> String -> CExpr
-eval' globals src =
+eval globals src =
   let pEnv = parseEnvironment src
       aExp = compile pEnv abstractToSKI
       tExp = translate aExp
-  in  link globals tExp  
+  in  link globals tExp
 
+
+evalFile :: FilePath -> IO CExpr
+evalFile file = do
+  src <- readFile file
+  return $ eval primitives src
 
 evalFile' :: FilePath -> IO CExpr
 evalFile' file = do
   src <- readFile file
   let pEnv = parseEnvironment src
       aExp = compile pEnv abstractSimple
-      tExp = translate aExp  
+      tExp = translate aExp
+      expected = translate $ fromJust (lookup "expected" pEnv)
 
   putStrLn "compiled to SICKBY:"
   print aExp
   putStrLn "compiled to CExpr"
   print tExp
 
-  return $ link primitives tExp
+  putStrLn "expected result:"
+  print expected
 
-abstractSimple :: Environment -> Expr -> Expr
-abstractSimple env = ropt . babs0 env
+  let actual = link primitives tExp
+  putStrLn "actual result:"
+  print actual
 
-
-evalFile :: FilePath -> IO CExpr
-evalFile file = do
-  src <- readFile file
-  return $ eval' primitives src
+  if show expected == show actual then return actual else fail $ "test " ++ file ++ " failed."
 
 test = do
   let testCases = [

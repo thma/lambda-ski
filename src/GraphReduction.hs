@@ -163,18 +163,13 @@ reduce MUL (p1 : p2 : _) = binaryMathOp (*) p1 p2
 reduce DIV (p1 : p2 : _) = binaryMathOp div p1 p2
 reduce SUB (p1 : p2 : _) = binaryMathOp (-) p1 p2
 reduce REM (p1 : p2 : _) = binaryMathOp rem p1 p2
+reduce EQL (p1 : p2 : _) = binaryMathOp binOpEql p1 p2
+reduce GEQ (p1 : p2 : _) = binaryMathOp binOpGeq p1 p2
 reduce SUB1 (p1 : _) = do
   (_ :@: xP) <- readSTRef p1
   x <- normalForm xP
   (Num xVal) <- readSTRef x
   writeSTRef p1 (Num $ xVal - 1)
-reduce EQL (p1 : p2 : _) = do
-  (_ :@: xP) <- readSTRef p1
-  (_ :@: yP) <- readSTRef p2
-  (Num xVal) <- (readSTRef <=< normalForm) xP
-  (Num yVal) <- (readSTRef <=< normalForm) yP
-  let result = if xVal == yVal then 1 else 0
-  writeSTRef p2 (Num result)
 reduce ZEROP (p1 : _) = do
   (_ :@: xP) <- readSTRef p1
   (Num xVal) <- (readSTRef <=< normalForm) xP
@@ -193,3 +188,9 @@ binaryMathOp op p1 p2 = do
   (Num xVal) <- (readSTRef <=< normalForm) xP
   (Num yVal) <- (readSTRef <=< normalForm) yP
   writeSTRef p2 (Num $ xVal `op` yVal)
+
+binOpEql :: Integer -> Integer -> Integer 
+binOpEql x y = if x == y then 1 else 0
+
+binOpGeq :: Integer -> Integer -> Integer 
+binOpGeq x y = if x >= y then 1 else 0
