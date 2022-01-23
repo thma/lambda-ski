@@ -26,9 +26,9 @@ source-repository head
 library
   exposed-modules:
       GraphReduction
+      HhiReducer
       LambdaToSKI
       Parser
-      Reducer
   other-modules:
       Paths_lambda_ski
   hs-source-dirs:

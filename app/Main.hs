@@ -5,6 +5,7 @@ module Main where
 -- (compile, abstractToSKI, babs, babs0, ropt)
 
 import           Control.Monad.ST
+import           Control.Category
 import           Data.List        (lookup)
 import           Data.Maybe
 import           Data.STRef
@@ -12,7 +13,7 @@ import           GraphReduction
 import           LambdaToSKI
 import           Parser           (Environment, Expr(..), parseEnvironment)
 import           System.IO        (hSetEncoding, stdin, stdout, utf8)
-import Reducer
+import HhiReducer
 
 printGraph :: ST s (STRef s (Graph s)) -> ST s String
 printGraph graph = do
@@ -52,61 +53,53 @@ main = do
   putStrLn "The result after reducing the graph:"
   putStrLn $ runST $ printGraph reducedGraph
 
+  demo
+
 type SourceCode = String
 
-loadTestCase :: String -> IO SourceCode
-loadTestCase name = readFile $ "test/" ++ name ++ ".ths"
-
-getInt :: Expr -> Integer 
-getInt (Int i) = i
-getInt _ = error "not an int"
-
---runTest :: SourceCode -> Bool
-runTest src = do
+loadTestCase :: String -> IO Expr
+loadTestCase name = do
+  src <- readFile $ "test/" ++ name ++ ".ths"
+  putStrLn "The source: "
+  putStrLn src
   let pEnv = parseEnvironment src
       expr = compile pEnv abstractSimple
-      graph = allocate expr
-      expected = show $ getInt $ fromJust (lookup "expected" pEnv)
+  return expr
+
+graphReductionDemo :: IO Expr -> IO ()
+graphReductionDemo ioexpr = do
+  expr <- ioexpr
+  let graph = allocate expr      
       result = reduceGraph graph
       actual = runST $ printGraph result
-  
-  print expected
+  putStrLn "allocated graph:"
+  print expr
+  putStrLn "after graph reduction:"
   print actual
 
-demoG :: IO ()
-demoG = do
-  src <- loadTestCase "factorial"
-  runTest src
 
-evalFile' :: FilePath -> IO CExpr
-evalFile' file = do
-  src <- readFile file
-  let pEnv = parseEnvironment src
-      aExp = compile pEnv abstractSimple
-      tExp = translate aExp
-      expected = translate $ fromJust (lookup "expected" pEnv)
-
-  putStrLn "compiled to SICKBY:"
-  print aExp
+hhiReductionDemo :: IO Expr -> IO ()
+hhiReductionDemo ioexpr = do
+  expr <- ioexpr
+  let cexpr = translate expr
   putStrLn "compiled to CExpr"
-  print tExp
-
-  putStrLn "expected result:"
-  print expected
-
-  let actual = link primitives tExp
-  putStrLn "actual result:"
+  print cexpr
+  let actual = link primitives cexpr
+  putStrLn "after graph reduction:"
   print actual
-
-  if show expected == show actual then return actual else fail $ "test " ++ file ++ " failed."
 
 demo :: IO ()
 demo = do
-  let testCases = [
-         "factorial.ths"
-       , "fibonacci.ths"
-       , "tak.ths"
-       , "ackermann.ths"
-       , "gaussian.ths"
+  let testCases =
+       [
+         "factorial"
+       , "fibonacci"
+       , "tak"
+       , "ackermann"
+       , "gaussian"
        ]
-  mapM_ (\tc -> putStrLn tc >> evalFile' ("test/" ++ tc) >>= print) testCases
+  putStrLn "Graph-Reduction"
+  mapM_ (loadTestCase >>> graphReductionDemo) testCases
+
+  putStrLn "HHI Reduction"
+  mapM_ (loadTestCase >>> hhiReductionDemo) testCases

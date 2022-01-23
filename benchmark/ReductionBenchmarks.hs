@@ -7,7 +7,7 @@ import GraphReduction ( allocate, normalForm, toString, Graph )
 import Data.Maybe (fromJust)
 import Data.STRef ( STRef )
 import Control.Monad.ST ( ST, runST )
-import Reducer ( link, primitives, translate )
+import HhiReducer ( link, primitives, translate )
 import Control.Monad.Fix ( fix )
 
 type SourceCode = String

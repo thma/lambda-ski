@@ -1,4 +1,4 @@
-module Reducer where
+module HhiReducer where
 
 import Parser ( Expr(..) ) 
 import LambdaToSKI
@@ -32,14 +32,6 @@ infixl 0 !
 (!) :: CExpr -> CExpr -> CExpr
 (CLam f) ! x = f x
 e ! x = error $ "can't apply " ++ show e ++ " to " ++ show x
-
-instance Semigroup CExpr where
-  (<>) = (!)
-
-instance Monoid CExpr where
-  mempty = CLam id
-
-
 
 type GlobalEnv = [(String,CExpr)]
 
@@ -93,6 +85,4 @@ link globals (CVar n)       = case lookup n globals of
   Nothing -> error $ n ++ " is not defined"
   Just ce -> ce
 link _ expr                 = expr
-
-
 
