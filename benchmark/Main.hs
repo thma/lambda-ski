@@ -1,8 +1,9 @@
 module Main where
 
-import GeneratorBench (generatorBench)
+import ReductionBenchmarks
+import Criterion (benchmark)
 
 
 main :: IO ()
 main = do
-  generatorBench
+  benchmarks

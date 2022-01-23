@@ -41,7 +41,7 @@ library
 executable benchmark
   main-is: Main.hs
   other-modules:
-      GeneratorBench
+      ReductionBenchmarks
       Paths_lambda_ski
   hs-source-dirs:
       benchmark
