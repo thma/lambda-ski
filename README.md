@@ -628,12 +628,3 @@ Here are some ideas for possible future extensions and improvements.
 - Add support for implicit and explicit parallelism of the graph-reduction engine.
   (implicit parallelism for strict operations, and an explicit `P`-combinator)
 
-## Related ideas
-
-https://wiki.haskell.org/wikiupload/0/0a/TMR-Issue10.pdf
-
-https://smunix.github.io/kseo.github.io/posts/2016-12-30-write-you-an-interpreter.html
-
-I've implemented this idea in Reducer.hs. But honestly I did not yet fully understand how it works.
-
-

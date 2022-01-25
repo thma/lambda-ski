@@ -37,16 +37,16 @@ executables:
     dependencies:
     - lambda-ski
 
-  # benchmark:
-  #   main:                Main.hs
-  #   source-dirs:         benchmark
-  #   ghc-options:
-  #     - -threaded
-  #     - -rtsopts
-  #     - -with-rtsopts=-N
-  #   dependencies:
-  #     - lambda-ski
-  #     - criterion
+  benchmark:
+    main:                Main.hs
+    source-dirs:         benchmark
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - lambda-ski
+      - criterion
 
 
 tests:
