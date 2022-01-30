@@ -1,9 +1,5 @@
 module Main where
 
--- (allocate, toString, Graph, step, normalForm, nf)
-
--- (compile, abstractToSKI, babs, babs0, ropt)
-
 import           Control.Monad.ST
 import           Control.Category
 import           Data.List        (lookup)
@@ -30,7 +26,8 @@ main = do
   hSetEncoding stdin utf8 -- this is required to handle UTF-8 characters like λ
   hSetEncoding stdout utf8 -- this is required to handle UTF-8 characters like λ
 
-  testSource <-readFile "test/tak.ths"
+  -- testSource <-readFile "test/tak.ths"
+  let testSource = "main = (\\x y -> x) 3 4"
   putStrLn "The sourcecode: "
   putStrLn testSource
 
@@ -39,7 +36,7 @@ main = do
   mapM_ print env
   putStrLn ""
 
-  let expr = compile env abstractSimple --abstractToSKI
+  let expr = compile env babs0 --abstractSimple --abstractToSKI
   putStrLn "The main expression compiled to SICKYB combinator expressions:"
   print expr
   putStrLn ""
@@ -81,7 +78,7 @@ graphReductionDemo ioexpr = do
 hhiReductionDemo :: IO Expr -> IO ()
 hhiReductionDemo ioexpr = do
   expr <- ioexpr
-  let cexpr = translate expr
+  let cexpr = translate expr 
   putStrLn "compiled to CExpr"
   print cexpr
   let actual = link primitives cexpr

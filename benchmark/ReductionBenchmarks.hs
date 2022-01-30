@@ -7,7 +7,7 @@ import GraphReduction ( allocate, normalForm, toString, Graph )
 import Data.Maybe (fromJust)
 import Data.STRef ( STRef )
 import Control.Monad.ST ( ST, runST )
-import HhiReducer ( link, primitives, translate )
+import HhiReducer ( link, primitives, translink)
 import Control.Monad.Fix ( fix )
 
 type SourceCode = String
@@ -44,9 +44,8 @@ reduceGraph graph = do
 
 reducerTest :: Expr -> String
 reducerTest expr =
-  let tExp = translate expr
-      actual = link primitives tExp
-  in show actual
+  let tExp = translink primitives expr
+  in show tExp
 
 
 benchmarks :: IO ()
