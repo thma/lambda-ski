@@ -59,12 +59,45 @@ y        = fix
 ```
 
 So why don't we just reuse the Haskell native implementations of these combinators to reduce our expressions `implicitely`, 
-rather than `explicitly` with our home grown graph reduction?
+rather than building our own graph reduction to `explicitly` reduce them?
 
-It turns out that Matthew Naylor wrote about this approach more than a decade ago in [The Monad Reader, issue 10](
+It turns out that Matthew Naylor already wrote about this idea more than a decade ago in [The Monad Reader, issue 10](
 https://wiki.haskell.org/wikiupload/0/0a/TMR-Issue10.pdf).
 
-In the following section I will walk through the details of this concept.
+In the following section I will walk you through the details of this concept.
+
+## Translating SICKBY expressions
+
+In order to make use of haskell functions as combinators we'll first need a data structure that allows to include native functions in addition to the actual terms:
+
+
+```haskell
+-- | a compiled expression may be:
+data CExpr
+  = CComb Combinator       -- a known combinator symbol
+  | CApp CExpr CExpr       -- an application (f x)
+  | CFun (CExpr -> CExpr)  -- a native haskell function
+  | CInt Integer           -- an integer
+```
+
+Translation from SICKBY terms (that is abstracted lambda expresssions) to `CExpr` is straightforward:
+
+```haskell
+-- | translating an abstracted lambda expression into a compiled expression
+translate :: Expr -> CExpr
+translate (fun :@ arg)   = CApp (translate fun) (translate arg)
+translate (Int k)        = CInt k
+translate (Var c)        = CComb (fromString c)
+translate lam@(Lam _ _)  = error $ "lambdas should be abstracted already " ++ show lam
+```
+
+1. Applications are translated by forming a `CApp` of the tranlated function and it's argument.
+2. Integers are kept as is
+3. After abstraction any remaining `Var` must be a combinator. They are thus translated into a fixed combinator symbol.
+4. After abstraction any remaining `Lam` expressions would be an error, so we treat it as such.
+
+Please note that we do not construct any `CFun` instances in the translate stage. So right now the result of `translate` is just an ordinary data structure. Let's see any example:
+
 
 
 
