@@ -62,7 +62,7 @@ So why don't we just reuse the Haskell native implementations of these combinato
 rather than building our own graph reduction to `explicitly` reduce them?
 
 It turns out that Matthew Naylor already wrote about this idea more than a decade ago in [The Monad Reader, issue 10](
-https://wiki.haskell.org/wikiupload/0/0a/TMR-Issue10.pdf).
+https://wiki.haskell.org/wikiupload/0/0a/TMR-Issue10.pdf) (see also this [more recent coverage of the idea](https://smunix.github.io/kseo.github.io/posts/2016-12-30-write-you-an-interpreter.html)).
 
 In the following section I will walk you through the details of this concept.
 
@@ -72,12 +72,21 @@ In order to make use of haskell functions as combinators we'll first need a data
 
 
 ```haskell
+import LambdaToSKI (Combinator (..), fromString)
+
 -- | a compiled expression may be:
 data CExpr
   = CComb Combinator       -- a known combinator symbol
   | CApp CExpr CExpr       -- an application (f x)
-  | CFun (CExpr -> CExpr)  -- a native haskell function
+  | CFun (CExpr -> CExpr)  -- a native haskell function of type (CExpr -> CExpr)
   | CInt Integer           -- an integer
+
+-- | declaring a show instance for CExpr
+instance Show CExpr where
+  show (CComb k)  = show k
+  show (CApp a b) = "(" ++ show a ++ " " ++ show b ++ ")"
+  show (CFun _f)  = "<function>"
+  show (CInt i)   = show i
 ```
 
 Translation from SICKBY terms (that is abstracted lambda expresssions) to `CExpr` is straightforward:
@@ -88,40 +97,107 @@ translate :: Expr -> CExpr
 translate (fun :@ arg)   = CApp (translate fun) (translate arg)
 translate (Int k)        = CInt k
 translate (Var c)        = CComb (fromString c)
-translate lam@(Lam _ _)  = error $ "lambdas should be abstracted already " ++ show lam
+translate lam@(Lam _ _)  = error $ "lambdas should already be abstracted: " ++ show lam
 ```
 
-1. Applications are translated by forming a `CApp` of the tranlated function and it's argument.
+1. Applications are translated by forming a `CApp` of the translated function and it's argument.
 2. Integers are kept as is
 3. After abstraction any remaining `Var` must be a combinator. They are thus translated into a fixed combinator symbol.
 4. After abstraction any remaining `Lam` expressions would be an error, so we treat it as such.
 
-Please note that we do not construct any `CFun` instances in the translate stage. So right now the result of `translate` is just an ordinary data structure. Let's see any example:
+Please note that we do not use the `CFun` constructor in the translate stage. So right now the result of `translate` is just an ordinary data structure. Let's see an example:
+
+```haskell
+ghci> testSource = "main = (\\x y -> x) 3 4"
+ghci> env = parseEnvironment testSource
+ghci> compile env babs0
+(((Var "s" :@ (Var "k" :@ Var "k")) :@ Var "i") :@ Int 3) :@ Int 4
+ghci> cexpr = translate expr
+ghci> cexpr
+((((S (K K)) I) 3) 4)
+```
+
+Now it's time to do the real work. We will have to perform two essential transformations:
+1. All combinators of the form `(CComb comb)` have to be replaced by the haskell functions implementing the combinator reduction rule.
+2. All applications `(CApp fun arg)` have to be replaced by actual function application.
+In our case we want apply functions of type `CExpr -> CExpr` that are wrapped by `CFun` constructor. For this special case we define an application operator `(!)` like so:
+
+    ```haskell
+    -- | apply a CExpr of shape (CFun f) to argument x by evaluating (f x)
+    infixl 0 !
+    (!) :: CExpr -> CExpr -> CExpr
+    (CFun f) ! x = f x
+    ```
 
 
+Both tasks are performed by the following `link` function:
 
+```haskell
+-- | a global environment of combinator definitions
+type GlobalEnv = [(Combinator,CExpr)]
 
-show you how much this idea will reduce the complexity of our implementation.
-It also turns 
+-- | "link" a compiled expression into Haskell native functions.
+--   application terms will be transformed into real (!) applications
+--   combinator symbols will be replaced by their actual function definition
+link :: GlobalEnv -> CExpr -> CExpr
+link globals (CApp fun arg) = link globals fun ! link globals arg
+link globals (CComb comb)   = fromJust $ lookup comb globals
+link _globals expr          = expr
+```
 
+The global set of combinators is defined as follows:
 
+```haskell
+primitives :: GlobalEnv
+primitives = let (-->) = (,) in
+  [ I      --> CFun id
+  , K      --> CFun (CFun . const)
+  , S      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!(g!x))
+  , B      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!(g!x))
+  , C      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!g)
+  , IF     --> CFun (\(CInt cond) -> CFun $ \thenExp -> CFun $ \elseExp -> 
+                                        if cond == 1 then thenExp else elseExp)
+  , Y      --> CFun (\(CFun f) -> fix f)
+  , ADD    --> arith (+)
+  , SUB    --> arith (-)
+  , SUB1   --> CFun sub1
+  , MUL    --> arith (*)
+  , EQL    --> arith eql
+  , GEQ    --> arith geq
+  , ZEROP  --> CFun isZero
+  ]
 
- I will show you how to compile a program to a finite, fixed set of combinators (SKI), and then evaluate these combinators as normal Haskell function. This technique was introduced in Matthew Naylor’s Evaluating Haskell in Haskell.
+arith :: (Integer -> Integer -> Integer) -> CExpr
+arith op = CFun $ \(CInt a) -> CFun $ \(CInt b) -> CInt (op a b)
+```
 
-The source code is available here.
+Trying out `link` in GHCi looks like follows:
 
+```haskell
+ghci> link primitives cexpr
+3
+```
+
+So our initial expression `main = (\\x y -> x) 3 4` got translated into a haskell function applied to it's two arguments. As the function is fully saturated, the ghci implicit `show` request triggers it evaluation and we see the correct result `3` returned.
+
+## The good new and the good news
+
+If you studied [my post on the roll your own graph-reduction idea]((https://thma.github.io/posts/2021-12-27-Implementing-a-functional-language-with-Graph-Reduction.html)) you will be amazed how much simpler the current approach is.
+
+But it is also tremendously faster!
 
 ## performance
 
-```
-SICKBY GraphReduction	SICKBY asunctions	Haskell native 	G/HHI	HHI/Native
-factorial     1420   32,1   4,31   44   7
-fibonacci      420   41,9   3,04   10  14
-ackermann      450   20,9   0,405  22  52
-gaussian sum  1420   20     1,65   71  12
-tak           3610  112     0,781  32 143
-              7320  226,9  10,186  32  22
-```
+
+| | SICKBY GraphReduction [μs] |	SICKBY as functions [μs]	| ratio|
+|-|-----------------------:|---------------------:|------:|
+|factorial |    1420 |  32,1 | 44 |
+|fibonacci |     420 |  41,9 | 10 |
+|ackermann |     450 |  20,9 | 22 |
+|gaussian sum | 1420 |  20,0 | 71 |
+|tak |          3610 | 112,0 | 32 |
+
+
 
 ## Related ideas
 
