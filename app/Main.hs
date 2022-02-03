@@ -78,10 +78,10 @@ graphReductionDemo ioexpr = do
 hhiReductionDemo :: IO Expr -> IO ()
 hhiReductionDemo ioexpr = do
   expr <- ioexpr
-  let cexpr = translate expr 
-  putStrLn "compiled to CExpr"
-  print cexpr
-  let actual = link primitives cexpr
+  --let cexpr = translate expr 
+  --putStrLn "compiled to CExpr"
+  --print cexpr
+  let actual = transLink primitives expr
   putStrLn "after graph reduction:"
   print actual
 

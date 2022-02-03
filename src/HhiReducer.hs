@@ -6,8 +6,8 @@ import LambdaToSKI (Combinator (..), fromString)
 import Data.Maybe (fromJust)
 
 -- | a compiled expression
-data CExpr
-  = CComb Combinator
+data CExpr = 
+    CComb Combinator
   | CApp CExpr CExpr
   | CFun (CExpr -> CExpr)
   | CInt Integer
@@ -18,12 +18,12 @@ instance Show CExpr where
   show (CFun _f)  = "<function>"
   show (CInt i)   = show i
 
--- | translating a lambda expression into a compiled expression
-translate :: Expr -> CExpr
-translate (fun :@ arg)   = CApp (translate fun) (translate arg)
-translate (Int k)        = CInt k
-translate (Var c)        = CComb (fromString c)
-translate lam@(Lam _ _)  = error $ "lambdas should be abstracted already " ++ show lam
+-- -- | translating a lambda expression into a compiled expression
+-- translate :: Expr -> CExpr
+-- translate (fun :@ arg)   = CApp (translate fun) (translate arg)
+-- translate (Int k)        = CInt k
+-- translate (Var c)        = CComb (fromString c)
+-- translate lam@(Lam _ _)  = error $ "lambdas should be abstracted already " ++ show lam
 
 -- | apply a CExpr of shape (CFun f) to argument x by evaluating (f x)
 infixl 0 !
@@ -33,20 +33,20 @@ infixl 0 !
 
 type GlobalEnv = [(Combinator,CExpr)]
 
--- | "link" a compiled expression into Haskell native functions.
---   application terms will be transformed into real (!) applications
---   combinator symbols will be replaced by their actual function definition
-link :: GlobalEnv -> CExpr -> CExpr
-link globals (CApp fun arg) = link globals fun ! link globals arg
-link globals (CComb comb)   = fromJust $ lookup comb globals
-link _globals expr          = expr
+-- -- | "link" a compiled expression into Haskell native functions.
+-- --   application terms will be transformed into real (!) applications
+-- --   combinator symbols will be replaced by their actual function definition
+-- link :: GlobalEnv -> CExpr -> CExpr
+-- link globals (CApp fun arg) = link globals fun ! link globals arg
+-- link globals (CComb comb)   = fromJust $ lookup comb globals
+-- link _globals expr          = expr
 
 -- | translate and link in one go
-translink :: GlobalEnv -> Expr -> CExpr
-translink globals (fun :@ arg)  = (translink globals fun) ! (translink globals arg)
-translink _globals (Int k)      = CInt k
-translink globals (Var c)       = fromJust $ lookup (fromString c) globals
-translink _globals l@(Lam _ _)  = error $ "lambdas should be abstracted already " ++ show l
+transLink :: GlobalEnv -> Expr -> CExpr
+transLink globals (fun :@ arg)  = transLink globals fun ! transLink globals arg
+transLink _globals (Int k)      = CInt k
+transLink globals (Var c)       = fromJust $ lookup (fromString c) globals
+transLink _globals l@(Lam _ _)  = error $ "lambdas should be abstracted already " ++ show l
 
 
 primitives :: GlobalEnv

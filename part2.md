@@ -180,11 +180,38 @@ ghci> link primitives cexpr
 
 So our initial expression `main = (\\x y -> x) 3 4` got translated into a haskell function applied to it's two arguments. As the function is fully saturated, the ghci implicit `show` request triggers it evaluation and we see the correct result `3` returned.
 
+## We can do still better
+
+I took the idea of having two passes, `translate` and `link` to transform the input SICKBY expressions verbatim from Matthew Naylor's paper. I think it's easier to explain the overall idea when breaking it down into two separate steps. But it's perfectly possible do the transformation in one pass:
+
+```haskell
+-- | translate and link in one go
+--   application terms will directly be transformed into (!) applications
+--   combinator symbols will be replaced by their actual function definition
+transLink :: GlobalEnv -> Expr -> CExpr
+transLink globals (fun :@ arg)  = transLink globals fun ! transLink globals arg
+transLink _globals (Int k)      = CInt k
+transLink globals (Var c)       = fromJust $ lookup (fromString c) globals
+transLink _globals l@(Lam _ _)  = error $ "lambdas should be abstracted already " ++ show l
+```
+
+In this case the `CExpr` type becomes even simpler, as no intermediate constructor are required for applications and combinators:
+
+```haskell
+-- | a compiled expression
+data CExpr = 
+    CFun (CExpr -> CExpr)
+  | CInt Integer
+```
+
 ## The good new and the good news
 
 If you studied [my post on the roll your own graph-reduction idea]((https://thma.github.io/posts/2021-12-27-Implementing-a-functional-language-with-Graph-Reduction.html)) you will be amazed how much simpler the current approach is.
 
-But it is also tremendously faster!
+But it is also tremendously faster! 
+
+I've assembled a set of criterion micro-benchmarks for some typical recursive functions on integers.
+
 
 ## performance
 
