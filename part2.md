@@ -7,7 +7,7 @@
 
 ## Introduction
 
-In a [previous post](https://thma.github.io/posts/2021-12-27-Implementing-a-functional-language-with-Graph-Reduction.html) I presented a classical approach to implement a functional language with a combinator based graph-reduction machine in Haskell.
+In a [previous post](https://thma.github.io/posts/2021-12-27-Implementing-a-functional-language-with-Graph-Reduction.html) I presented a classical approach to implement a functional language with combinator based graph-reduction in Haskell.
 
 The implementation was structured into three parts:
 
@@ -17,14 +17,12 @@ The implementation was structured into three parts:
 
 3. A graph-reduction engine which implements the combinator rewrite rules as an efficient graph reduction 
 
+The basic idea is as follows:
 
-The basic idea boils down to thew following:
-
-Take a program like `main = (\x y -> x) 3 4` and compile it to variable-free combinator expressions, in this case `K 3 4`.
+Take a program like `main = (\x y -> x) 3 4` and compile it to a variable-free combinator expressions, in this case `K 3 4`.
 Then apply the combinator reduction rules like `K x y = x` until normal-form is reached.
 
-Graph-reduction is used as an efficient implementation technique for these reduction rules in order to 
-avoid term rewriting which would involve a lot of intermediary memory allocation.
+Graph-reduction is used as an efficient implementation technique for these reduction rules.
 For example the reduction of `K` is implemented as follows:
 
 ```haskell
@@ -58,7 +56,7 @@ b f g x  = (f (g x))
 y        = fix
 ```
 
-So why don't we just reuse the Haskell native implementations of these combinators to reduce our expressions `implicitely`, 
+So why don't we just use the Haskell native implementations of these combinators to reduce our expressions `implicitely`, 
 rather than building our own graph reduction to `explicitly` reduce them?
 
 It turns out that Matthew Naylor already wrote about this idea more than a decade ago in [The Monad Reader, issue 10](
@@ -101,9 +99,9 @@ translate lam@(Lam _ _)  = error $ "lambdas should already be abstracted: " ++ s
 ```
 
 1. Applications are translated by forming a `CApp` of the translated function and it's argument.
-2. Integers are kept as is
-3. After abstraction any remaining `Var` must be a combinator. They are thus translated into a fixed combinator symbol.
-4. After abstraction any remaining `Lam` expressions would be an error, so we treat it as such.
+2. Integers are kept as is, just wrapped with a `CInt` constructor
+3. After performing bracket abstraction any remaining `Var` must be a combinator. They are thus translated into a fixed combinator symbol; `fromString` looks up combinator symbols.
+4. After bracket abstraction any remaining `Lam` expressions would be an error, so we treat it as such.
 
 Please note that we do not use the `CFun` constructor in the translate stage. So right now the result of `translate` is just an ordinary data structure. Let's see an example:
 
@@ -120,7 +118,7 @@ ghci> cexpr
 Now it's time to do the real work. We will have to perform two essential transformations:
 1. All combinators of the form `(CComb comb)` have to be replaced by the haskell functions implementing the combinator reduction rule.
 2. All applications `(CApp fun arg)` have to be replaced by actual function application.
-In our case we want apply functions of type `CExpr -> CExpr` that are wrapped by `CFun` constructor. For this special case we define an application operator `(!)` like so:
+In our case we want apply functions of type `CExpr -> CExpr` that are wrapped by a `CFun` constructor. For this particular case we define an application operator `(!)` as follows:
 
     ```haskell
     -- | apply a CExpr of shape (CFun f) to argument x by evaluating (f x)
@@ -137,7 +135,7 @@ Both tasks are performed by the following `link` function:
 type GlobalEnv = [(Combinator,CExpr)]
 
 -- | "link" a compiled expression into Haskell native functions.
---   application terms will be transformed into real (!) applications
+--   application terms will be transformed into (!) applications
 --   combinator symbols will be replaced by their actual function definition
 link :: GlobalEnv -> CExpr -> CExpr
 link globals (CApp fun arg) = link globals fun ! link globals arg
@@ -178,11 +176,11 @@ ghci> link primitives cexpr
 3
 ```
 
-So our initial expression `main = (\\x y -> x) 3 4` got translated into a haskell function applied to it's two arguments. As the function is fully saturated, the ghci implicit `show` request triggers it evaluation and we see the correct result `3` returned.
+So our initial expression `main = (\\x y -> x) 3 4` got translated into a haskell function applied to it's two arguments. As the function is fully saturated, the ghci implicit `show` request triggers its evaluation and we see the correct result `3` returned.
 
 ## We can do still better
 
-I took the idea of having two passes, `translate` and `link` to transform the input SICKBY expressions verbatim from Matthew Naylor's paper. I think it's easier to explain the overall idea when breaking it down into two separate steps. But it's perfectly possible do the transformation in one pass:
+I took the idea of having two passes, `translate` and `link` to transform the input SICKBY expressions verbatim from Matthew Naylor's paper. I think it's easier to explain the overall idea when breaking it down into these two separate steps. But it's perfectly possible do the transformation in one pass:
 
 ```haskell
 -- | translate and link in one go
@@ -195,7 +193,7 @@ transLink globals (Var c)       = fromJust $ lookup (fromString c) globals
 transLink _globals l@(Lam _ _)  = error $ "lambdas should be abstracted already " ++ show l
 ```
 
-In this case the `CExpr` type becomes even simpler, as no intermediate constructor are required for applications and combinators:
+In this case the `CExpr` type becomes even simpler, as no intermediate constructors are required for applications and combinators:
 
 ```haskell
 -- | a compiled expression
