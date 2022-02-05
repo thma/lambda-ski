@@ -12,6 +12,8 @@ bug-reports:    https://github.com/githubuser/lambda-ski/issues
 author:         Author name here
 maintainer:     example@example.com
 copyright:      2021 Author name here
+tested-with:
+    GHC == 8.10.7 , GHC == 9.0.2 , GHC == 9.2.1
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
