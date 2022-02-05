@@ -6,17 +6,17 @@ author:              "Author name here"
 maintainer:          "example@example.com"
 copyright:           "2021 Author name here"
 
+
 tested-with:   GHC == 8.10.7
              , GHC == 9.0.2
              , GHC == 9.2.1
 
 extra-source-files:
 - README.md
-- ChangeLog.md
 
 # Metadata used when publishing your package
-# synopsis:            Short description of your package
-# category:            Web
+synopsis:            "Implementing a simple functional language with SICKBY combinators and graph-reduction"
+category:            Web
 
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
