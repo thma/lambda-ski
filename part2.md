@@ -5,6 +5,9 @@
 
 ## abstract
 
+In this post I present an alternative approach to combinator-based implementation of functional languages that is significantly faster than classical graph-reduction based solutions.
+
+
 ## Introduction
 
 In a [previous post](https://thma.github.io/posts/2021-12-27-Implementing-a-functional-language-with-Graph-Reduction.html) I presented a classical approach to implement a functional language with combinator based graph-reduction in Haskell.
