@@ -86,3 +86,4 @@ test-suite lambda-ski-test
     , parsec
     , quickcheck-io
   default-language: Haskell2010
+  build-tool-depends: hspec-discover:hspec-discover
