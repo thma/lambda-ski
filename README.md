@@ -1,6 +1,6 @@
 # lambda-ski
 
-[![Actions Status](https://github.com/thma/lambda-ski/workflows/Haskell%20CI/badge.svg)](https://github.com/thma/lambda-ski/actions)
+[![Actions Status](https://github.com/thma/lambda-ski/workflows/Haskell-CI/badge.svg)](https://github.com/thma/lambda-ski/actions)
 
 ## Abstract
 

@@ -1,6 +1,6 @@
 # Evaluating SKI combinators as native Haskell functions
 
-[![Actions Status](https://github.com/thma/lambda-ski/workflows/Haskell%20CI/badge.svg)](https://github.com/thma/lambda-ski/actions) <a href="https://github.com/thma/lambda-ski"><img src="https://thma.github.io/img/forkme.png" height="20" ></a>
+[![Actions Status](https://github.com/thma/lambda-ski/workflows/Haskell-CI/badge.svg)](https://github.com/thma/lambda-ski/actions) <a href="https://github.com/thma/lambda-ski"><img src="https://thma.github.io/img/forkme.png" height="20" ></a>
 
 
 ## abstract
