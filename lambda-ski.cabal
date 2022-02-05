@@ -74,6 +74,7 @@ test-suite lambda-ski-test
   other-modules:
       GraphReductionSpec
       ReducerSpec
+      TestSources
       Paths_lambda_ski
   hs-source-dirs:
       test
