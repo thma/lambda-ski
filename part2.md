@@ -169,6 +169,8 @@ arith :: (Integer -> Integer -> Integer) -> CExpr
 arith op = CFun $ \(CInt a) -> CFun $ \(CInt b) -> CInt (op a b)
 ```
 
+As you can see, the combinators are implemented as `CFun` wrapped functions. So they bear some minor overhead for pattern matching the `CFun` constructor when using the `(!)` operator. But apart from that they are ordinary Haskell functions.
+
 Trying out `link` in GHCi looks like follows:
 
 ```haskell
@@ -208,25 +210,39 @@ If you studied [my post on the roll your own graph-reduction idea]((https://thma
 
 But it is also tremendously faster! 
 
-I've assembled a set of criterion micro-benchmarks for some typical recursive functions on integers.
+I've assembled a set of [criterion micro-benchmarks for some typical recursive functions](https://github.com/thma/lambda-ski/blob/main/benchmark/ReductionBenchmarks.hs) on integers.
 
-
-## performance
+The table below compares the mean execution times for reducing the same program with GraphReduction and  with the "combinators as native functions". the third column gives the ratio between both execution times:
 
 
 | | SICKBY GraphReduction [μs] |	SICKBY as functions [μs]	| ratio|
 |-|-----------------------:|---------------------:|------:|
-|factorial |    1420 |  32,1 | 44 |
-|fibonacci |     420 |  41,9 | 10 |
-|ackermann |     450 |  20,9 | 22 |
-|gaussian sum | 1420 |  20,0 | 71 |
-|tak |          3610 | 112,0 | 32 |
+|[factorial](https://github.com/thma/lambda-ski/blob/main/test/factorial.ths) |    1273 |  24.92 | 51 |
+|[fibonacci](https://github.com/thma/lambda-ski/blob/main/test/fibonacci.ths) |     484 |  50.70 | 10 |
+|[ackermann](https://github.com/thma/lambda-ski/blob/main/test/ackermann.ths) |     386 |  16,88 | 23 |
+|[gaussian sum](https://github.com/thma/lambda-ski/blob/main/test/gaussian.ths) | 1414 |  16,18 | 87 |
+|[tak](https://github.com/thma/lambda-ski/blob/main/test/tak.ths) |          3204 |  75,69 | 42 |
+
+For the fibonacci function the "combinators as native functions" approach is ten times faster, for the gaussian sum almost 90 times.
+
+## Room for further improvements
+
+It's interesting to see how the "combinators as native functions" execution performs in comparison to actual Haskell implementations of our five test functions. The Haskell native implementations can be found in the [benchmark definition](https://github.com/thma/lambda-ski/blob/main/benchmark/ReductionBenchmarks.hs).
 
 
+| | SICKBY as functions [μs] |	Haskell native [μs]	| ratio|
+|-|-----------------------:|---------------------:|------:|
+|factorial |    24.92 | 4.743|   5 |
+|fibonacci |    50.70 | 2.824|  18 |
+|ackermann |    16,88 | 0.497|  34 |
+|gaussian sum | 16,18 | 1.302|  12 |
+|tak |          75,69 | 0.084| 903 |
 
-## Related ideas
+For simple unary function like `factorial` and `gaussian sum` the native implementation is only 5 to 12 times faster. That's not bad for such a simple approach!
 
-https://wiki.haskell.org/wikiupload/0/0a/TMR-Issue10.pdf
+But for more complex functions like `fibonacci` and in particular for binary or ternary functions like `ackermann` and `tak` the performance is not that good. 
 
-https://smunix.github.io/kseo.github.io/posts/2016-12-30-write-you-an-interpreter.html
+This is caused by the inefficient "code generation" of the classic bracket abstraction: [The output size grows quadratic](https://tromp.github.io/cl/LC.pdf) with internal complexity and number of variables. As each additional combinator or application will require additional execution time it's easy to see why a quadratic growth in combinator code size will drastically decrease performance. 
+There have been many attempts to optimize bracket abstraction by [introducing additional combinators](https://www.cantab.net/users/antoni.diller/brackets/intro.html) and by [applying additional optimization rules](https://tromp.github.io/cl/LC.pdf).
 
+I leave it as an exercise to the interested reader to improve the bracket abstraction rules applied here in order to sigificantly speed up both the graph-reduction as the "combinators as native functions" implementations.
