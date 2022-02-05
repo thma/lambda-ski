@@ -1,6 +1,6 @@
 module ReducerSpec where
 
-import HhiReducer hiding (evalFile)
+import HhiReducer
 import Parser
 import LambdaToSKI
 import Data.Maybe (fromJust)
