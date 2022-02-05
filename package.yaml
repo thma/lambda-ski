@@ -66,4 +66,5 @@ tests:
     - hspec
     - QuickCheck
     - quickcheck-io
+    build-tool-depends:  hspec-discover:hspec-discover 
 
