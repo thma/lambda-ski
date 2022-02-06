@@ -6,9 +6,9 @@ cabal-version: 1.12
 
 name:           lambda-ski
 version:        0.1.0.0
-synopsis:       Implementing a simple functional language with SICKBY combinators and graph-reduction
+synopsis:       SICKBY combinators and graph-reduction
 description:    Please see the README on GitHub at <https://github.com/githubuser/lambda-ski#readme>
-category:       Web
+category:       Compilers/Interpreters
 homepage:       https://github.com/githubuser/lambda-ski#readme
 bug-reports:    https://github.com/githubuser/lambda-ski/issues
 author:         Author name here
