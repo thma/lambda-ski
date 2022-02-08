@@ -40,7 +40,7 @@ loadTestCase name = readFile $ "test/" ++ name ++ ".ths"
 runTest :: SourceCode -> Bool
 runTest src =
   let pEnv = parseEnvironment src
-      aExp = compile pEnv abstractSimple
+      aExp = compile pEnv abstractToSKI
       tExp = translate aExp
       expected = translate $ fromJust (lookup "expected" pEnv)
       actual = link primitives tExp

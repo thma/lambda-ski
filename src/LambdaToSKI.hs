@@ -17,7 +17,6 @@ import           Parser    (Environment, Expr (..))
 
 type Error = String
 
--- @TODO There must be a subtle bug in here. (tak 12 6 3) won't work with this abstraction
 babs :: Environment -> Expr -> Expr
 babs env (Lam x e)
   | Var "i" :@ _x <- t = t
@@ -27,7 +26,7 @@ babs env (Lam x e)
   | m :@ Var y <- t, x == y, x `notElem` fv [] m = m
   | Var y :@ m :@ Var z <- t, x == y, x == z = babs env $ Lam x $ Var "s" :@ Var "s" :@ Var "k" :@ Var x :@ m
   | m :@ (n :@ l) <- t, isComb m, isComb n = babs env $ Lam x $ Var "s" :@ Lam x m :@ n :@ l
-  | (m :@ n) :@ l <- t, isComb m, isComb l = babs env $ Lam x $ Var "s" :@ m :@ Lam x l :@ n
+--  | (m :@ n) :@ l <- t, isComb m, isComb l = babs env $ Lam x $ Var "s" :@ m :@ Lam x l :@ n -- this line is buggy (endless loop for tak)
   | (m :@ l) :@ (n :@ l') <- t,
     l `noLamEq` l',
     isComb m,

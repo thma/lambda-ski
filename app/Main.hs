@@ -60,7 +60,7 @@ loadTestCase name = do
   putStrLn "The source: "
   putStrLn src
   let pEnv = parseEnvironment src
-      expr = compile pEnv abstractSimple
+      expr = compile pEnv abstractToSKI
   return expr
 
 graphReductionDemo :: IO Expr -> IO ()

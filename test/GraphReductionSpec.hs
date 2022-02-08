@@ -46,7 +46,7 @@ getInt _ = error "not an int"
 runTest :: SourceCode -> (String, String)
 runTest src =
   let pEnv = parseEnvironment src
-      expr = compile pEnv abstractSimple
+      expr = compile pEnv abstractToSKI
       graph = allocate expr
       expected = show $ getInt $ fromJust (lookup "expected" pEnv)
       result = reduceGraph graph

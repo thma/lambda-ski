@@ -2,7 +2,7 @@ module ReductionBenchmarks where
 
 import Criterion.Main ( defaultMain, bench, nf )
 import Parser ( parseEnvironment, Expr(Int) )
-import LambdaToSKI ( abstractSimple, compile )
+import LambdaToSKI ( abstractToSKI, compile )
 import GraphReduction ( allocate, normalForm, toString, Graph )
 import Data.Maybe (fromJust)
 import Data.STRef ( STRef )
@@ -16,7 +16,7 @@ loadTestCase :: String -> IO Expr
 loadTestCase name = do
   src <- readFile $ "test/" ++ name ++ ".ths"
   let pEnv = parseEnvironment src
-      expr = compile pEnv abstractSimple
+      expr = compile pEnv abstractToSKI
   return expr
 
 getInt :: Expr -> Integer
