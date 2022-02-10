@@ -17,6 +17,7 @@ import           Parser    (Environment, Expr (..))
 
 type Error = String
 
+-- improved bracket abstraction according to https://tromp.github.io/cl/LC.pdf (section 3.2)
 babs :: Environment -> Expr -> Expr
 babs env (Lam x e)
   | Var "i" :@ _x <- t = t
@@ -77,6 +78,7 @@ opt (Var "i" :@ n@(Int _n))                           = n
 opt ((Var "s" :@ (Var "k" :@ e1)) :@ (Var "k" :@ e2)) = Var "k" :@ (e1 :@ e2)
 opt ((Var "s" :@ e1) :@ (Var "k" :@ e2))              = (Var "c" :@ e1) :@ e2
 opt ((Var "s" :@ (Var "k" :@ e1)) :@ e2)              = (Var "b" :@ e1) :@ e2
+opt ((Var "s" :@ ((Var "b" :@ Var "p") :@ Var "q")) :@ Var "r") = ((Var "s1" :@ Var "p") :@ Var "q") :@ Var "r"
 opt (x :@ y)                                          = opt x :@ opt y
 opt x                                                 = x
 
@@ -124,7 +126,7 @@ cccAbs env (Var s)
 cccAbs env (m :@ n) = cccAbs env m :@ cccAbs env n
 cccAbs _env x = x
 
-data Combinator = I | K | S | B | C | Y | P | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP | IF
+data Combinator = I | K | S | B | C | Y | P | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP | IF | B' | C' | S'
   deriving (Eq, Show)
 
 fromString :: String -> Combinator
@@ -133,6 +135,9 @@ fromString "k"    = K
 fromString "s"    = S
 fromString "b"    = B
 fromString "c"    = C
+fromString "s'"   = S'
+fromString "b'"   = B'
+fromString "c'"   = C'
 fromString "y"    = Y
 fromString "p"    = P
 fromString "+"    = ADD

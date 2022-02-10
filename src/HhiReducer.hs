@@ -48,7 +48,7 @@ transLink _globals (Int k)      = CInt k
 transLink globals (Var c)       = fromJust $ lookup (fromString c) globals
 transLink _globals l@(Lam _ _)  = error $ "lambdas should be abstracted already " ++ show l
 
-
+-- | the set of primary operations: combinators + basic arithmetic functions
 primitives :: GlobalEnv
 primitives = let (-->) = (,) in
   [ I      --> CFun id
@@ -56,6 +56,9 @@ primitives = let (-->) = (,) in
   , S      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!(g!x))
   , B      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!(g!x))
   , C      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!g)
+  , B'     --> CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!q!(r!s))      -- B' P Q R S = P Q (R S)
+  , C'     --> CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!r)      -- C' P Q R S = P (Q S) R
+  , S'     --> CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!(r!s))  -- S' P Q R S = P (Q S) (R S)
   , IF     --> CFun (\(CInt cond) -> CFun $ \thenExp -> CFun $ \elseExp -> if cond == 1 then thenExp else elseExp)
   , Y      --> CFun (\(CFun f) -> fix f)
   , ADD    --> arith (+)

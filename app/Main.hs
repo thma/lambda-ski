@@ -27,7 +27,7 @@ main = do
   hSetEncoding stdout utf8 -- this is required to handle UTF-8 characters like λ
 
   -- testSource <-readFile "test/tak.ths"
-  let testSource = "main = (\\x y -> x) 3 4"
+  let testSource = "main = (\\x y -> + x x) 3 4"
   putStrLn "The sourcecode: "
   putStrLn testSource
 
@@ -36,7 +36,7 @@ main = do
   mapM_ print env
   putStrLn ""
 
-  let expr = compile env babs0 --abstractSimple --abstractToSKI
+  let expr = compile env abstractToSKI
   putStrLn "The main expression compiled to SICKYB combinator expressions:"
   print expr
   putStrLn ""
