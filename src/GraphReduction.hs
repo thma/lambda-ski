@@ -141,6 +141,38 @@ reduce C (p1 : p2 : p3 : _) = do
   (_ :@: zP) <- readSTRef p3
   node1 <- newSTRef $ xP :@: zP
   writeSTRef p3 (node1 :@: yP)
+
+-- B' P Q R S = P Q (R S)
+reduce B' (p : q : r : s : _) = do
+  (_ :@: pP) <- readSTRef p
+  (_ :@: qP) <- readSTRef q
+  (_ :@: rP) <- readSTRef r
+  (_ :@: sP) <- readSTRef s
+  node1 <- newSTRef $ pP :@: qP
+  node2 <- newSTRef $ rP :@: sP
+  writeSTRef s (node1 :@: node2)
+
+-- C' P Q R S = P (Q S) R
+reduce C' (p : q : r : s : _) = do
+  (_ :@: pP) <- readSTRef p
+  (_ :@: qP) <- readSTRef q
+  (_ :@: rP) <- readSTRef r
+  (_ :@: sP) <- readSTRef s
+  node1 <- newSTRef $ qP :@: sP
+  node2 <- newSTRef $ pP :@: node1
+  writeSTRef s (node2 :@: rP) 
+
+-- S' P Q R S = P (Q S) (R S)
+reduce S' (p : q : r : s : _) = do
+  (_ :@: pP) <- readSTRef p
+  (_ :@: qP) <- readSTRef q
+  (_ :@: rP) <- readSTRef r
+  (_ :@: sP) <- readSTRef s
+  node1 <- newSTRef $ qP :@: sP
+  node2 <- newSTRef $ pP :@: node1
+  node3 <- newSTRef $ rP :@: sP
+  writeSTRef s (node2 :@: node3)  
+
 reduce Y (p1 : _) = do
   (_yP :@: fP) <- readSTRef p1
   writeSTRef p1 (fP :@: p1)

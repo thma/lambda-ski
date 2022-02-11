@@ -78,7 +78,10 @@ opt (Var "i" :@ n@(Int _n))                           = n
 opt ((Var "s" :@ (Var "k" :@ e1)) :@ (Var "k" :@ e2)) = Var "k" :@ (e1 :@ e2)
 opt ((Var "s" :@ e1) :@ (Var "k" :@ e2))              = (Var "c" :@ e1) :@ e2
 opt ((Var "s" :@ (Var "k" :@ e1)) :@ e2)              = (Var "b" :@ e1) :@ e2
-opt ((Var "s" :@ ((Var "b" :@ Var "p") :@ Var "q")) :@ Var "r") = ((Var "s1" :@ Var "p") :@ Var "q") :@ Var "r"
+opt ((Var "s" :@ ((Var "b" :@ p) :@ q)) :@ r)         = ((Var "s'" :@ p) :@ q) :@ r  -- Diller, p.98
+opt ((Var "b" :@ (p :@ q) :@ r))                      = ((Var "b'" :@ p) :@ q) :@ r
+opt ((Var "c" :@ ((Var "b" :@ p) :@ q)) :@ r)         = ((Var "c'" :@ p) :@ q) :@ r
+
 opt (x :@ y)                                          = opt x :@ opt y
 opt x                                                 = x
 
