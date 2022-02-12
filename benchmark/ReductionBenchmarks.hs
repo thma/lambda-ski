@@ -1,13 +1,13 @@
 module ReductionBenchmarks where
 
 import Criterion.Main ( defaultMain, bench, nf )
-import Parser ( parseEnvironment, Expr(Int) )
+import Parser ( parseEnvironment, Expr(Int, (:@)) )
 import LambdaToSKI ( abstractToSKI, compile )
 import GraphReduction ( allocate, normalForm, toString, Graph )
 import Data.Maybe (fromJust)
 import Data.STRef ( STRef )
 import Control.Monad.ST ( ST, runST )
-import HhiReducer ( primitives, transLink)
+import HhiReducer ( primitives, transLink, CExpr(CInt, CApp) ) 
 import Control.Monad.Fix ( fix )
 
 type SourceCode = String
@@ -43,10 +43,10 @@ reduceGraph graph = do
   normalForm gP
 
 reducerTest :: Expr -> String
-reducerTest expr =
-  let tExp = transLink primitives expr
-  in show tExp
-
+reducerTest (expr :@ (Int x)) =
+  let fun = transLink primitives expr
+  in show (CApp fun (CInt x))
+reducerTest expr = error "invalid input expression " ++ show expr
 
 benchmarks :: IO ()
 benchmarks = do

@@ -66,22 +66,22 @@ fv vs (Lam s f) = fv (s : vs) f
 fv vs _ = vs
 
 isComb :: Expr -> Bool
-isComb e = null $ fv [] e \\ ["s", "k", "i", "b", "c", "y"]
+isComb e = null $ fv [] e \\ ["s", "k", "i", "b", "c", "y", "s'", "b'", "c'"]
 
 noLamEq :: Expr -> Expr -> Bool
 noLamEq (Var x) (Var y)   = x == y
 noLamEq (a :@ b) (c :@ d) = a `noLamEq` c && b `noLamEq` d
 noLamEq _ _               = False
 
+-- | optimizations according to Antoni Diller, Compiling Functional Languages, chapter 7
 opt :: Expr -> Expr
 opt (Var "i" :@ n@(Int _n))                           = n
 opt ((Var "s" :@ (Var "k" :@ e1)) :@ (Var "k" :@ e2)) = Var "k" :@ (e1 :@ e2)
 opt ((Var "s" :@ e1) :@ (Var "k" :@ e2))              = (Var "c" :@ e1) :@ e2
 opt ((Var "s" :@ (Var "k" :@ e1)) :@ e2)              = (Var "b" :@ e1) :@ e2
 opt ((Var "s" :@ ((Var "b" :@ p) :@ q)) :@ r)         = ((Var "s'" :@ p) :@ q) :@ r  -- Diller, p.98
-opt ((Var "b" :@ (p :@ q) :@ r))                      = ((Var "b'" :@ p) :@ q) :@ r
-opt ((Var "c" :@ ((Var "b" :@ p) :@ q)) :@ r)         = ((Var "c'" :@ p) :@ q) :@ r
-
+opt ((Var "b" :@ (p :@ q) :@ r))                      = ((Var "b'" :@ p) :@ q) :@ r  -- Diller, p.98
+opt ((Var "c" :@ ((Var "b" :@ p) :@ q)) :@ r)         = ((Var "c'" :@ p) :@ q) :@ r  -- Diller, p.98
 opt (x :@ y)                                          = opt x :@ opt y
 opt x                                                 = x
 
