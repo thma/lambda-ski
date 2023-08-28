@@ -20,7 +20,7 @@ instance Show CExpr where
 
 -- | translating a lambda expression into a compiled expression
 translate :: Expr -> CExpr
-translate (fun :@ arg)   = CApp (translate fun) (translate arg)
+translate (fun `App` arg)   = CApp (translate fun) (translate arg)
 translate (Int k)        = CInt k
 translate (Var c)        = CComb (fromString c)
 translate lam@(Lam _ _)  = error $ "lambdas should be abstracted already " ++ show lam
@@ -43,7 +43,7 @@ link _globals expr          = expr
 
 -- | translate and link in one go
 transLink :: GlobalEnv -> Expr -> CExpr
-transLink globals (fun :@ arg)  = transLink globals fun ! transLink globals arg
+transLink globals (fun `App` arg)  = transLink globals fun ! transLink globals arg
 transLink _globals (Int k)      = CInt k
 transLink globals (Var c)       = fromJust $ lookup (fromString c) globals
 transLink _globals l@(Lam _ _)  = error $ "lambdas should be abstracted already " ++ show l

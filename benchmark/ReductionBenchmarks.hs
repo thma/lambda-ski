@@ -1,7 +1,7 @@
 module ReductionBenchmarks where
 
 import Criterion.Main ( defaultMain, bench, nf )
-import Parser ( parseEnvironment, Expr(Int, (:@)) )
+import Parser ( parseEnvironment, Expr(Int, App) )
 import LambdaToSKI ( abstractToSKI, compile )
 import GraphReduction ( allocate, normalForm, toString, Graph )
 import Data.Maybe (fromJust)
@@ -43,7 +43,7 @@ reduceGraph graph = do
   normalForm gP
 
 reducerTest :: Expr -> String
-reducerTest (expr :@ (Int x)) =
+reducerTest (expr `App` (Int x)) =
   let fun = transLink primitives expr
   in show (CApp fun (CInt x))
 reducerTest expr = error "invalid input expression " ++ show expr

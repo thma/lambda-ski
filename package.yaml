@@ -5,7 +5,7 @@ license:             BSD3
 author:              "Author name here"
 maintainer:          "example@example.com"
 copyright:           "2021 Author name here"
-
+language:            GHC2021
 
 tested-with:   GHC == 8.10.7
              , GHC == 9.0.2
