@@ -16,8 +16,7 @@ import           Control.Monad.ST (ST)
 import           Data.STRef       (STRef, newSTRef, readSTRef,
                                    writeSTRef)
 import           Parser           (Expr (..))
-import LambdaToSKI (Combinator(..), fromString)
---import CLTerm
+import CLTerm (Combinator(..), fromString)
 
 
 infixl 5 :@:

@@ -27,7 +27,7 @@ convert (#) = \case
   N Z -> (1, Com "I")
   N (Su e) -> (n + 1, (0, Com "K") # t) where t@(n, _) = rec $ N e
   L e -> case rec e of
-    (0, d) -> (0, Com "K" :@: d)
+    (0, d) -> (0, Com "K" :@ d)
     (n, d) -> (n - 1, d)
   A e1 e2 -> (max n1 n2, t1 # t2) where
     t1@(n1, _) = rec e1
@@ -38,22 +38,22 @@ convert (#) = \case
 
 plain :: DB -> (Int, CL)
 plain = convert (#) where
-  (0 , d1) # (0 , d2) = d1 :@: d2
-  (0 , d1) # (n , d2) = (0, Com "B" :@: d1) # (n - 1, d2)
-  (n , d1) # (0 , d2) = (0, Com "R" :@: d2) # (n - 1, d1)
+  (0 , d1) # (0 , d2) = d1 :@ d2
+  (0 , d1) # (n , d2) = (0, Com "B" :@ d1) # (n - 1, d2)
+  (n , d1) # (0 , d2) = (0, Com "R" :@ d2) # (n - 1, d1)
   (n1, d1) # (n2, d2) = (n1 - 1, (0, Com "S") # (n1 - 1, d1)) # (n2 - 1, d2)
 
 bulkPlain :: (String -> Int -> CL) -> DB -> (Int, CL)
 bulkPlain bulk = convert (#) where
   (a, x) # (b, y) = case (a, b) of
-    (0, 0)             ->               x :@: y
-    (0, n)             -> bulk "B" n :@: x :@: y
-    (n, 0)             -> bulk "C" n :@: x :@: y
-    (n, m) | n == m    -> bulk "S" n :@: x :@: y
-           | n < m     ->                      bulk "B" (m - n) :@: (bulk "S" n :@: x) :@: y
-           | otherwise -> bulk "C" (n - m) :@: (bulk "B" (n - m) :@:  bulk "S" m :@: x) :@: y
+    (0, 0)             ->               x :@ y
+    (0, n)             -> bulk "B" n :@ x :@ y
+    (n, 0)             -> bulk "C" n :@ x :@ y
+    (n, m) | n == m    -> bulk "S" n :@ x :@ y
+           | n < m     ->                      bulk "B" (m - n) :@ (bulk "S" n :@ x) :@ y
+           | otherwise -> bulk "C" (n - m) :@ (bulk "B" (n - m) :@  bulk "S" m :@ x) :@ y
 
-bulk :: (Eq a, Num a, Show a) => String -> a -> CL
+bulk :: String -> Int -> CL
 bulk c 1 = Com c
 bulk c n = Com (c ++ show n)
 
@@ -61,16 +61,16 @@ bulk c n = Com (c ++ show n)
 --   N Z -> (True:[], Com "I")
 --   N (Su e) -> head (False:) $ rec $ N e
 --   L e -> case rec e of
---     ([], d) -> ([], Com "K" :@: d)
+--     ([], d) -> ([], Com "K" :@ d)
 --     (False:g, d) -> ([], Com "K") ## (g, d)
 --     (True:g, d) -> (g, d)
 --   A e1 e2 -> rec e1 ## rec e2
 --   Free s -> ([], Com s)
 --   where
 --   rec = bulkOpt bulk
---   ([], d1) ## ([], d2) = ([], d1 :@: d2)
+--   ([], d1) ## ([], d2) = ([], d1 :@ d2)
 --   ([], d1) ## ([True], Com "I") = ([True], d1)
---   ([], d1) ## (g2, Com "I") | and g2 = (g2, bulk "B" (length g2 - 1) :@: d1)
+--   ([], d1) ## (g2, Com "I") | and g2 = (g2, bulk "B" (length g2 - 1) :@ d1)
 --   ([], d1) ## (g2@(h:_), d2) = first (pre++) $ ([], fun1 d1) ## (post, d2)
 --     where
 --     fun1 = case h of
@@ -78,9 +78,9 @@ bulk c n = Com (c ++ show n)
 --       False -> id
 --     (pre, post) = span (h ==) g2
 
---   ([True], Com "I") ## ([], d2) = ([True], Com "T" :@: d2)
+--   ([True], Com "I") ## ([], d2) = ([True], Com "T" :@ d2)
 --   (g1@(h:_), d1) ## ([], d2) = first (pre++) $ case h of
---     True -> ([], Com "C" :@: bulk "C" (length pre) :@: d2) ## (post, d1)
+--     True -> ([], Com "C" :@ bulk "C" (length pre) :@ d2) ## (post, d1)
 --     False -> (post, d1) ## ([], d2)
 --     where
 --     (pre, post) = span (h ==) g1

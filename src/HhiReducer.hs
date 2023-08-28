@@ -2,7 +2,7 @@ module HhiReducer where
 
 import Parser ( Expr(..) ) 
 import Control.Monad.Fix (fix)
-import LambdaToSKI (Combinator (..), fromString)
+import CLTerm ( Combinator(..), fromString )
 import Data.Maybe (fromJust)
 
 -- | a compiled expression

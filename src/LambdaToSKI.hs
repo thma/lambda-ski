@@ -7,14 +7,12 @@ module LambdaToSKI
     babs,
     babs0,
     ropt,
-    Combinator (..),
-    fromString,
   )
 where
 
 import           Data.List (union, (\\))
 import           Parser    (Environment, Expr (..))
-import           CLTerm    (CL (..))
+import           CLTerm    
 
 type Error = String
 
@@ -109,7 +107,7 @@ compile env abstractFun =
 toCL :: Expr -> CL
 toCL (Var s) = Com s
 toCL (Lam x e) = error "toCL: lambda expression not in normal form"
-toCL (m `App` n) = toCL m :@: toCL n
+toCL (m `App` n) = toCL m :@ toCL n
 toCL (Int i) = INT i
 
 
@@ -136,29 +134,3 @@ cccAbs env (Var s)
   | otherwise = Var s
 cccAbs env (m `App` n) = cccAbs env m `App` cccAbs env n
 cccAbs _env x = x
-
-data Combinator = I | K | S | B | C | Y | P | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP | IF | B' | C' | S'
-  deriving (Eq, Show)
-
-fromString :: String -> Combinator
-fromString "i"    = I
-fromString "k"    = K
-fromString "s"    = S
-fromString "b"    = B
-fromString "c"    = C
-fromString "s'"   = S'
-fromString "b'"   = B'
-fromString "c'"   = C'
-fromString "y"    = Y
-fromString "p"    = P
-fromString "+"    = ADD
-fromString "sub"  = SUB
-fromString "div"  = DIV
-fromString "rem"  = REM
-fromString "*"    = MUL
-fromString "sub1" = SUB1
-fromString "eql"  = EQL
-fromString "geq"  = GEQ
-fromString "is0"  = ZEROP
-fromString "if"   = IF
-fromString _c     = error $ "unknown combinator " ++ _c
