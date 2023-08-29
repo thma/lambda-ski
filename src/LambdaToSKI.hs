@@ -7,6 +7,7 @@ module LambdaToSKI
     babs,
     babs0,
     ropt,
+    toCL,
   )
 where
 
@@ -74,15 +75,15 @@ noLamEq _ _               = False
 
 -- | optimizations according to Antoni Diller, Compiling Functional Languages, chapter 7
 opt :: Expr -> Expr
-opt (Var "i" `App` n@(Int _n))                           = n
+opt (Var "i" `App` n@(Int _n))                                    = n
 opt ((Var "s" `App` (Var "k" `App` e1)) `App` (Var "k" `App` e2)) = Var "k" `App` (e1 `App` e2)
-opt ((Var "s" `App` e1) `App` (Var "k" `App` e2))              = (Var "c" `App` e1) `App` e2
-opt ((Var "s" `App` (Var "k" `App` e1)) `App` e2)              = (Var "b" `App` e1) `App` e2
+opt ((Var "s" `App` e1) `App` (Var "k" `App` e2))                 = (Var "c" `App` e1) `App` e2
+opt ((Var "s" `App` (Var "k" `App` e1)) `App` e2)                 = (Var "b" `App` e1) `App` e2
 opt ((Var "s" `App` ((Var "b" `App` p) `App` q)) `App` r)         = ((Var "s'" `App` p) `App` q) `App` r  -- Diller, p.98
-opt ((Var "b" `App` (p `App` q) `App` r))                      = ((Var "b'" `App` p) `App` q) `App` r  -- Diller, p.98
+opt ((Var "b" `App` (p `App` q) `App` r))                         = ((Var "b'" `App` p) `App` q) `App` r  -- Diller, p.98
 opt ((Var "c" `App` ((Var "b" `App` p) `App` q)) `App` r)         = ((Var "c'" `App` p) `App` q) `App` r  -- Diller, p.98
-opt (x `App` y)                                          = opt x `App` opt y
-opt x                                                 = x
+opt (x `App` y)                                                   = opt x `App` opt y
+opt x                                                             = x
 
 ropt :: Expr -> Expr
 ropt expr =
@@ -91,21 +92,21 @@ ropt expr =
         then expr
         else case expr' of
           (x `App` y) -> ropt $ ropt x `App` ropt y
-          _        -> ropt expr'
+          _           -> ropt expr'
 
 compileEither :: Environment -> (Environment -> Expr -> Expr) -> Either Error Expr
 compileEither env abstractFun = case lookup "main" env of
   Nothing   -> Left $ "main function missing in " ++ show env
   Just main -> Right $ abstractFun env main
 
-compile :: Environment -> (Environment -> Expr -> Expr) -> Expr
+compile :: Environment -> (Environment -> Expr -> Expr) -> CL
 compile env abstractFun =
   case compileEither env abstractFun of
     Left err   -> error $ show err
-    Right expr -> expr
+    Right expr -> toCL expr
 
 toCL :: Expr -> CL
-toCL (Var s) = Com s
+toCL (Var s) = Com (fromString s)
 toCL (Lam x e) = error "toCL: lambda expression not in normal form"
 toCL (m `App` n) = toCL m :@ toCL n
 toCL (Int i) = INT i

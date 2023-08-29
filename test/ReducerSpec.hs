@@ -42,6 +42,6 @@ runTest src =
   let pEnv = parseEnvironment src
       aExp = compile pEnv abstractToSKI
       tExp = translate aExp
-      expected = translate $ fromJust (lookup "expected" pEnv)
+      expected = translate $ toCL $ fromJust (lookup "expected" pEnv)
       actual = link primitives tExp
   in show expected == show actual

@@ -8,7 +8,7 @@ module CLTerm
   )
   where
 
-data CL = Com String | INT Integer | CL :@ CL
+data CL = Com Combinator | INT Integer | CL :@ CL
 instance Show CL where
   showsPrec :: Int -> CL -> ShowS
   showsPrec p = \case
@@ -16,7 +16,7 @@ instance Show CL where
     INT i -> shows i
     t :@ u -> showParen (p > 0) $ shows t . showsPrec 1 u   
 
-data Combinator = I | K | S | B | C | Y | P | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP | IF | B' | C' | S'
+data Combinator = I | K | S | B | C | Y | P | R | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP | IF | B' | C' | S' | S2 | B2
   deriving (Eq, Show)
 
 fromString :: String -> Combinator
@@ -30,6 +30,7 @@ fromString "b'"   = B'
 fromString "c'"   = C'
 fromString "y"    = Y
 fromString "p"    = P
+fromString "r"    = R
 fromString "+"    = ADD
 fromString "sub"  = SUB
 fromString "div"  = DIV
@@ -40,4 +41,8 @@ fromString "eql"  = EQL
 fromString "geq"  = GEQ
 fromString "is0"  = ZEROP
 fromString "if"   = IF
+fromString "B"    = B
+fromString "S2"   = S2
+fromString "B2"   = B2
+
 fromString _c     = error $ "unknown combinator " ++ _c 

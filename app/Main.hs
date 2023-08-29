@@ -7,9 +7,11 @@ import           Data.Maybe
 import           Data.STRef
 import           GraphReduction
 import           LambdaToSKI
+import           CLTerm
 import           Parser           (Environment, Expr(..), parseEnvironment)
 import           System.IO        (hSetEncoding, stdin, stdout, utf8)
 import HhiReducer
+import Kiselyov
 
 printGraph :: ST s (STRef s (Graph s)) -> ST s String
 printGraph graph = do
@@ -50,11 +52,23 @@ main = do
   putStrLn "The result after reducing the graph:"
   putStrLn $ runST $ printGraph reducedGraph
 
-  demo
+  let kiselyov = compileKi env (bulkPlain bulk) --compileKi env plain
+  putStrLn "The result of the kiselyov compiler:"
+  print kiselyov
+
+  let graph' = allocate kiselyov
+  putStrLn "The allocated graph:"
+  putStrLn $ runST $ printGraph graph'
+
+  let reducedGraph' = reduceGraph graph'
+  putStrLn "The result after reducing the graph:"
+  putStrLn $ runST $ printGraph reducedGraph'
+
+  --demo
 
 type SourceCode = String
 
-loadTestCase :: String -> IO Expr
+loadTestCase :: String -> IO CL
 loadTestCase name = do
   src <- readFile $ "test/" ++ name ++ ".ths"
   putStrLn "The source: "
@@ -63,7 +77,7 @@ loadTestCase name = do
       expr = compile pEnv abstractToSKI
   return expr
 
-graphReductionDemo :: IO Expr -> IO ()
+graphReductionDemo :: IO CL -> IO ()
 graphReductionDemo ioexpr = do
   expr <- ioexpr
   let graph = allocate expr      
@@ -75,7 +89,7 @@ graphReductionDemo ioexpr = do
   print actual
 
 
-hhiReductionDemo :: IO Expr -> IO ()
+hhiReductionDemo :: IO CL -> IO ()
 hhiReductionDemo ioexpr = do
   expr <- ioexpr
   putStrLn "compiled to CExpr"

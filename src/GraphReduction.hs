@@ -16,7 +16,7 @@ import           Control.Monad.ST (ST)
 import           Data.STRef       (STRef, newSTRef, readSTRef,
                                    writeSTRef)
 import           Parser           (Expr (..))
-import CLTerm (Combinator(..), fromString)
+import CLTerm
 
 
 infixl 5 :@:
@@ -59,23 +59,22 @@ toString graph = do
 mToString :: ST s (STRef s (Graph s)) -> ST s String
 mToString g = toString =<< g
 
--- allocate :: CL -> ST s (STRef s (Graph s))
--- allocate (Com c) = newSTRef $ Comb c
--- allocate (INT i) = newSTRef $ Num i
--- allocate (l :@ r) = do
---   lg <- allocate l
---   rg <- allocate r
---   newSTRef $ lg :@: rg
-
-
-allocate :: Expr -> ST s (STRef s (Graph s))
-allocate (Var name) = newSTRef $ Comb $ fromString name
-allocate (Int val) = newSTRef $ Num val
-allocate (l `App` r) = do
+allocate :: CL -> ST s (STRef s (Graph s))
+allocate (Com c) = newSTRef $ Comb c
+allocate (INT i) = newSTRef $ Num i
+allocate (l :@ r) = do
   lg <- allocate l
   rg <- allocate r
   newSTRef $ lg :@: rg
-allocate (Lam _ _) = error "lambdas must already be abstracted away!"
+
+-- allocate :: Expr -> ST s (STRef s (Graph s))
+-- allocate (Var name) = newSTRef $ Comb $ fromString name
+-- allocate (Int val) = newSTRef $ Num val
+-- allocate (l `App` r) = do
+--   lg <- allocate l
+--   rg <- allocate r
+--   newSTRef $ lg :@: rg
+-- allocate (Lam _ _) = error "lambdas must already be abstracted away!"
 
 type LeftAncestorsStack s = [STRef s (Graph s)]
 

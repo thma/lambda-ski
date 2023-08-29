@@ -2,7 +2,7 @@ module HhiReducer where
 
 import Parser ( Expr(..) ) 
 import Control.Monad.Fix (fix)
-import CLTerm ( Combinator(..), fromString )
+import CLTerm 
 import Data.Maybe (fromJust)
 
 -- | a compiled expression
@@ -18,12 +18,12 @@ instance Show CExpr where
   show (CFun _f)  = "<function>"
   show (CInt i)   = show i
 
--- | translating a lambda expression into a compiled expression
-translate :: Expr -> CExpr
-translate (fun `App` arg)   = CApp (translate fun) (translate arg)
-translate (Int k)        = CInt k
-translate (Var c)        = CComb (fromString c)
-translate lam@(Lam _ _)  = error $ "lambdas should be abstracted already " ++ show lam
+-- | translating a CL term expression into a compiled expression
+translate :: CL -> CExpr
+translate (fun :@ arg)   = CApp (translate fun) (translate arg)
+translate (INT k)        = CInt k
+translate (Com c)        = CComb c
+--translate lam@(Lam _ _)  = error $ "lambdas should be abstracted already " ++ show lam
 
 -- | apply a CExpr of shape (CFun f) to argument x by evaluating (f x)
 infixl 0 !
@@ -31,25 +31,24 @@ infixl 0 !
 (CFun f) ! x = f x
 {-# INLINE (!) #-}
 
-type GlobalEnv = [(Combinator,CExpr)]
-
 -- | "link" a compiled expression into Haskell native functions.
 --   application terms will be transformed into real (!) applications
 --   combinator symbols will be replaced by their actual function definition
-link :: GlobalEnv -> CExpr -> CExpr
-link globals (CApp fun arg) = link globals fun ! link globals arg
-link globals (CComb comb)   = fromJust $ lookup comb globals
-link _globals expr          = expr
+link :: CombinatorDefinitions -> CExpr -> CExpr
+link definitions (CApp fun arg) = link definitions fun ! link definitions arg
+link definitions (CComb comb)   = fromJust $ lookup comb definitions
+link _definitions expr          = expr
 
 -- | translate and link in one go
-transLink :: GlobalEnv -> Expr -> CExpr
-transLink globals (fun `App` arg)  = transLink globals fun ! transLink globals arg
-transLink _globals (Int k)      = CInt k
-transLink globals (Var c)       = fromJust $ lookup (fromString c) globals
-transLink _globals l@(Lam _ _)  = error $ "lambdas should be abstracted already " ++ show l
+transLink :: CombinatorDefinitions -> CL -> CExpr
+transLink definitions (fun :@ arg)  = transLink definitions fun ! transLink definitions arg
+transLink _definitions (INT k)      = CInt k
+transLink definitions (Com c)       = fromJust $ lookup c definitions
+
+type CombinatorDefinitions = [(Combinator,CExpr)]
 
 -- | the set of primary operations: combinators + basic arithmetic functions
-primitives :: GlobalEnv
+primitives :: CombinatorDefinitions
 primitives = let (-->) = (,) in
   [ I      --> CFun id
   , K      --> CFun (CFun . const)

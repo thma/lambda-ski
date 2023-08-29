@@ -3,7 +3,11 @@ module Kiselyov
   (
     deBruijn,
     convert,
-    plain
+    plain,
+    bulkPlain,
+    bulk,
+    compileKi,
+    compileKiEither
   ) 
 where
 import Parser
@@ -24,24 +28,24 @@ deBruijn = go [] where
 
 convert :: ((Int, CL) -> (Int, CL) -> CL) -> DB -> (Int, CL)
 convert (#) = \case
-  N Z -> (1, Com "I")
-  N (Su e) -> (n + 1, (0, Com "K") # t) where t@(n, _) = rec $ N e
+  N Z -> (1, Com I)
+  N (Su e) -> (n + 1, (0, Com K) # t) where t@(n, _) = rec $ N e
   L e -> case rec e of
-    (0, d) -> (0, Com "K" :@ d)
+    (0, d) -> (0, Com K :@ d)
     (n, d) -> (n - 1, d)
   A e1 e2 -> (max n1 n2, t1 # t2) where
     t1@(n1, _) = rec e1
     t2@(n2, _) = rec e2
-  Free s -> (0, Com s)
+  Free s -> (0, Com (fromString s))
   IN i -> (0, INT i)
   where rec = convert (#)
 
 plain :: DB -> (Int, CL)
 plain = convert (#) where
   (0 , d1) # (0 , d2) = d1 :@ d2
-  (0 , d1) # (n , d2) = (0, Com "B" :@ d1) # (n - 1, d2)
-  (n , d1) # (0 , d2) = (0, Com "R" :@ d2) # (n - 1, d1)
-  (n1, d1) # (n2, d2) = (n1 - 1, (0, Com "S") # (n1 - 1, d1)) # (n2 - 1, d2)
+  (0 , d1) # (n , d2) = (0, Com B :@ d1) # (n - 1, d2)
+  (n , d1) # (0 , d2) = (0, Com R :@ d2) # (n - 1, d1)
+  (n1, d1) # (n2, d2) = (n1 - 1, (0, Com S) # (n1 - 1, d1)) # (n2 - 1, d2)
 
 bulkPlain :: (String -> Int -> CL) -> DB -> (Int, CL)
 bulkPlain bulk = convert (#) where
@@ -54,8 +58,22 @@ bulkPlain bulk = convert (#) where
            | otherwise -> bulk "C" (n - m) :@ (bulk "B" (n - m) :@  bulk "S" m :@ x) :@ y
 
 bulk :: String -> Int -> CL
-bulk c 1 = Com c
-bulk c n = Com (c ++ show n)
+bulk c 1 = Com (fromString c)
+bulk c n = Com (fromString (c ++ show n))
+
+
+compileKiEither :: Environment -> (DB -> (Int, CL)) -> Either String (Int, CL)
+compileKiEither env convertFun = case lookup "main" env of
+  Nothing ->   Left $ error "main function missing in " ++ show env
+  Just main -> Right $ convertFun $ deBruijn main
+
+
+compileKi :: Environment -> (DB -> (Int, CL)) -> CL
+compileKi env abstractFun =
+  case compileKiEither env abstractFun of
+    Left err     -> error $ show err
+    Right (_,cl) -> cl
+
 
 -- bulkOpt bulk = \case
 --   N Z -> (True:[], Com "I")

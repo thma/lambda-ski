@@ -3,6 +3,7 @@ module ReductionBenchmarks where
 import Criterion.Main ( defaultMain, bench, nf )
 import Parser ( parseEnvironment, Expr(Int, App) )
 import LambdaToSKI ( abstractToSKI, compile )
+import CLTerm
 import GraphReduction ( allocate, normalForm, toString, Graph )
 import Data.Maybe (fromJust)
 import Data.STRef ( STRef )
@@ -12,7 +13,7 @@ import Control.Monad.Fix ( fix )
 
 type SourceCode = String
 
-loadTestCase :: String -> IO Expr
+loadTestCase :: String -> IO CL
 loadTestCase name = do
   src <- readFile $ "test/" ++ name ++ ".ths"
   let pEnv = parseEnvironment src
@@ -24,7 +25,7 @@ getInt (Int i) = i
 getInt _ = error "not an int"
 
 
-graphTest :: Expr -> String
+graphTest :: CL -> String
 graphTest expr =
   let graph = allocate expr
       result = reduceGraph graph
@@ -42,8 +43,8 @@ reduceGraph graph = do
   gP <- graph
   normalForm gP
 
-reducerTest :: Expr -> String
-reducerTest (expr `App` (Int x)) =
+reducerTest :: CL -> String
+reducerTest (expr :@ (INT x)) =
   let fun = transLink primitives expr
   in show (CApp fun (CInt x))
 reducerTest expr = error "invalid input expression " ++ show expr
