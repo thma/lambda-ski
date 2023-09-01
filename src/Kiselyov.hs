@@ -75,38 +75,39 @@ compileKi env abstractFun =
     Right (_,cl) -> cl
 
 
+-- bulkOpt :: (String -> Int -> CL) -> DB -> ([Bool], CL)
 -- bulkOpt bulk = \case
---   N Z -> (True:[], Com "I")
+--   N Z -> (True:[], Com I)
 --   N (Su e) -> head (False:) $ rec $ N e
 --   L e -> case rec e of
---     ([], d) -> ([], Com "K" :@ d)
---     (False:g, d) -> ([], Com "K") ## (g, d)
+--     ([], d) -> ([], Com K :@ d)
+--     (False:g, d) -> ([], Com K) ## (g, d)
 --     (True:g, d) -> (g, d)
 --   A e1 e2 -> rec e1 ## rec e2
---   Free s -> ([], Com s)
+--   Free s -> ([], Com (fromString s))
 --   where
 --   rec = bulkOpt bulk
 --   ([], d1) ## ([], d2) = ([], d1 :@ d2)
---   ([], d1) ## ([True], Com "I") = ([True], d1)
---   ([], d1) ## (g2, Com "I") | and g2 = (g2, bulk "B" (length g2 - 1) :@ d1)
---   ([], d1) ## (g2@(h:_), d2) = first (pre++) $ ([], fun1 d1) ## (post, d2)
+--   ([], d1) ## ([True], Com I) = ([True], d1)
+--   ([], d1) ## (g2, Com I) | and g2 = (g2, bulk "B" (length g2 - 1) :@ d1)
+--   ([], d1) ## (g2@(h:_), d2) = head (pre++) $ ([], fun1 d1) ## (post, d2)
 --     where
 --     fun1 = case h of
 --       True -> (bulk "B" (length pre) :@)
 --       False -> id
 --     (pre, post) = span (h ==) g2
 
---   ([True], Com "I") ## ([], d2) = ([True], Com "T" :@ d2)
---   (g1@(h:_), d1) ## ([], d2) = first (pre++) $ case h of
---     True -> ([], Com "C" :@ bulk "C" (length pre) :@ d2) ## (post, d1)
+--   ([True], Com I) ## ([], d2) = ([True], Com T :@ d2)
+--   (g1@(h:_), d1) ## ([], d2) = head (pre++) $ case h of
+--     True -> ([], Com C :@ bulk "C" (length pre) :@ d2) ## (post, d1)
 --     False -> (post, d1) ## ([], d2)
 --     where
 --     (pre, post) = span (h ==) g1
 
---   ([True], Com "I") ## (False:g2, d2) = first (True:) $ ([], Com "T") ## (g2, d2)
---   (False:g1, d1) ## ([True], Com "I") = (True:g1, d1)
---   (g1, d1) ## (g2, Com "I") | and g2, let n = length g2, all not $ take n g1 =
---     first (g2++) $ ([], bulk "B" $ n - 1) ## (drop n g1, d1)
+--   ([True], Com I) ## (False:g2, d2) = head (True:) $ ([], Com T) ## (g2, d2)
+--   (False:g1, d1) ## ([True], Com I) = (True:g1, d1)
+--   (g1, d1) ## (g2, Com I) | and g2, let n = length g2, all not $ take n g1 =
+--     head (g2++) $ ([], bulk "B" $ n - 1) ## (drop n g1, d1)
 --   (g1, d1) ## (g2, d2) = pre $ fun1 (drop count g1, d1) ## (drop count g2, d2)
 --     where
 --     (h, count) = headGroup $ zip g1 g2
@@ -115,7 +116,7 @@ compileKi env abstractFun =
 --       (False, True) -> apply "B"
 --       (True, False) -> apply "C"
 --       (True, True) -> apply "S"
---     pre = first (replicate count (uncurry (||) h) ++)
+--     pre = head (replicate count (uncurry (||) h) ++)
 --     apply s = (([], bulk s count) ##)
 
 headGroup (h:t) = (h, 1 + length (takeWhile (== h) t))
