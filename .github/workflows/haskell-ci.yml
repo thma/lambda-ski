@@ -19,7 +19,7 @@ on:
 jobs:
   linux:
     name: Haskell-CI - Linux - ${{ matrix.compiler }}
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     timeout-minutes:
       60
     container:
@@ -33,14 +33,14 @@ jobs:
             compilerVersion: 9.2.1
             setup-method: ghcup
             allow-failure: false
-          - compiler: ghc-9.0.2
+          - compiler: ghc-9.4.5
             compilerKind: ghc
-            compilerVersion: 9.0.2
+            compilerVersion: 9.4.5
             setup-method: ghcup
             allow-failure: false
-          - compiler: ghc-8.10.7
+          - compiler: ghc-9.6.2
             compilerKind: ghc
-            compilerVersion: 8.10.7
+            compilerVersion: 9.6.2
             setup-method: ghcup
             allow-failure: false
       fail-fast: false
