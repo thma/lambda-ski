@@ -7,7 +7,9 @@ module Kiselyov
     bulkPlain,
     bulk,
     compileKi,
-    compileKiEither
+    compileKiEither,
+    optK,
+    optEta
   ) 
 where
 import Parser
@@ -16,8 +18,10 @@ import CLTerm
 data Peano = Su Peano | Z deriving Show
 data DB = N Peano | L DB | A DB DB | Free String | IN Integer deriving Show
 
+index :: Eq a => a -> [a] -> Maybe Peano
 index x xs = lookup x $ zip xs $ iterate Su Z
 
+deBruijn :: Expr -> DB
 deBruijn = go [] where
   go binds = \case
     Var x -> maybe (Free x) N $ index x binds
@@ -47,33 +51,78 @@ plain = convert (#) where
   (n , d1) # (0 , d2) = (0, Com R :@ d2) # (n - 1, d1)
   (n1, d1) # (n2, d2) = (n1 - 1, (0, Com S) # (n1 - 1, d1)) # (n2 - 1, d2)
 
-bulkPlain :: (String -> Int -> CL) -> DB -> (Int, CL)
+bulkPlain :: (Combinator -> Int -> CL) -> DB -> (Int, CL)
 bulkPlain bulk = convert (#) where
   (a, x) # (b, y) = case (a, b) of
     (0, 0)             ->               x :@ y
-    (0, n)             -> bulk "B" n :@ x :@ y
-    (n, 0)             -> bulk "C" n :@ x :@ y
-    (n, m) | n == m    -> bulk "S" n :@ x :@ y
-           | n < m     ->                      bulk "B" (m - n) :@ (bulk "S" n :@ x) :@ y
-           | otherwise -> bulk "C" (n - m) :@ (bulk "B" (n - m) :@  bulk "S" m :@ x) :@ y
+    (0, n)             -> bulk B n :@ x :@ y
+    (n, 0)             -> bulk C n :@ x :@ y
+    (n, m) | n == m    -> bulk S n :@ x :@ y
+           | n < m     ->                      bulk B (m - n) :@ (bulk S n :@ x) :@ y
+           | otherwise -> bulk C (n - m) :@ (bulk B (n - m) :@  bulk S m :@ x) :@ y
 
-bulk :: String -> Int -> CL
-bulk c 1 = Com (fromString c)
-bulk c n = Com (fromString (c ++ show n))
+bulk :: Combinator -> Int -> CL
+bulk c 1 = Com c
+bulk c n = Com (fromString (show c ++ show n))
 
-
-compileKiEither :: Environment -> (DB -> (Int, CL)) -> Either String (Int, CL)
+compileKiEither :: Environment -> (DB -> CL) -> Either String CL
 compileKiEither env convertFun = case lookup "main" env of
   Nothing ->   Left $ error "main function missing in " ++ show env
   Just main -> Right $ convertFun $ deBruijn main
 
-
-compileKi :: Environment -> (DB -> (Int, CL)) -> CL
+compileKi :: Environment -> (DB -> CL) -> CL
 compileKi env abstractFun =
   case compileKiEither env abstractFun of
     Left err     -> error $ show err
-    Right (_,cl) -> cl
+    Right cl -> cl
 
+convertBool :: (([Bool], CL) -> ([Bool], CL) -> CL) -> DB -> ([Bool], CL)
+convertBool (#) = \case
+  N Z -> (True:[], Com I)
+  N (Su e) -> (False:g, d) where (g, d) = rec $ N e
+  L e -> case rec e of
+    ([], d) -> ([], Com K :@ d)
+    (False:g, d) -> (g, ([], Com K) # (g, d))
+    (True:g, d) -> (g, d)
+  A e1 e2 -> (zipWithDefault False (||) g1 g2, t1 # t2) where
+    t1@(g1, _) = rec e1
+    t2@(g2, _) = rec e2
+  Free s -> ([], Com (fromString s))
+  IN i -> ([False], INT i)
+  where rec = convertBool (#)
+
+optK :: DB -> ([Bool], CL)
+optK = convertBool (#) where
+  ([], d1) # ([], d2) = d1 :@ d2
+  ([], d1) # (True:g2, d2) = ([], Com B :@ d1) # (g2, d2)
+  ([], d1) # (False:g2, d2) = ([], d1) # (g2, d2)
+  (True:g1, d1) # ([], d2) = ([], Com R :@ d2) # (g1, d1)
+  (False:g1, d1) # ([], d2) = (g1, d1) # ([], d2)
+  (True:g1, d1) # (True:g2, d2) = (g1, ([], Com S) # (g1, d1)) # (g2, d2)
+  (False:g1, d1) # (True:g2, d2) = (g1, ([], Com B) # (g1, d1)) # (g2, d2)
+  (True:g1, d1) # (False:g2, d2) = (g1, ([], Com C) # (g1, d1)) # (g2, d2)
+  (False:g1, d1) # (False:g2, d2) = (g1, d1) # (g2, d2)
+
+optEta :: DB -> ([Bool], CL)
+optEta = convertBool (#) where
+  ([], d1) # ([], d2) = d1 :@ d2
+  ([], d1) # (True:[], Com I) = d1
+  ([], d1) # (True:g2, d2) = ([], Com B :@ d1) # (g2, d2)
+  ([], d1) # (False:g2, d2) = ([], d1) # (g2, d2)
+  (True:[], Com I) # ([], d2) = Com T :@ d2
+  (True:[], Com I) # (False:g2, d2) = ([], Com T) # (g2, d2)
+  (True:g1, d1) # ([], d2) = ([], Com R :@ d2) # (g1, d1)
+  (True:g1, d1) # (True:g2, d2) = (g1, ([], Com S) # (g1, d1)) # (g2, d2)
+  (True:g1, d1) # (False:g2, d2) = (g1, ([], Com C) # (g1, d1)) # (g2, d2)
+  (False:g1, d1) # ([], d2) = (g1, d1) # ([], d2)
+  (False:g1, d1) # (True:[], Com I) = d1
+  (False:g1, d1) # (True:g2, d2) = (g1, ([], Com B) # (g1, d1)) # (g2, d2)
+  (False:g1, d1) # (False:g2, d2) = (g1, d1) # (g2, d2)
+
+zipWithDefault :: t -> (t -> t -> b) -> [t] -> [t] -> [b]
+zipWithDefault d f     []     ys = f d <$> ys
+zipWithDefault d f     xs     [] = flip f d <$> xs
+zipWithDefault d f (x:xt) (y:yt) = f x y : zipWithDefault d f xt yt
 
 -- bulkOpt :: (String -> Int -> CL) -> DB -> ([Bool], CL)
 -- bulkOpt bulk = \case

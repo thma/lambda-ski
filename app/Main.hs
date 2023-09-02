@@ -1,7 +1,7 @@
 module Main where
 
 import           Control.Monad.ST
-import           Control.Category
+import Control.Category ( (>>>) )
 import           Data.List        (lookup)
 import           Data.Maybe
 import           Data.STRef
@@ -52,9 +52,13 @@ main = do
   putStrLn "The result after reducing the graph:"
   putStrLn $ runST $ printGraph reducedGraph
 
-  let kiselyov = compileKi env (bulkPlain bulk) --compileKi env plain
-  putStrLn "The result of the kiselyov compiler:"
+  let kiselyov = compileKi env (snd . optK) --(bulkPlain bulk) 
+  putStrLn "The result of the kiselyov compiler K opt:"
   print kiselyov
+
+  let kiselyov' = compileKi env (snd . optEta) --(bulkPlain bulk) 
+  putStrLn "The result of the kiselyov compiler Eta opt:"
+  print kiselyov'
 
   let graph' = allocate kiselyov
   putStrLn "The allocated graph:"
