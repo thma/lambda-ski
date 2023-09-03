@@ -65,33 +65,38 @@ bulk :: Combinator -> Int -> CL
 bulk c 1 = Com c
 bulk c n = Com (fromString (show c ++ show n))
 
-compileKiEither :: Environment -> (DB -> CL) -> Either String CL
+compileKiEither :: Environment -> (Environment -> DB -> ([Bool],CL)) -> Either String CL
 compileKiEither env convertFun = case lookup "main" env of
-  Nothing ->   Left $ error "main function missing in " ++ show env
-  Just main -> Right $ convertFun $ deBruijn main
+  Nothing   -> Left $ error "main function missing in " ++ show env
+  Just main -> Right $ snd $ convertFun env $ deBruijn main
 
-compileKi :: Environment -> (DB -> CL) -> CL
-compileKi env abstractFun =
-  case compileKiEither env abstractFun of
-    Left err     -> error $ show err
+compileKi :: Environment -> (Environment -> DB -> ([Bool],CL)) -> CL
+compileKi env convertFun =
+  case compileKiEither env convertFun of
+    Left err -> error $ show err
     Right cl -> cl
 
-convertBool :: (([Bool], CL) -> ([Bool], CL) -> CL) -> DB -> ([Bool], CL)
-convertBool (#) = \case
+convertBool :: (([Bool], CL) -> ([Bool], CL) -> CL) -> Environment -> DB -> ([Bool], CL)
+convertBool (#) env = \case
   N Z -> (True:[], Com I)
-  N (Su e) -> (False:g, d) where (g, d) = rec $ N e
-  L e -> case rec e of
+  N (Su e) -> (False:g, d) where (g, d) = rec env (N e)
+  L e -> case rec env e of
     ([], d) -> ([], Com K :@ d)
     (False:g, d) -> (g, ([], Com K) # (g, d))
     (True:g, d) -> (g, d)
   A e1 e2 -> (zipWithDefault False (||) g1 g2, t1 # t2) where
-    t1@(g1, _) = rec e1
-    t2@(g2, _) = rec e2
-  Free s -> ([], Com (fromString s))
+    t1@(g1, _) = rec env e1
+    t2@(g2, _) = rec env e2
+  --Free s -> ([], Com (fromString s))
+  Free fun -> convertFree (#) env fun --([], Com (fromString fun))
   IN i -> ([False], INT i)
   where rec = convertBool (#)
 
-optK :: DB -> ([Bool], CL)
+convertFree (#) env s
+  | Just t <- lookup s env = convertBool (#) env (deBruijn t)
+  | otherwise = ([], Com (fromString s))
+
+optK :: Environment -> DB -> ([Bool], CL)
 optK = convertBool (#) where
   ([], d1) # ([], d2) = d1 :@ d2
   ([], d1) # (True:g2, d2) = ([], Com B :@ d1) # (g2, d2)
@@ -103,7 +108,7 @@ optK = convertBool (#) where
   (True:g1, d1) # (False:g2, d2) = (g1, ([], Com C) # (g1, d1)) # (g2, d2)
   (False:g1, d1) # (False:g2, d2) = (g1, d1) # (g2, d2)
 
-optEta :: DB -> ([Bool], CL)
+optEta :: Environment -> DB -> ([Bool], CL)
 optEta = convertBool (#) where
   ([], d1) # ([], d2) = d1 :@ d2
   ([], d1) # (True:[], Com I) = d1

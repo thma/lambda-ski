@@ -7,7 +7,6 @@ module LambdaToSKI
     babs,
     babs0,
     ropt,
-    toCL,
   )
 where
 
@@ -104,13 +103,6 @@ compile env abstractFun =
   case compileEither env abstractFun of
     Left err   -> error $ show err
     Right expr -> toCL expr
-
-toCL :: Expr -> CL
-toCL (Var s) = Com (fromString s)
-toCL (Lam x e) = error "toCL: lambda expression not in normal form"
-toCL (m `App` n) = toCL m :@ toCL n
-toCL (Int i) = INT i
-
 
 abstractToSKI :: Environment -> Expr -> Expr
 abstractToSKI env = ropt . babs env

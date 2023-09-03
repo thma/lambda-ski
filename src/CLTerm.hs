@@ -4,9 +4,12 @@ module CLTerm
   (
     CL(..),
     Combinator(..),
-    fromString
+    fromString,
+    toCL
   )
   where
+
+import Parser (Expr(..))
 
 data CL = Com Combinator | INT Integer | CL :@ CL
 instance Show CL where
@@ -49,3 +52,9 @@ fromString "S2"   = S2
 fromString "B2"   = B2
 
 fromString _c     = error $ "unknown combinator " ++ _c 
+
+toCL :: Expr -> CL
+toCL (Var s) = Com (fromString s)
+toCL (Lam x e) = error "toCL: lambda expression not in normal form"
+toCL (m `App` n) = toCL m :@ toCL n
+toCL (Int i) = INT i

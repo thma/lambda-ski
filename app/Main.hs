@@ -52,11 +52,11 @@ main = do
   putStrLn "The result after reducing the graph:"
   putStrLn $ runST $ printGraph reducedGraph
 
-  let kiselyov = compileKi env (snd . optK) --(bulkPlain bulk) 
+  let kiselyov = compileKi env optK
   putStrLn "The result of the kiselyov compiler K opt:"
   print kiselyov
 
-  let kiselyov' = compileKi env (snd . optEta) --(bulkPlain bulk) 
+  let kiselyov' = compileKi env optEta
   putStrLn "The result of the kiselyov compiler Eta opt:"
   print kiselyov'
 

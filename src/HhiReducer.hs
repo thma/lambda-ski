@@ -53,8 +53,10 @@ primitives = let (-->) = (,) in
   [ I      --> CFun id
   , K      --> CFun (CFun . const)
   , S      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!(g!x))
-  , B      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!(g!x))
-  , C      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!g)
+  , B      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!(g!x)) -- B F G X = F (G X)
+  , C      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!g)   -- C F G X = F X G
+  , R      --> CFun (\f -> CFun $ \g -> CFun $ \x -> g!x!f)   -- R F G X = G X F  
+ -- , T      --> CFun (\x -> CFun $ \y -> x)                    -- T X Y = X
   , B'     --> CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!q!(r!s))      -- B' P Q R S = P Q (R S)
   , C'     --> CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!r)      -- C' P Q R S = P (Q S) R
   , S'     --> CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!(r!s))  -- S' P Q R S = P (Q S) (R S)
