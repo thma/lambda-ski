@@ -3,7 +3,6 @@ module ReducerKiselyovSpec where
 import HhiReducer
 import Parser
 import CLTerm
---import LambdaToSKI
 import Kiselyov
 import Data.Maybe (fromJust)
 import TestSources
@@ -32,7 +31,7 @@ spec =
 
 verify :: SourceCode -> IO ()
 verify tc = do
-  --showCode tc
+  showCode tc
   tc `shouldSatisfy` runTest 
 
 type SourceCode = String

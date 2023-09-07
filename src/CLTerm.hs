@@ -16,7 +16,7 @@ instance Show CL where
   showsPrec :: Int -> CL -> ShowS
   showsPrec p = \case
     Com s -> (if p > 0 then (' ':) else id) . (show s ++)
-    INT i -> shows i
+    INT i -> ((' ': show i )++)
     t :@ u -> showParen (p > 0) $ shows t . showsPrec 1 u   
 
 data Combinator = I | K | S | B | C | Y | P | R | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP | IF | B' | C' | S' | T | S2 | B2 
