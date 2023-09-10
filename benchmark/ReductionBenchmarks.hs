@@ -26,7 +26,7 @@ loadTestCaseKiselyov :: String -> IO CL
 loadTestCaseKiselyov name = do
   src <- readFile $ "test/" ++ name ++ ".ths"
   let pEnv = parseEnvironment src
-      expr = compileKi pEnv optEta
+      expr = compileBulk pEnv 
   return expr  
 
 getInt :: Expr -> Integer

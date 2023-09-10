@@ -5,10 +5,12 @@ module Kiselyov
     convert,
     plain,
     bulkPlain,
-    bulk,
+    breakBulkLinear,
+    breakBulkLog,
     bulkOpt,
     compileKi,
     compileKiEither,
+    compileBulk,
     optK,
     optEta
   )
@@ -70,9 +72,9 @@ bulkPlain bulk = convert (#) where
            | n < m     ->                      bulk B (m - n) :@ (bulk S n :@ x) :@ y
            | otherwise -> bulk C (n - m) :@ (bulk B (n - m) :@  bulk S m :@ x) :@ y
 
-bulk :: Combinator -> Int -> CL
-bulk c 1 = Com c
-bulk c n = Com (fromString (show c ++ show n)) -- TODO: this is a hack and will work onlx upto 2.
+--bulk :: Combinator -> Int -> CL
+--bulk c 1 = Com c
+--bulk c n = Com (fromString (show c ++ show n)) -- TODO: this is a hack and will work onlx upto 2.
 
 compileKiEither :: Environment -> (Environment -> DB -> ([Bool],CL)) -> Either String CL
 compileKiEither env convertFun = case lookup "main" env of
@@ -84,6 +86,11 @@ compileKi env convertFun =
   case compileKiEither env convertFun of
     Left err -> error $ show err
     Right cl -> cl
+
+compileBulk :: Environment -> CL
+compileBulk env = case lookup "main" env of
+  Nothing   -> error "main function missing"
+  Just main -> snd $ bulkOpt breakBulkLog env (deBruijn main)
 
 convertBool :: (([Bool], CL) -> ([Bool], CL) -> CL) -> Environment -> DB -> ([Bool], CL)
 convertBool (#) env = \case
@@ -139,16 +146,47 @@ zipWithDefault d f     xs     [] = flip f d <$> xs
 zipWithDefault d f (x:xt) (y:yt) = f x y : zipWithDefault d f xt yt
 
 
-bulkOpt :: (Combinator -> Int -> CL) -> DB -> ([Bool], CL)
-bulkOpt bulk = \case
+breakBulkLinear :: Combinator -> Int -> CL
+breakBulkLinear B n = iterate (comB' :@) (Com B) !! (n - 1)
+breakBulkLinear C n = iterate (comC' :@) (Com C) !! (n - 1)
+breakBulkLinear S n = iterate (comS' :@) (Com S) !! (n - 1)
+
+comB' :: CL
+comB' = Com B:@ Com B
+comC' :: CL
+comC' = Com B :@ (Com B :@ Com C) :@ Com B
+comS' :: CL
+comS' = Com B :@ (Com B :@ Com S) :@ Com B
+
+bits n = r:if q == 0 then [] else bits q where (q, r) = divMod n 2
+
+breakBulkLog :: Combinator -> Int -> CL
+breakBulkLog c 1 = Com c
+breakBulkLog B n = foldr (:@) (Com B) $ map (bs!!) $ init $ bits n where
+  bs = [sbi, Com B :@ (Com B :@ Com B) :@ sbi]
+breakBulkLog c n = (foldr (:@) (prime c) $ map (bs!!) $ init $ bits n) :@ Com I where
+  bs = [sbi, Com B :@ (Com B :@ prime c) :@ sbi]
+  prime c = Com B :@ (Com B :@ Com c) :@ Com B
+
+sbi :: CL
+sbi = Com S :@ Com B :@ Com I
+
+bulkLookup :: String -> Environment -> ([Bool], CL)
+bulkLookup s env = case lookup s env of
+  Nothing -> ([], Com (fromString s))
+  Just t -> bulkOpt breakBulkLinear env (deBruijn t)
+
+bulkOpt :: (Combinator -> Int -> CL) -> Environment -> DB -> ([Bool], CL)
+bulkOpt bulk env = \case
   N Z -> ([True], Com I)
-  N (Su e) -> first (False:) $ rec $ N e
-  L e -> case rec e of
+  N (Su e) -> first (False:) $ rec env $ N e
+  L e -> case rec env e of
     ([], d) -> ([], Com K :@ d)
     (False:g, d) -> ([], Com K) ## (g, d)
     (True:g, d) -> (g, d)
-  A e1 e2 -> rec e1 ## rec e2
-  --Free s -> ([], Com s)
+  A e1 e2 -> rec env e1 ## rec env e2
+  Free s -> bulkLookup s env --([], Com s)
+  IN i -> ([False], INT i)
   where
   rec = bulkOpt bulk
   ([], d1) ## ([], d2) = ([], d1 :@ d2)

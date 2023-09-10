@@ -36,14 +36,18 @@ infixl 0 !
 --   combinator symbols will be replaced by their actual function definition
 link :: CombinatorDefinitions -> CExpr -> CExpr
 link definitions (CApp fun arg) = link definitions fun ! link definitions arg
-link definitions (CComb comb)   = fromJust $ lookup comb definitions
+link definitions (CComb comb)   = case lookup comb definitions of
+  Nothing -> error $ "unknown combinator " ++ show comb
+  Just e  -> e
 link _definitions expr          = expr
 
 -- | translate and link in one go
 transLink :: CombinatorDefinitions -> CL -> CExpr
 transLink definitions (fun :@ arg)  = transLink definitions fun ! transLink definitions arg
 transLink _definitions (INT k)      = CInt k
-transLink definitions (Com c)       = fromJust $ lookup c definitions
+transLink definitions (Com c)       = case lookup c definitions of
+  Nothing -> error $ "unknown combinator " ++ show c
+  Just e  -> e
 
 type CombinatorDefinitions = [(Combinator,CExpr)]
 
@@ -52,10 +56,10 @@ primitives :: CombinatorDefinitions
 primitives = let (-->) = (,) in
   [ I      --> CFun id
   , K      --> CFun (CFun . const)
-  , S      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!(g!x))
-  , B      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!(g!x)) -- B F G X = F (G X)
-  , C      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!g)   -- C F G X = F X G
-  , R      --> CFun (\f -> CFun $ \g -> CFun $ \x -> g!x!f)   -- R F G X = G X F  
+  , S      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!(g!x)) -- S F G X = F X (G X)
+  , B      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!(g!x))   -- B F G X = F (G X)
+  , C      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!g)     -- C F G X = F X G
+  , R      --> CFun (\f -> CFun $ \g -> CFun $ \x -> g!x!f)     -- R F G X = G X F  
  -- , T      --> CFun (\x -> CFun $ \y -> x)                    -- T X Y = X
   , B'     --> CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!q!(r!s))      -- B' P Q R S = P Q (R S)
   , C'     --> CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!r)      -- C' P Q R S = P (Q S) R

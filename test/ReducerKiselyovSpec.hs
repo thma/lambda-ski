@@ -42,7 +42,7 @@ loadTestCase name = readFile $ "test/" ++ name ++ ".ths"
 showCode :: SourceCode -> IO ()
 showCode src = do
   let pEnv = parseEnvironment src
-      aExp = compileKi pEnv optEta
+      aExp = compileBulk pEnv --compileKi pEnv optEta
   putStrLn "The source: "
   putStrLn src
   putStrLn "The result of the kiselyov compiler:"
@@ -51,7 +51,7 @@ showCode src = do
 runTest :: SourceCode -> Bool
 runTest src =
   let pEnv = parseEnvironment src
-      aExp = compileKi pEnv optEta --compile pEnv abstractToSKI
+      aExp = compileBulk pEnv  --compileKi pEnv optEta --compile pEnv abstractToSKI
       tExp = translate aExp
       expected = translate $ toCL $ fromJust (lookup "expected" pEnv)
       actual = link primitives tExp
