@@ -6,14 +6,23 @@ module Kiselyov
     plain,
     bulkPlain,
     bulk,
+    bulkOpt,
     compileKi,
     compileKiEither,
     optK,
     optEta
-  ) 
+  )
 where
 import Parser
 import CLTerm
+
+{--
+This is almost a verbatim copy of the Kiselyov compiler from B. Lynn's exposition of Kiselyov's bracket abstraction
+https://crypto.stanford.edu/~blynn/lambda/kiselyov.html.
+
+I've only added minor changes to fit it into my codebase.
+E.g. I've added access to the environment of named lambda expressions for free variables.
+--}
 
 data Peano = Su Peano | Z deriving Show
 data DB = N Peano | L DB | A DB DB | Free String | IN Integer deriving Show
@@ -63,7 +72,7 @@ bulkPlain bulk = convert (#) where
 
 bulk :: Combinator -> Int -> CL
 bulk c 1 = Com c
-bulk c n = Com (fromString (show c ++ show n))
+bulk c n = Com (fromString (show c ++ show n)) -- TODO: this is a hack and will work onlx upto 2.
 
 compileKiEither :: Environment -> (Environment -> DB -> ([Bool],CL)) -> Either String CL
 compileKiEither env convertFun = case lookup "main" env of
@@ -87,11 +96,11 @@ convertBool (#) env = \case
   A e1 e2 -> (zipWithDefault False (||) g1 g2, t1 # t2) where
     t1@(g1, _) = rec env e1
     t2@(g2, _) = rec env e2
-  --Free s -> ([], Com (fromString s))
-  Free fun -> convertFree (#) env fun --([], Com (fromString fun))
+  Free fun -> convertFree (#) env fun
   IN i -> ([False], INT i)
   where rec = convertBool (#)
 
+convertFree :: (([Bool], CL) -> ([Bool], CL) -> CL) -> [(String, Expr)] -> String -> ([Bool], CL)
 convertFree (#) env s
   | Just t <- lookup s env = convertBool (#) env (deBruijn t)
   | otherwise = ([], Com (fromString s))
@@ -129,48 +138,52 @@ zipWithDefault d f     []     ys = f d <$> ys
 zipWithDefault d f     xs     [] = flip f d <$> xs
 zipWithDefault d f (x:xt) (y:yt) = f x y : zipWithDefault d f xt yt
 
--- bulkOpt :: (String -> Int -> CL) -> DB -> ([Bool], CL)
--- bulkOpt bulk = \case
---   N Z -> (True:[], Com I)
---   N (Su e) -> head (False:) $ rec $ N e
---   L e -> case rec e of
---     ([], d) -> ([], Com K :@ d)
---     (False:g, d) -> ([], Com K) ## (g, d)
---     (True:g, d) -> (g, d)
---   A e1 e2 -> rec e1 ## rec e2
---   Free s -> ([], Com (fromString s))
---   where
---   rec = bulkOpt bulk
---   ([], d1) ## ([], d2) = ([], d1 :@ d2)
---   ([], d1) ## ([True], Com I) = ([True], d1)
---   ([], d1) ## (g2, Com I) | and g2 = (g2, bulk "B" (length g2 - 1) :@ d1)
---   ([], d1) ## (g2@(h:_), d2) = head (pre++) $ ([], fun1 d1) ## (post, d2)
---     where
---     fun1 = case h of
---       True -> (bulk "B" (length pre) :@)
---       False -> id
---     (pre, post) = span (h ==) g2
 
---   ([True], Com I) ## ([], d2) = ([True], Com T :@ d2)
---   (g1@(h:_), d1) ## ([], d2) = head (pre++) $ case h of
---     True -> ([], Com C :@ bulk "C" (length pre) :@ d2) ## (post, d1)
---     False -> (post, d1) ## ([], d2)
---     where
---     (pre, post) = span (h ==) g1
+bulkOpt :: (Combinator -> Int -> CL) -> DB -> ([Bool], CL)
+bulkOpt bulk = \case
+  N Z -> ([True], Com I)
+  N (Su e) -> first (False:) $ rec $ N e
+  L e -> case rec e of
+    ([], d) -> ([], Com K :@ d)
+    (False:g, d) -> ([], Com K) ## (g, d)
+    (True:g, d) -> (g, d)
+  A e1 e2 -> rec e1 ## rec e2
+  --Free s -> ([], Com s)
+  where
+  rec = bulkOpt bulk
+  ([], d1) ## ([], d2) = ([], d1 :@ d2)
+  ([], d1) ## ([True], Com I) = ([True], d1)
+  ([], d1) ## (g2, Com I) | and g2 = (g2, bulk B (length g2 - 1) :@ d1)
+  ([], d1) ## (g2@(h:_), d2) = first (pre++) $ ([], fun1 d1) ## (post, d2)
+    where
+    fun1 = case h of
+      True -> (bulk B (length pre) :@)
+      False -> id
+    (pre, post) = span (h ==) g2
 
---   ([True], Com I) ## (False:g2, d2) = head (True:) $ ([], Com T) ## (g2, d2)
---   (False:g1, d1) ## ([True], Com I) = (True:g1, d1)
---   (g1, d1) ## (g2, Com I) | and g2, let n = length g2, all not $ take n g1 =
---     head (g2++) $ ([], bulk "B" $ n - 1) ## (drop n g1, d1)
---   (g1, d1) ## (g2, d2) = pre $ fun1 (drop count g1, d1) ## (drop count g2, d2)
---     where
---     (h, count) = headGroup $ zip g1 g2
---     fun1 = case h of
---       (False, False) -> id
---       (False, True) -> apply "B"
---       (True, False) -> apply "C"
---       (True, True) -> apply "S"
---     pre = head (replicate count (uncurry (||) h) ++)
---     apply s = (([], bulk s count) ##)
+  ([True], Com I) ## ([], d2) = ([True], Com T :@ d2)
+  (g1@(h:_), d1) ## ([], d2) = first (pre++) $ case h of
+    True -> ([], Com C :@ bulk C (length pre) :@ d2) ## (post, d1)
+    False -> (post, d1) ## ([], d2)
+    where
+    (pre, post) = span (h ==) g1
+
+  ([True], Com I) ## (False:g2, d2) = first (True:) $ ([], Com T) ## (g2, d2)
+  (False:g1, d1) ## ([True], Com I) = (True:g1, d1)
+  (g1, d1) ## (g2, Com I) | and g2, let n = length g2, all not $ take n g1 =
+    first (g2++) $ ([], bulk B $ n - 1) ## (drop n g1, d1)
+  (g1, d1) ## (g2, d2) = pre $ fun1 (drop count g1, d1) ## (drop count g2, d2)
+    where
+    (h, count) = headGroup $ zip g1 g2
+    fun1 = case h of
+      (False, False) -> id
+      (False, True) -> apply B
+      (True, False) -> apply C
+      (True, True) -> apply S
+    pre = first (replicate count (uncurry (||) h) ++)
+    apply s = (([], bulk s count) ##)
+
+first f (x, y) = (f x, y);
 
 headGroup (h:t) = (h, 1 + length (takeWhile (== h) t))
+

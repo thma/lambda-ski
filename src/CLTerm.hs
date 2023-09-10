@@ -5,7 +5,9 @@ module CLTerm
     CL(..),
     Combinator(..),
     fromString,
-    toCL
+    toCL,
+    LeftAncestors,
+    leftAncestors
   )
   where
 
@@ -18,6 +20,16 @@ instance Show CL where
     Com s -> (if p > 0 then (' ':) else id) . (show s ++)
     INT i -> ((' ': show i )++)
     t :@ u -> showParen (p > 0) $ shows t . showsPrec 1 u   
+
+type LeftAncestors = [CL]
+
+leftAncestors :: CL -> LeftAncestors
+leftAncestors clTerm = leftAncestors' clTerm []
+  where
+    leftAncestors' :: CL -> LeftAncestors -> LeftAncestors
+    leftAncestors' (t :@ u) stack = leftAncestors' t (u : stack)
+    leftAncestors' t stack = t : stack
+
 
 data Combinator = I | K | S | B | C | Y | P | R | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP | IF | B' | C' | S' | T | S2 | B2 
   deriving (Eq, Show)

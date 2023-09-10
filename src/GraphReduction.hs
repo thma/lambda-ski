@@ -67,15 +67,6 @@ allocate (l :@ r) = do
   rg <- allocate r
   newSTRef $ lg :@: rg
 
--- allocate :: Expr -> ST s (STRef s (Graph s))
--- allocate (Var name) = newSTRef $ Comb $ fromString name
--- allocate (Int val) = newSTRef $ Num val
--- allocate (l `App` r) = do
---   lg <- allocate l
---   rg <- allocate r
---   newSTRef $ lg :@: rg
--- allocate (Lam _ _) = error "lambdas must already be abstracted away!"
-
 type LeftAncestorsStack s = [STRef s (Graph s)]
 
 spine :: STRef s (Graph s) -> ST s (LeftAncestorsStack s)

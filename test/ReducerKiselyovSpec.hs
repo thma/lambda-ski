@@ -47,7 +47,7 @@ showCode src = do
   putStrLn src
   putStrLn "The result of the kiselyov compiler:"
   print aExp
-
+  
 runTest :: SourceCode -> Bool
 runTest src =
   let pEnv = parseEnvironment src
