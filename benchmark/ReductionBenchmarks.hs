@@ -89,10 +89,10 @@ benchmarks = do
       , bench "gaussian  HHI-Reduce"      $ nf reducerTest gau
       , bench "gaussian  HHI-Kiselyov"    $ nf reducerTest gauKi
       , bench "gaussian  Native"          $ nf gaussianSum 100
-      , bench "tak       Graph-Reduce"    $ nf graphTest tak
+      --, bench "tak       Graph-Reduce"    $ nf graphTest tak
       , bench "tak       HHI-Reduce"      $ nf reducerTest tak
       , bench "tak       HHI-Kiselyov"    $ nf reducerTest takKi
-      , bench "tak       Native"          $ nf tak_6_4 3
+      , bench "tak       Native"          $ nf tak_18_6 3
       ]
   return ()
 
@@ -119,8 +119,8 @@ gaussianSum :: Integer -> Integer
 gaussianSum  = fix (\f n -> if n == 0 then 0 else n + f (n-1))
 
 
-tak_6_4 :: Integer -> Integer
-tak_6_4 = tak 6 4
+tak_18_6 :: Integer -> Integer
+tak_18_6 = tak 18 6
 
 tak :: Integer -> Integer -> Integer -> Integer
 tak  = fix (\f x y z -> (if y >= x then z else f (f (x-1) y z) (f (y-1) z x) (f (z-1) x y )))

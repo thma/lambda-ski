@@ -10,7 +10,6 @@ import           Test.QuickCheck
 import           Test.Hspec
 import Control.Monad.ST (runST, ST)
 import Data.STRef
-import TestSources
 
 main :: IO ()
 main = hspec spec
@@ -19,18 +18,19 @@ spec :: Spec
 spec =
   describe "Classic GraphReduction with STRef" $ do
     it "computes factorial" $
-      verify factorial
+      verify "factorial"
     it "computes fibonacci" $
-      verify fibonacci
+      verify "fibonacci"
     it "computes gaussian sum" $
-      verify gaussian
+      verify "gaussian"
     it "computes ackermann function"  $
-      verify ackermann
+      verify "ackermann"
     it "computes tak " $
-      verify tak
+      verify "tak"
 
-verify :: SourceCode -> IO ()
-verify source = do
+verify :: FilePath -> IO ()
+verify tc = do
+  source <- loadTestCase tc
   let (expected, actual) = runTest source
   actual `shouldBe` expected 
 

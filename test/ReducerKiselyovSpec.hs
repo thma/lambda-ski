@@ -5,8 +5,6 @@ import Parser
 import CLTerm
 import Kiselyov
 import Data.Maybe (fromJust)
-import TestSources
-    ( ackermann, factorial, fibonacci, gaussian, tak )
 
 import           Test.QuickCheck
 import           Test.Hspec
@@ -18,21 +16,22 @@ spec :: Spec
 spec =
   describe "hhi inspired Reducer (Kiselyov compiler)" $ do
     it "computes factorial" $
-      verify factorial
+      verify "factorial"
     it "computes fibonacci" $
-      verify fibonacci
+      verify "fibonacci"
     it "computes gaussian sum" $
-      verify gaussian
+      verify "gaussian"
     it "computes ackermann function"  $
-      verify ackermann
+      verify "ackermann"
     it "computes tak " $
-      verify tak
+      verify "tak"
 
 
-verify :: SourceCode -> IO ()
+verify :: FilePath -> IO ()
 verify tc = do
-  showCode tc
-  tc `shouldSatisfy` runTest 
+  src <- loadTestCase tc
+  showCode src
+  src `shouldSatisfy` runTest 
 
 type SourceCode = String
 

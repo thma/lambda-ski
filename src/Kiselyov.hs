@@ -2,9 +2,9 @@
 module Kiselyov
   (
     deBruijn,
-    convert,
-    plain,
-    bulkPlain,
+    --convert,
+    --plain,
+    --bulkPlain,
     breakBulkLinear,
     breakBulkLog,
     bulkOpt,
@@ -40,7 +40,7 @@ deBruijn = go [] where
     t `App` u -> A (go binds t) (go binds u)
     Int i -> IN i
 
-
+{--
 convert :: ((Int, CL) -> (Int, CL) -> CL) -> DB -> (Int, CL)
 convert (#) = \case
   N Z -> (1, Com I)
@@ -71,10 +71,10 @@ bulkPlain bulk = convert (#) where
     (n, m) | n == m    -> bulk S n :@ x :@ y
            | n < m     ->                      bulk B (m - n) :@ (bulk S n :@ x) :@ y
            | otherwise -> bulk C (n - m) :@ (bulk B (n - m) :@  bulk S m :@ x) :@ y
-
---bulk :: Combinator -> Int -> CL
---bulk c 1 = Com c
---bulk c n = Com (fromString (show c ++ show n)) -- TODO: this is a hack and will work onlx upto 2.
+--}
+bulk :: Combinator -> Int -> CL
+bulk c 1 = Com c
+bulk c n = Com (fromString (show c ++ show n)) -- TODO: this is a hack and will work onlx upto 2.
 
 compileKiEither :: Environment -> (Environment -> DB -> ([Bool],CL)) -> Either String CL
 compileKiEither env convertFun = case lookup "main" env of
@@ -90,7 +90,7 @@ compileKi env convertFun =
 compileBulk :: Environment -> CL
 compileBulk env = case lookup "main" env of
   Nothing   -> error "main function missing"
-  Just main -> snd $ bulkOpt breakBulkLog env (deBruijn main)
+  Just main -> snd $ bulkOpt bulk env (deBruijn main)
 
 convertBool :: (([Bool], CL) -> ([Bool], CL) -> CL) -> Environment -> DB -> ([Bool], CL)
 convertBool (#) env = \case
@@ -174,7 +174,7 @@ sbi = Com S :@ Com B :@ Com I
 bulkLookup :: String -> Environment -> ([Bool], CL)
 bulkLookup s env = case lookup s env of
   Nothing -> ([], Com (fromString s))
-  Just t -> bulkOpt breakBulkLinear env (deBruijn t)
+  Just t -> bulkOpt bulk env (deBruijn t)
 
 bulkOpt :: (Combinator -> Int -> CL) -> Environment -> DB -> ([Bool], CL)
 bulkOpt bulk env = \case

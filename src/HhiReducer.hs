@@ -29,6 +29,7 @@ translate (Com c)        = CComb c
 infixl 0 !
 (!) :: CExpr -> CExpr -> CExpr
 (CFun f) ! x = f x
+x ! y = error $ "can't handle " ++ show x
 {-# INLINE (!) #-}
 
 -- | "link" a compiled expression into Haskell native functions.
@@ -56,14 +57,14 @@ primitives :: CombinatorDefinitions
 primitives = let (-->) = (,) in
   [ I      --> CFun id
   , K      --> CFun (CFun . const)
-  , S      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!(g!x)) -- S F G X = F X (G X)
-  , B      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!(g!x))   -- B F G X = F (G X)
-  , C      --> CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!g)     -- C F G X = F X G
+  , S      --> comS --CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!(g!x)) -- S F G X = F X (G X)
+  , B      --> comB --CFun (\f -> CFun $ \g -> CFun $ \x -> f!(g!x))   -- B F G X = F (G X)
+  , C      --> comC --CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!g)     -- C F G X = F X G
   , R      --> CFun (\f -> CFun $ \g -> CFun $ \x -> g!x!f)     -- R F G X = G X F  
  -- , T      --> CFun (\x -> CFun $ \y -> x)                    -- T X Y = X
-  , B'     --> CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!q!(r!s))      -- B' P Q R S = P Q (R S)
-  , C'     --> CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!r)      -- C' P Q R S = P (Q S) R
-  , S'     --> CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!(r!s))  -- S' P Q R S = P (Q S) (R S)
+  , B'     --> comB' --CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!q!(r!s))      -- B' P Q R S = P Q (R S)
+  , C'     --> comC' --CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!r)      -- C' P Q R S = P (Q S) R
+  , S'     --> comS' --CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!(r!s))  -- S' P Q R S = P (Q S) (R S)
   , IF     --> CFun (\(CInt cond) -> CFun $ \thenExp -> CFun $ \elseExp -> if cond == 1 then thenExp else elseExp)
   , Y      --> CFun (\(CFun f) -> fix f)
   , ADD    --> arith (+)
@@ -73,7 +74,39 @@ primitives = let (-->) = (,) in
   , EQL    --> arith eql
   , GEQ    --> arith geq
   , ZEROP  --> CFun isZero
+  , S2     --> comS2
+  , S3     --> comS3
+  , S4     --> comS4
+  , B2     --> comB2
+  , B3     --> comB3
+  , C2     --> comC2
+  , C3     --> comC3
   ]
+
+comS :: CExpr
+comS = CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!(g!x)) -- S F G X = F X (G X)
+
+comS' :: CExpr
+comS' = CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!(r!s))  -- S' P Q R S = P (Q S) (R S)
+
+comS2 :: CExpr
+comS2 = comS' ! comS
+
+comS3 = comS' ! comS2
+comS4 = comS' ! comS3
+
+comB = CFun (\f -> CFun $ \g -> CFun $ \x -> f!(g!x))   -- B F G X = F (G X)
+comB' = CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!q!(r!s))      -- B' P Q R S = P Q (R S)
+
+comB2 = comB' ! comB
+comB3 = comB' ! comB2
+
+comC = CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!g)     -- C F G X = F X G
+comC' = CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!r)      -- C' P Q R S = P (Q S) R
+
+comC2 = comC' ! comC
+comC3 = comC' ! comC2
+
 
 arith :: (Integer -> Integer -> Integer) -> CExpr
 arith op = CFun $ \(CInt a) -> CFun $ \(CInt b) -> CInt (op a b)

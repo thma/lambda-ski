@@ -78,7 +78,6 @@ test-suite lambda-ski-test
       GraphReductionSpec
       ReducerKiselyovSpec
       ReducerSpec
-      TestSources
       Paths_lambda_ski
   hs-source-dirs:
       test
