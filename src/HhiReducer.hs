@@ -38,7 +38,7 @@ x ! y = error $ "can't handle " ++ show x
 link :: CombinatorDefinitions -> CExpr -> CExpr
 link definitions (CApp fun arg) = link definitions fun ! link definitions arg
 link definitions (CComb comb)   = case lookup comb definitions of
-  Nothing -> error $ "unknown combinator " ++ show comb
+  Nothing -> resolveBulk comb --error $ "unknown combinator " ++ show comb
   Just e  -> e
 link _definitions expr          = expr
 
@@ -74,14 +74,21 @@ primitives = let (-->) = (,) in
   , EQL    --> arith eql
   , GEQ    --> arith geq
   , ZEROP  --> CFun isZero
-  , S2     --> comS2
-  , S3     --> comS3
-  , S4     --> comS4
-  , B2     --> comB2
-  , B3     --> comB3
-  , C2     --> comC2
-  , C3     --> comC3
+  -- , S2     --> comS2
+  -- , S3     --> comS3
+  -- , S4     --> comS4
+  -- , B2     --> comB2
+  -- , B3     --> comB3
+  -- , C2     --> comC2
+  -- , C3     --> comC3
   ]
+
+
+resolveBulk :: Combinator -> CExpr
+resolveBulk (BulkCom "B" n) = iterate (comB' !) comB !! (n-1) 
+resolveBulk (BulkCom "C" n) = iterate (comC' !) comC !! (n-1)
+resolveBulk (BulkCom "S" n) = iterate (comS' !) comS !! (n-1) 
+resolveBulk anyOther = error $ "not a known combinator: " ++ show anyOther
 
 comS :: CExpr
 comS = CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!(g!x)) -- S F G X = F X (G X)

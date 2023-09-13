@@ -74,25 +74,25 @@ benchmarks = do
 
   defaultMain [
         bench "factorial Graph-Reduce"    $ nf graphTest fac
-      , bench "factorial HHI-Reduce"      $ nf reducerTest fac
-      , bench "factorial HHI-Kiselyov"    $ nf reducerTest facKi
-      , bench "factorial Native"          $ nf fact 100
-      , bench "fibonacci Graph-Reduce"    $ nf graphTest fib
-      , bench "fibonacci HHI-Reduce"      $ nf reducerTest fib
-      , bench "fibonacci HHI-Kiselyov"    $ nf reducerTest fibKi
-      , bench "fibonacci Native"          $ nf fibo 10
-      , bench "ackermann Graph-Reduce"    $ nf graphTest akk
-      , bench "ackermann HHI-Reduce"      $ nf reducerTest akk
-      , bench "ackermann HHI-Kiselyov"    $ nf reducerTest akkKi
-      , bench "ackermann Native"          $ nf ack_2 2
-      , bench "gaussian  Graph-Reduce"    $ nf graphTest gau
-      , bench "gaussian  HHI-Reduce"      $ nf reducerTest gau
-      , bench "gaussian  HHI-Kiselyov"    $ nf reducerTest gauKi
-      , bench "gaussian  Native"          $ nf gaussianSum 100
+      -- , bench "factorial HHI-Reduce"      $ nf reducerTest fac
+      -- , bench "factorial HHI-Kiselyov"    $ nf reducerTest facKi
+      -- , bench "factorial Native"          $ nf fact 100
+      -- , bench "fibonacci Graph-Reduce"    $ nf graphTest fib
+      -- , bench "fibonacci HHI-Reduce"      $ nf reducerTest fib
+      -- , bench "fibonacci HHI-Kiselyov"    $ nf reducerTest fibKi
+      -- , bench "fibonacci Native"          $ nf fibo 10
+      -- , bench "ackermann Graph-Reduce"    $ nf graphTest akk
+      -- , bench "ackermann HHI-Reduce"      $ nf reducerTest akk
+      -- , bench "ackermann HHI-Kiselyov"    $ nf reducerTest akkKi
+      -- , bench "ackermann Native"          $ nf ack_2 2
+      -- , bench "gaussian  Graph-Reduce"    $ nf graphTest gau
+      -- , bench "gaussian  HHI-Reduce"      $ nf reducerTest gau
+      -- , bench "gaussian  HHI-Kiselyov"    $ nf reducerTest gauKi
+      -- , bench "gaussian  Native"          $ nf gaussianSum 100
       --, bench "tak       Graph-Reduce"    $ nf graphTest tak
       , bench "tak       HHI-Reduce"      $ nf reducerTest tak
       , bench "tak       HHI-Kiselyov"    $ nf reducerTest takKi
-      , bench "tak       Native"          $ nf tak_18_6 3
+      , bench "tak       Native"          $ nf tak2 (18,6,3) --tak_18_6 3
       ]
   return ()
 
@@ -124,3 +124,11 @@ tak_18_6 = tak 18 6
 
 tak :: Integer -> Integer -> Integer -> Integer
 tak  = fix (\f x y z -> (if y >= x then z else f (f (x-1) y z) (f (y-1) z x) (f (z-1) x y )))
+
+tak1 (x,y,z) = tak x y z
+
+tak2 :: (Integer, Integer, Integer) -> Integer
+tak2 (x,y,z) = takInt x y z
+  where
+    takInt x y z = if y >= x then z else takInt (takInt (x-1) y z) (takInt (y-1) z x) (takInt (z-1) x y )
+

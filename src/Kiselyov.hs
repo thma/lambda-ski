@@ -74,7 +74,7 @@ bulkPlain bulk = convert (#) where
 --}
 bulk :: Combinator -> Int -> CL
 bulk c 1 = Com c
-bulk c n = Com (fromString (show c ++ show n)) -- TODO: this is a hack and will work onlx upto 2.
+bulk c n = Com $ BulkCom (show c) n --(fromString (show c ++ show n)) -- TODO: this is a hack and will work onlx upto 2.
 
 compileKiEither :: Environment -> (Environment -> DB -> ([Bool],CL)) -> Either String CL
 compileKiEither env convertFun = case lookup "main" env of
