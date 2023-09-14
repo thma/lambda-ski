@@ -628,3 +628,7 @@ Here are some ideas for possible future extensions and improvements.
 - Add support for implicit and explicit parallelism of the graph-reduction engine.
   (implicit parallelism for strict operations, and an explicit `P`-combinator)
 
+## TODO:
+
+- OptEta und Bulk beide zu laufen bringen, aufräumen
+- benchmarks überprüfen!

@@ -5,7 +5,7 @@ module Kiselyov
     --convert,
     --plain,
     --bulkPlain,
-    breakBulkLinear,
+    --breakBulkLinear,
     breakBulkLog,
     bulkOpt,
     compileKi,
@@ -74,7 +74,7 @@ bulkPlain bulk = convert (#) where
 --}
 bulk :: Combinator -> Int -> CL
 bulk c 1 = Com c
-bulk c n = Com $ BulkCom (show c) n --(fromString (show c ++ show n)) -- TODO: this is a hack and will work onlx upto 2.
+bulk c n = Com $ BulkCom (show c) n
 
 compileKiEither :: Environment -> (Environment -> DB -> ([Bool],CL)) -> Either String CL
 compileKiEither env convertFun = case lookup "main" env of
@@ -146,23 +146,23 @@ zipWithDefault d f     xs     [] = flip f d <$> xs
 zipWithDefault d f (x:xt) (y:yt) = f x y : zipWithDefault d f xt yt
 
 
-breakBulkLinear :: Combinator -> Int -> CL
-breakBulkLinear B n = iterate (comB' :@) (Com B) !! (n - 1)
-breakBulkLinear C n = iterate (comC' :@) (Com C) !! (n - 1)
-breakBulkLinear S n = iterate (comS' :@) (Com S) !! (n - 1)
+-- breakBulkLinear :: Combinator -> Int -> CL
+-- breakBulkLinear B n = iterate (comB' :@) (Com B) !! (n - 1)
+-- breakBulkLinear C n = iterate (comC' :@) (Com C) !! (n - 1)
+-- breakBulkLinear S n = iterate (comS' :@) (Com S) !! (n - 1)
 
-comB' :: CL
-comB' = Com B:@ Com B
-comC' :: CL
-comC' = Com B :@ (Com B :@ Com C) :@ Com B
-comS' :: CL
-comS' = Com B :@ (Com B :@ Com S) :@ Com B
+-- comB' :: CL
+-- comB' = Com B:@ Com B
+-- comC' :: CL
+-- comC' = Com B :@ (Com B :@ Com C) :@ Com B
+-- comS' :: CL
+-- comS' = Com B :@ (Com B :@ Com S) :@ Com B
 
 bits n = r:if q == 0 then [] else bits q where (q, r) = divMod n 2
 
 breakBulkLog :: Combinator -> Int -> CL
 breakBulkLog c 1 = Com c
-breakBulkLog B n = foldr (:@) (Com B) $ map (bs!!) $ init $ bits n where
+breakBulkLog B n = foldr (((:@)) . (bs!!)) (Com B) (init $ bits n) where
   bs = [sbi, Com B :@ (Com B :@ Com B) :@ sbi]
 breakBulkLog c n = (foldr (:@) (prime c) $ map (bs!!) $ init $ bits n) :@ Com I where
   bs = [sbi, Com B :@ (Com B :@ prime c) :@ sbi]

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module GraphReduction
   ( toString,
     mToString,
@@ -18,6 +19,12 @@ import           Data.STRef       (STRef, newSTRef, readSTRef,
 import           Parser           (Expr (..))
 import CLTerm
 
+#if MIN_VERSION_base(4,17,0)
+-- explicit MonadFail declaration required for newer base versions
+instance MonadFail (ST s) where
+  fail :: String -> ST s a
+  fail = error
+#endif  
 
 infixl 5 :@:
 

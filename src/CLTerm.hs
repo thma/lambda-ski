@@ -17,9 +17,13 @@ data CL = Com Combinator | INT Integer | CL :@ CL
 instance Show CL where
   showsPrec :: Int -> CL -> ShowS
   showsPrec p = \case
-    Com s -> (if p > 0 then (' ':) else id) . (show s ++)
+    Com c -> (if p > 0 then (' ':) else id) . (toString c ++)
     INT i -> ((' ': show i )++)
-    t :@ u -> showParen (p > 0) $ shows t . showsPrec 1 u   
+    t :@ u -> showParen (p > 0) $ shows t . showsPrec 1 u  
+    where 
+      toString :: Combinator -> String
+      toString (BulkCom c n) = c ++ show n
+      toString c = show c
 
 type LeftAncestors = [CL]
 
