@@ -8,6 +8,7 @@ import Data.Maybe (fromJust)
 
 import           Test.QuickCheck
 import           Test.Hspec
+import TestSources
 
 main :: IO ()
 main = hspec spec
@@ -16,27 +17,26 @@ spec :: Spec
 spec =
   describe "hhi inspired Reducer (Kiselyov compiler)" $ do
     it "computes factorial" $
-      verify "factorial"
+      verify factorial
     it "computes fibonacci" $
-      verify "fibonacci"
+      verify fibonacci
     it "computes gaussian sum" $
-      verify "gaussian"
+      verify gaussian
     it "computes ackermann function"  $
-      verify "ackermann"
+      verify ackermann
     it "computes tak " $
-      verify "tak"
+      verify tak
 
 
-verify :: FilePath -> IO ()
-verify tc = do
-  src <- loadTestCase tc
+verify :: String -> IO ()
+verify src = do
   showCode src
   src `shouldSatisfy` runTest 
 
 type SourceCode = String
 
-loadTestCase :: String -> IO SourceCode
-loadTestCase name = readFile $ "test/" ++ name ++ ".ths"
+-- loadTestCase :: String -> IO SourceCode
+-- loadTestCase name = readFile $ "test/" ++ name ++ ".ths"
 
 showCode :: SourceCode -> IO ()
 showCode src = do

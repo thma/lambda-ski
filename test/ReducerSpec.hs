@@ -5,8 +5,7 @@ import Parser
 import CLTerm
 import LambdaToSKI
 import Data.Maybe (fromJust)
---import TestSources
---    ( ackermann, factorial, fibonacci, gaussian, tak )
+import TestSources
 
 import           Test.QuickCheck
 import           Test.Hspec
@@ -18,26 +17,25 @@ spec :: Spec
 spec =
   describe "hhi inspired Reducer " $ do
     it "computes factorial" $
-      verify "factorial"
+      verify factorial
     it "computes fibonacci" $
-      verify "fibonacci"
+      verify fibonacci
     it "computes gaussian sum" $
-      verify "gaussian"
+      verify gaussian
     it "computes ackermann function"  $
-      verify "ackermann"
+      verify ackermann
     it "computes tak " $
-      verify "tak"
+      verify tak
 
 
 verify :: FilePath -> IO ()
-verify tc = do
-  src <- loadTestCase tc
+verify src = do
   src `shouldSatisfy` runTest 
 
 type SourceCode = String
 
-loadTestCase :: String -> IO SourceCode
-loadTestCase name = readFile $ "test/" ++ name ++ ".ths"
+-- loadTestCase :: String -> IO SourceCode
+-- loadTestCase name = readFile $ "test/" ++ name ++ ".ths"
 
 runTest :: SourceCode -> Bool
 runTest src =
