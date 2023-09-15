@@ -29,7 +29,7 @@ spec =
     it "computes tak " $
       verify tak
 
-verify :: String -> IO ()
+verify :: SourceCode -> IO ()
 verify source = do
   let (expected, actual) = runTest source
   actual `shouldBe` expected 

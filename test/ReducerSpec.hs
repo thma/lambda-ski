@@ -28,7 +28,7 @@ spec =
       verify tak
 
 
-verify :: FilePath -> IO ()
+verify :: SourceCode -> IO ()
 verify src = do
   src `shouldSatisfy` runTest 
 

@@ -41,6 +41,7 @@ library
   build-depends:
       base >=4.7 && <5
     , parsec
+    , raw-strings-qq
   default-language: GHC2021
 
 executable benchmark
@@ -56,6 +57,7 @@ executable benchmark
     , criterion
     , lambda-ski
     , parsec
+    , raw-strings-qq
   default-language: GHC2021
 
 executable lambda-ski-exe
@@ -69,6 +71,7 @@ executable lambda-ski-exe
       base >=4.7 && <5
     , lambda-ski
     , parsec
+    , raw-strings-qq
   default-language: GHC2021
 
 test-suite lambda-ski-test
@@ -90,5 +93,6 @@ test-suite lambda-ski-test
     , lambda-ski
     , parsec
     , quickcheck-io
+    , raw-strings-qq
   default-language: GHC2021
   build-tool-depends: hspec-discover:hspec-discover
