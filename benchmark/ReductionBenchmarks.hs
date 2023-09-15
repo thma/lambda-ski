@@ -12,19 +12,16 @@ import Control.Monad.ST ( ST, runST )
 import HhiReducer ( primitives, transLink, CExpr(CInt, CApp) ) 
 import Control.Monad.Fix ( fix )
 import Kiselyov (compileKi)
+import BenchmarkSources
 
-type SourceCode = String
-
-loadTestCase :: String -> IO CL
-loadTestCase name = do
-  src <- readFile $ "test/" ++ name ++ ".ths"
+loadTestCase :: SourceCode -> IO CL
+loadTestCase src = do
   let pEnv = parseEnvironment src
       expr = compile pEnv abstractToSKI
   return expr
 
-loadTestCaseKiselyov :: String -> IO CL
-loadTestCaseKiselyov name = do
-  src <- readFile $ "test/" ++ name ++ ".ths"
+loadTestCaseKiselyov :: SourceCode -> IO CL
+loadTestCaseKiselyov src = do
   let pEnv = parseEnvironment src
       expr = compileBulk pEnv 
   return expr  
@@ -60,16 +57,16 @@ reducerTest expr = error "invalid input expression " ++ show expr
 
 benchmarks :: IO ()
 benchmarks = do
-  fac <- loadTestCase "factorial"
-  fib <- loadTestCase "fibonacci"
-  akk <- loadTestCase "ackermann"
-  gau <- loadTestCase "gaussian"
-  tak <- loadTestCase "tak"
-  facKi <- loadTestCaseKiselyov "factorial"
-  fibKi <- loadTestCaseKiselyov "fibonacci"
-  akkKi <- loadTestCaseKiselyov "ackermann"
-  gauKi <- loadTestCaseKiselyov "gaussian"
-  takKi <- loadTestCaseKiselyov "tak"
+  fac <- loadTestCase factorial
+  fib <- loadTestCase fibonacci
+  akk <- loadTestCase ackermann
+  gau <- loadTestCase gaussian
+  tak <- loadTestCase tak
+  facKi <- loadTestCaseKiselyov factorial
+  fibKi <- loadTestCaseKiselyov fibonacci
+  akkKi <- loadTestCaseKiselyov ackermann
+  gauKi <- loadTestCaseKiselyov gaussian
+  takKi <- loadTestCaseKiselyov BenchmarkSources.tak
 
 
   defaultMain [
@@ -97,7 +94,6 @@ benchmarks = do
   return ()
 
 
-
 fact :: Integer -> Integer
 fact = fix (\f n -> if n == 0 then 1 else n * f (n-1))
 
@@ -120,12 +116,12 @@ gaussianSum  = fix (\f n -> if n == 0 then 0 else n + f (n-1))
 
 
 tak_18_6 :: Integer -> Integer
-tak_18_6 = tak 18 6
+tak_18_6 = takN 18 6
 
-tak :: Integer -> Integer -> Integer -> Integer
-tak  = fix (\f x y z -> (if y >= x then z else f (f (x-1) y z) (f (y-1) z x) (f (z-1) x y )))
+takN :: Integer -> Integer -> Integer -> Integer
+takN  = fix (\f x y z -> (if y >= x then z else f (f (x-1) y z) (f (y-1) z x) (f (z-1) x y )))
 
-tak1 (x,y,z) = tak x y z
+tak1 (x,y,z) = takN x y z
 
 tak2 :: (Integer, Integer, Integer) -> Integer
 tak2 (x,y,z) = takInt x y z
