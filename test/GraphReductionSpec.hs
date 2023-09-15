@@ -34,11 +34,6 @@ verify source = do
   let (expected, actual) = runTest source
   actual `shouldBe` expected 
 
-type SourceCode = String
-
--- loadTestCase :: String -> IO SourceCode
--- loadTestCase name = readFile $ "test/" ++ name ++ ".ths"
-
 getInt :: Expr -> Integer 
 getInt (Int i) = i
 getInt _ = error "not an int"

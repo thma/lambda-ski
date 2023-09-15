@@ -27,17 +27,10 @@ spec =
     it "computes tak " $
       verify tak
 
-type SourceCode = String
- 
 verify :: SourceCode -> IO ()
 verify src = do
-  showCode src
+  --showCode src
   src `shouldSatisfy` runTest 
-
-
-
--- loadTestCase :: String -> IO SourceCode
--- loadTestCase name = readFile $ "test/" ++ name ++ ".ths"
 
 showCode :: SourceCode -> IO ()
 showCode src = do

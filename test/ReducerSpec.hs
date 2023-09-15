@@ -27,16 +27,10 @@ spec =
     it "computes tak " $
       verify tak
 
-
 verify :: SourceCode -> IO ()
 verify src = do
-  src `shouldSatisfy` runTest 
-
-type SourceCode = String
-
--- loadTestCase :: String -> IO SourceCode
--- loadTestCase name = readFile $ "test/" ++ name ++ ".ths"
-
+  src `shouldSatisfy` runTest
+  
 runTest :: SourceCode -> Bool
 runTest src =
   let pEnv = parseEnvironment src
