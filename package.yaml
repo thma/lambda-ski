@@ -41,6 +41,7 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - lambda-ski
+    - timeit
 
   benchmark:
     main:                Main.hs

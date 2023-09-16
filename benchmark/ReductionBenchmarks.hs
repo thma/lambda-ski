@@ -4,14 +4,13 @@ import Criterion.Main ( defaultMain, bench, nf )
 import Parser ( parseEnvironment, Expr(Int, App) )
 import LambdaToSKI ( abstractToSKI, compile )
 import CLTerm
-import Kiselyov
+import Kiselyov ( compileBulk, compileEta )
 import GraphReduction ( allocate, normalForm, toString, Graph )
 import Data.Maybe (fromJust)
 import Data.STRef ( STRef )
 import Control.Monad.ST ( ST, runST )
 import HhiReducer ( primitives, transLink, CExpr(CInt, CApp) )
 import Control.Monad.Fix ( fix )
-import Kiselyov (compileKi)
 import BenchmarkSources
 
 loadTestCase :: SourceCode -> IO CL
@@ -20,16 +19,17 @@ loadTestCase src = do
       expr = compile pEnv abstractToSKI
   return expr
 
-loadTestCaseKiselyov :: SourceCode -> IO CL
-loadTestCaseKiselyov src = do
+loadTestCaseBulk :: SourceCode -> IO CL
+loadTestCaseBulk src = do
   let pEnv = parseEnvironment src
       expr = compileBulk pEnv
   return expr
 
-getInt :: Expr -> Integer
-getInt (Int i) = i
-getInt _ = error "not an int"
-
+loadTestCaseEta :: SourceCode -> IO CL
+loadTestCaseEta src = do
+  let pEnv = parseEnvironment src
+      expr = compileEta pEnv
+  return expr  
 
 graphTest :: CL -> String
 graphTest expr =
@@ -49,24 +49,8 @@ reduceGraph graph = do
   gP <- graph
   normalForm gP
 
-splitMain :: CL -> (CL, CL)
-splitMain (expr :@ (INT x)) = (expr, INT x)
-splitMain expr = error $ "invalid main expression " ++ show expr
-
 reducerTest :: CL -> String
-reducerTest (expr :@ (INT x)) =
-  let fun = transLink primitives expr
-  in show (CApp fun (CInt x))
-reducerTest expr = error "invalid input expression " ++ show expr
-
-runReducerTest :: CL -> CExpr -> String
-runReducerTest expr arg =
-  let fun = transLink primitives expr
-  in show (CApp fun arg)
-
-toCexpr :: CL -> CExpr
-toCexpr (INT x) = CInt x
-toCexpr (expr :@ arg) = CApp (toCexpr expr) (toCexpr arg)
+reducerTest expr = show $ transLink primitives expr
 
 benchmarks :: IO ()
 benchmarks = do
@@ -75,43 +59,50 @@ benchmarks = do
   akk <- loadTestCase ackermann
   gau <- loadTestCase gaussian
   tak <- loadTestCase tak
-  facKi <- loadTestCaseKiselyov factorial
-  fibKi <- loadTestCaseKiselyov fibonacci
-  akkKi <- loadTestCaseKiselyov ackermann
-  gauKi <- loadTestCaseKiselyov gaussian
-  takKi <- loadTestCaseKiselyov BenchmarkSources.tak
+  facEta <- loadTestCaseEta factorial
+  fibEta <- loadTestCaseEta fibonacci
+  akkEta <- loadTestCaseEta ackermann
+  gauEta <- loadTestCaseEta gaussian
+  takEta <- loadTestCaseEta BenchmarkSources.tak
+  facBulk <- loadTestCaseBulk factorial
+  fibBulk <- loadTestCaseBulk fibonacci
+  akkBulk <- loadTestCaseBulk ackermann
+  gauBulk <- loadTestCaseBulk gaussian
+  takBulk <- loadTestCaseBulk BenchmarkSources.tak
 
-  let (funFac, argFac) = splitMain fac
-      (funFib, argFib) = splitMain fib
-      (funAkk, argAkk) = splitMain akk
-      (funGau, argGau) = splitMain gau
-      (funTak, argTak) = splitMain tak
-      (funFacKi, argFacKi) = splitMain facKi
-      (funFibKi, argFibKi) = splitMain fibKi
-      (funAkkKi, argAkkKi) = splitMain akkKi
-      (funGauKi, argGauKi) = splitMain gauKi
-      (funTakKi, argTakKi) = splitMain takKi
+  -- sanity checks
+  print $ graphTest fac
+  print $ reducerTest fac
+  print $ reducerTest facEta
+  print $ reducerTest facBulk
+  print $ show $ fact 100
+
   defaultMain [
         bench "factorial Graph-Reduce"    $ nf graphTest fac
-      , bench "factorial HHI-Reduce"      $ nf (runReducerTest funFac) (toCexpr argFac)
-      , bench "factorial HHI-Kiselyov"    $ nf (runReducerTest funFacKi) (toCexpr argFacKi)
+      , bench "factorial HHI-Reduce"      $ nf reducerTest fac
+      , bench "factorial HHI-Eta"         $ nf reducerTest facEta
+      , bench "factorial HHI-Bulk"        $ nf reducerTest facBulk
       , bench "factorial Native"          $ nf fact 100
       , bench "fibonacci Graph-Reduce"    $ nf graphTest fib
       , bench "fibonacci HHI-Reduce"      $ nf reducerTest fib
-      , bench "fibonacci HHI-Kiselyov"    $ nf reducerTest fibKi
+      , bench "fibonacci HHI-Eta"         $ nf reducerTest fibEta
+      , bench "fibonacci HHi-Bulk"        $ nf reducerTest fibBulk
       , bench "fibonacci Native"          $ nf fibo 10
       , bench "ackermann Graph-Reduce"    $ nf graphTest akk
       , bench "ackermann HHI-Reduce"      $ nf reducerTest akk
-      , bench "ackermann HHI-Kiselyov"    $ nf reducerTest akkKi
+      , bench "ackermann HHI-Eta"         $ nf reducerTest akkEta
+      , bench "ackermann HHI-Bulk"        $ nf reducerTest akkBulk
       , bench "ackermann Native"          $ nf ack_2 2
       , bench "gaussian  Graph-Reduce"    $ nf graphTest gau
       , bench "gaussian  HHI-Reduce"      $ nf reducerTest gau
-      , bench "gaussian  HHI-Kiselyov"    $ nf reducerTest gauKi
+      , bench "gaussian  HHI-Eta"         $ nf reducerTest gauEta
+      , bench "gaussian  HHI-Bulk"        $ nf reducerTest gauBulk
       , bench "gaussian  Native"          $ nf gaussianSum 100
       , bench "tak       Graph-Reduce"    $ nf graphTest tak
       , bench "tak       HHI-Reduce"      $ nf reducerTest tak
-      , bench "tak       HHI-Kiselyov"    $ nf reducerTest takKi
-      , bench "tak       Native"          $ nf tak2 (18,6,3) --tak_18_6 3
+      , bench "tak       HHI-Eta"         $ nf reducerTest takEta
+      , bench "tak       HHI-Bulk"        $ nf reducerTest takBulk
+      , bench "tak       Native"          $ nf tak1 (18,6,3) 
       ]
   return ()
 
@@ -145,8 +136,4 @@ takN  = fix (\f x y z -> (if y >= x then z else f (f (x-1) y z) (f (y-1) z x) (f
 
 tak1 (x,y,z) = takN x y z
 
-tak2 :: (Integer, Integer, Integer) -> Integer
-tak2 (x,y,z) = takInt x y z
-  where
-    takInt x y z = if y >= x then z else takInt (takInt (x-1) y z) (takInt (y-1) z x) (takInt (z-1) x y )
 

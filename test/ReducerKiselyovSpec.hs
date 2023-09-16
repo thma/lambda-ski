@@ -15,37 +15,39 @@ main = hspec spec
 
 spec :: Spec
 spec =
-  describe "hhi inspired Reducer (Kiselyov compiler)" $ do
-    it "computes factorial" $
-      verify factorial
-    it "computes fibonacci" $
-      verify fibonacci
-    it "computes gaussian sum" $
-      verify gaussian
-    it "computes ackermann function"  $
-      verify ackermann
-    it "computes tak " $
-      verify tak
+  describe "hhi inspired Reducer (Kiselyov Abstraction)" $ do
+    it "computes factorial Opt Eta" $
+      verify factorial compileEta
+    it "computes fibonacci Opt Eta" $
+      verify fibonacci compileEta
+    it "computes gaussian sum Opt Eta" $
+      verify gaussian compileEta
+    it "computes ackermann function Opt Eta"  $
+      verify ackermann compileEta
+    it "computes tak Opt Eta" $
+      verify tak compileEta
+    it "computes factorial BulkOpt" $
+      verify factorial compileBulk
+    it "computes fibonacci BulkOpt" $
+      verify fibonacci compileBulk
+    it "computes gaussian sum BulkOpt" $
+      verify gaussian compileBulk
+    it "computes ackermann function BulkOpt"  $
+      verify ackermann compileBulk
+    it "computes tak BulkOpt" $
+      verify tak compileBulk
 
-verify :: SourceCode -> IO ()
-verify src = do
-  --showCode src
-  src `shouldSatisfy` runTest 
+verify :: SourceCode -> (Environment -> CL) -> IO ()
+verify src compileFun = do
+  src `shouldSatisfy` runTest compileFun
 
-showCode :: SourceCode -> IO ()
-showCode src = do
+runTest :: (Environment -> CL) -> SourceCode -> Bool
+runTest compileFun src =
   let pEnv = parseEnvironment src
-      aExp = compileBulk pEnv 
-  putStrLn "The source: "
-  putStrLn src
-  putStrLn "The result of the kiselyov compiler:"
-  print aExp
-  
-runTest :: SourceCode -> Bool
-runTest src =
-  let pEnv = parseEnvironment src
-      aExp = compileBulk pEnv
+      aExp = compileFun pEnv
       tExp = translate aExp
       expected = translate $ toCL $ fromJust (lookup "expected" pEnv)
       actual = link primitives tExp
-  in show expected == show actual
+      actual' = transLink primitives aExp
+  in    show expected == show actual 
+     && show expected == show actual'

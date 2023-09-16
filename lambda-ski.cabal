@@ -73,6 +73,7 @@ executable lambda-ski-exe
     , lambda-ski
     , parsec
     , raw-strings-qq
+    , timeit
   default-language: GHC2021
 
 test-suite lambda-ski-test

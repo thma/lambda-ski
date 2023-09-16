@@ -1,3 +1,5 @@
+
+{-# LANGUAGE QuasiQuotes #-}
 module Main where
 
 import           Control.Monad.ST
@@ -12,6 +14,8 @@ import           Parser           (Environment, Expr(..), parseEnvironment)
 import           System.IO        (hSetEncoding, stdin, stdout, utf8)
 import HhiReducer
 import Kiselyov
+import System.TimeIt
+import Text.RawString.QQ  
 
 printGraph :: ST s (STRef s (Graph s)) -> ST s String
 printGraph graph = do
@@ -67,6 +71,33 @@ main = do
   let reducedGraph' = reduceGraph graph'
   putStrLn "The result after reducing the graph:"
   putStrLn $ runST $ printGraph reducedGraph'
+
+  timeIt $ print $ tak 60 10 5
+
+  let pEnv = parseEnvironment tak'
+      aExp = compileBulk pEnv
+
+  timeIt $ print $ transLink primitives aExp
+
+  let aExp' = compileEta pEnv
+  timeIt $ print $ transLink primitives aExp'
+
+runTest :: SourceCode -> String
+runTest src =
+  let pEnv = parseEnvironment src
+      aExp = compileBulk pEnv
+      --tExp = translate aExp
+  in show $ transLink primitives aExp --link primitives tExp
+
+tak :: Integer -> Integer -> Integer -> Integer
+tak x y z = if y >= x then z else tak (tak (x-1) y z) (tak (y-1) z x) (tak (z-1) x y)
+
+tak' :: SourceCode
+tak' = [r| 
+  expected = 4
+  tak  = y(λf x y z -> (if (geq y x) z (f (f (sub1 x) y z) (f (sub1 y) z x) (f (sub1 z) x y ))))
+  main = tak 60 10 5
+|]
 
   --demo
 

@@ -2,15 +2,10 @@
 module Kiselyov
   (
     deBruijn,
-    --convert,
-    --plain,
-    --bulkPlain,
-    --breakBulkLinear,
-    breakBulkLog,
     bulkOpt,
-    compileKi,
     compileKiEither,
     compileBulk,
+    compileEta,
     optK,
     optEta
   )
@@ -40,38 +35,6 @@ deBruijn = go [] where
     t `App` u -> A (go binds t) (go binds u)
     Int i -> IN i
 
-{--
-convert :: ((Int, CL) -> (Int, CL) -> CL) -> DB -> (Int, CL)
-convert (#) = \case
-  N Z -> (1, Com I)
-  N (Su e) -> (n + 1, (0, Com K) # t) where t@(n, _) = rec $ N e
-  L e -> case rec e of
-    (0, d) -> (0, Com K :@ d)
-    (n, d) -> (n - 1, d)
-  A e1 e2 -> (max n1 n2, t1 # t2) where
-    t1@(n1, _) = rec e1
-    t2@(n2, _) = rec e2
-  Free s -> (0, Com (fromString s))
-  IN i -> (0, INT i)
-  where rec = convert (#)
-
-plain :: DB -> (Int, CL)
-plain = convert (#) where
-  (0 , d1) # (0 , d2) = d1 :@ d2
-  (0 , d1) # (n , d2) = (0, Com B :@ d1) # (n - 1, d2)
-  (n , d1) # (0 , d2) = (0, Com R :@ d2) # (n - 1, d1)
-  (n1, d1) # (n2, d2) = (n1 - 1, (0, Com S) # (n1 - 1, d1)) # (n2 - 1, d2)
-
-bulkPlain :: (Combinator -> Int -> CL) -> DB -> (Int, CL)
-bulkPlain bulk = convert (#) where
-  (a, x) # (b, y) = case (a, b) of
-    (0, 0)             ->               x :@ y
-    (0, n)             -> bulk B n :@ x :@ y
-    (n, 0)             -> bulk C n :@ x :@ y
-    (n, m) | n == m    -> bulk S n :@ x :@ y
-           | n < m     ->                      bulk B (m - n) :@ (bulk S n :@ x) :@ y
-           | otherwise -> bulk C (n - m) :@ (bulk B (n - m) :@  bulk S m :@ x) :@ y
---}
 bulk :: Combinator -> Int -> CL
 bulk c 1 = Com c
 bulk c n = Com $ BulkCom (show c) n
@@ -81,9 +44,9 @@ compileKiEither env convertFun = case lookup "main" env of
   Nothing   -> Left $ error "main function missing in " ++ show env
   Just main -> Right $ snd $ convertFun env $ deBruijn main
 
-compileKi :: Environment -> (Environment -> DB -> ([Bool],CL)) -> CL
-compileKi env convertFun =
-  case compileKiEither env convertFun of
+compileEta :: Environment -> CL
+compileEta env =
+  case compileKiEither env optEta of
     Left err -> error $ show err
     Right cl -> cl
 
@@ -145,26 +108,14 @@ zipWithDefault d f     []     ys = f d <$> ys
 zipWithDefault d f     xs     [] = flip f d <$> xs
 zipWithDefault d f (x:xt) (y:yt) = f x y : zipWithDefault d f xt yt
 
-
--- breakBulkLinear :: Combinator -> Int -> CL
--- breakBulkLinear B n = iterate (comB' :@) (Com B) !! (n - 1)
--- breakBulkLinear C n = iterate (comC' :@) (Com C) !! (n - 1)
--- breakBulkLinear S n = iterate (comS' :@) (Com S) !! (n - 1)
-
--- comB' :: CL
--- comB' = Com B:@ Com B
--- comC' :: CL
--- comC' = Com B :@ (Com B :@ Com C) :@ Com B
--- comS' :: CL
--- comS' = Com B :@ (Com B :@ Com S) :@ Com B
-
+bits :: Integral t => t -> [t]
 bits n = r:if q == 0 then [] else bits q where (q, r) = divMod n 2
 
 breakBulkLog :: Combinator -> Int -> CL
 breakBulkLog c 1 = Com c
-breakBulkLog B n = foldr (((:@)) . (bs!!)) (Com B) (init $ bits n) where
+breakBulkLog B n = foldr ((:@) . (bs!!)) (Com B) (init $ bits n) where
   bs = [sbi, Com B :@ (Com B :@ Com B) :@ sbi]
-breakBulkLog c n = (foldr (:@) (prime c) $ map (bs!!) $ init $ bits n) :@ Com I where
+breakBulkLog c n = foldr ((:@) . (bs!!)) (prime c) (init $ bits n) :@ Com I where
   bs = [sbi, Com B :@ (Com B :@ prime c) :@ sbi]
   prime c = Com B :@ (Com B :@ Com c) :@ Com B
 
@@ -221,7 +172,9 @@ bulkOpt bulk env = \case
     pre = first (replicate count (uncurry (||) h) ++)
     apply s = (([], bulk s count) ##)
 
+first :: (t -> a) -> (t, b) -> (a, b)
 first f (x, y) = (f x, y);
 
+headGroup :: Eq a => [a] -> (a, Int)
 headGroup (h:t) = (h, 1 + length (takeWhile (== h) t))
 
