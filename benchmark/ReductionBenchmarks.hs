@@ -4,12 +4,12 @@ import Criterion.Main ( defaultMain, bench, nf )
 import Parser ( parseEnvironment, Expr(Int, App) )
 import LambdaToSKI ( abstractToSKI, compile )
 import CLTerm
-import Kiselyov 
+import Kiselyov
 import GraphReduction ( allocate, normalForm, toString, Graph )
 import Data.Maybe (fromJust)
 import Data.STRef ( STRef )
 import Control.Monad.ST ( ST, runST )
-import HhiReducer ( primitives, transLink, CExpr(CInt, CApp) ) 
+import HhiReducer ( primitives, transLink, CExpr(CInt, CApp) )
 import Control.Monad.Fix ( fix )
 import Kiselyov (compileKi)
 import BenchmarkSources
@@ -23,8 +23,8 @@ loadTestCase src = do
 loadTestCaseKiselyov :: SourceCode -> IO CL
 loadTestCaseKiselyov src = do
   let pEnv = parseEnvironment src
-      expr = compileBulk pEnv 
-  return expr  
+      expr = compileBulk pEnv
+  return expr
 
 getInt :: Expr -> Integer
 getInt (Int i) = i
@@ -49,11 +49,24 @@ reduceGraph graph = do
   gP <- graph
   normalForm gP
 
+splitMain :: CL -> (CL, CL)
+splitMain (expr :@ (INT x)) = (expr, INT x)
+splitMain expr = error $ "invalid main expression " ++ show expr
+
 reducerTest :: CL -> String
 reducerTest (expr :@ (INT x)) =
   let fun = transLink primitives expr
   in show (CApp fun (CInt x))
 reducerTest expr = error "invalid input expression " ++ show expr
+
+runReducerTest :: CL -> CExpr -> String
+runReducerTest expr arg =
+  let fun = transLink primitives expr
+  in show (CApp fun arg)
+
+toCexpr :: CL -> CExpr
+toCexpr (INT x) = CInt x
+toCexpr (expr :@ arg) = CApp (toCexpr expr) (toCexpr arg)
 
 benchmarks :: IO ()
 benchmarks = do
@@ -68,25 +81,34 @@ benchmarks = do
   gauKi <- loadTestCaseKiselyov gaussian
   takKi <- loadTestCaseKiselyov BenchmarkSources.tak
 
-
+  let (funFac, argFac) = splitMain fac
+      (funFib, argFib) = splitMain fib
+      (funAkk, argAkk) = splitMain akk
+      (funGau, argGau) = splitMain gau
+      (funTak, argTak) = splitMain tak
+      (funFacKi, argFacKi) = splitMain facKi
+      (funFibKi, argFibKi) = splitMain fibKi
+      (funAkkKi, argAkkKi) = splitMain akkKi
+      (funGauKi, argGauKi) = splitMain gauKi
+      (funTakKi, argTakKi) = splitMain takKi
   defaultMain [
         bench "factorial Graph-Reduce"    $ nf graphTest fac
-      -- , bench "factorial HHI-Reduce"      $ nf reducerTest fac
-      -- , bench "factorial HHI-Kiselyov"    $ nf reducerTest facKi
-      -- , bench "factorial Native"          $ nf fact 100
-      -- , bench "fibonacci Graph-Reduce"    $ nf graphTest fib
-      -- , bench "fibonacci HHI-Reduce"      $ nf reducerTest fib
-      -- , bench "fibonacci HHI-Kiselyov"    $ nf reducerTest fibKi
-      -- , bench "fibonacci Native"          $ nf fibo 10
-      -- , bench "ackermann Graph-Reduce"    $ nf graphTest akk
-      -- , bench "ackermann HHI-Reduce"      $ nf reducerTest akk
-      -- , bench "ackermann HHI-Kiselyov"    $ nf reducerTest akkKi
-      -- , bench "ackermann Native"          $ nf ack_2 2
-      -- , bench "gaussian  Graph-Reduce"    $ nf graphTest gau
-      -- , bench "gaussian  HHI-Reduce"      $ nf reducerTest gau
-      -- , bench "gaussian  HHI-Kiselyov"    $ nf reducerTest gauKi
-      -- , bench "gaussian  Native"          $ nf gaussianSum 100
-      --, bench "tak       Graph-Reduce"    $ nf graphTest tak
+      , bench "factorial HHI-Reduce"      $ nf (runReducerTest funFac) (toCexpr argFac)
+      , bench "factorial HHI-Kiselyov"    $ nf (runReducerTest funFacKi) (toCexpr argFacKi)
+      , bench "factorial Native"          $ nf fact 100
+      , bench "fibonacci Graph-Reduce"    $ nf graphTest fib
+      , bench "fibonacci HHI-Reduce"      $ nf reducerTest fib
+      , bench "fibonacci HHI-Kiselyov"    $ nf reducerTest fibKi
+      , bench "fibonacci Native"          $ nf fibo 10
+      , bench "ackermann Graph-Reduce"    $ nf graphTest akk
+      , bench "ackermann HHI-Reduce"      $ nf reducerTest akk
+      , bench "ackermann HHI-Kiselyov"    $ nf reducerTest akkKi
+      , bench "ackermann Native"          $ nf ack_2 2
+      , bench "gaussian  Graph-Reduce"    $ nf graphTest gau
+      , bench "gaussian  HHI-Reduce"      $ nf reducerTest gau
+      , bench "gaussian  HHI-Kiselyov"    $ nf reducerTest gauKi
+      , bench "gaussian  Native"          $ nf gaussianSum 100
+      , bench "tak       Graph-Reduce"    $ nf graphTest tak
       , bench "tak       HHI-Reduce"      $ nf reducerTest tak
       , bench "tak       HHI-Kiselyov"    $ nf reducerTest takKi
       , bench "tak       Native"          $ nf tak2 (18,6,3) --tak_18_6 3
