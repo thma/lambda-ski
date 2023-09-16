@@ -38,7 +38,7 @@ x ! y = error $ "can't handle " ++ show x
 link :: CombinatorDefinitions -> CExpr -> CExpr
 link definitions (CApp fun arg) = link definitions fun ! link definitions arg
 link definitions (CComb comb)   = case lookup comb definitions of
-  Nothing -> resolveBulk comb --error $ "unknown combinator " ++ show comb
+  Nothing -> resolveBulk comb
   Just e  -> e
 link _definitions expr          = expr
 
@@ -46,8 +46,8 @@ link _definitions expr          = expr
 transLink :: CombinatorDefinitions -> CL -> CExpr
 transLink definitions (fun :@ arg)  = transLink definitions fun ! transLink definitions arg
 transLink _definitions (INT k)      = CInt k
-transLink definitions (Com c)       = case lookup c definitions of
-  Nothing -> error $ "unknown combinator " ++ show c
+transLink definitions (Com comb)       = case lookup comb definitions of
+  Nothing -> resolveBulk comb
   Just e  -> e
 
 type CombinatorDefinitions = [(Combinator,CExpr)]
@@ -74,13 +74,6 @@ primitives = let (-->) = (,) in
   , EQL    --> arith eql
   , GEQ    --> arith geq
   , ZEROP  --> CFun isZero
-  -- , S2     --> comS2
-  -- , S3     --> comS3
-  -- , S4     --> comS4
-  -- , B2     --> comB2
-  -- , B3     --> comB3
-  -- , C2     --> comC2
-  -- , C3     --> comC3
   ]
 
 
