@@ -23,7 +23,6 @@ translate :: CL -> CExpr
 translate (fun :@ arg)   = CApp (translate fun) (translate arg)
 translate (INT k)        = CInt k
 translate (Com c)        = CComb c
---translate lam@(Lam _ _)  = error $ "lambdas should be abstracted already " ++ show lam
 
 -- | apply a CExpr of shape (CFun f) to argument x by evaluating (f x)
 infixl 0 !
@@ -46,8 +45,15 @@ link _definitions expr          = expr
 transLink :: CombinatorDefinitions -> CL -> CExpr
 transLink definitions (fun :@ arg)  = transLink definitions fun ! transLink definitions arg
 transLink _definitions (INT k)      = CInt k
-transLink definitions (Com comb)       = case lookup comb definitions of
+transLink definitions (Com comb)    = case lookup comb definitions of
   Nothing -> resolveBulk comb
+  Just e  -> e
+
+transLinkLog :: CombinatorDefinitions -> CL -> CExpr
+transLinkLog definitions (fun :@ arg)  = transLink definitions fun ! transLink definitions arg
+transLinkLog _definitions (INT k)      = CInt k
+transLinkLog definitions (Com comb)    = case lookup comb definitions of
+  Nothing -> resolveBulkLog comb
   Just e  -> e
 
 type CombinatorDefinitions = [(Combinator,CExpr)]
@@ -76,12 +82,32 @@ primitives = let (-->) = (,) in
   , ZEROP  --> CFun isZero
   ]
 
+resolveBulkLog :: Combinator -> CExpr
+resolveBulkLog (BulkCom c n) = breakBulkLog (fromString c) n
+  where
+    breakBulkLog :: Combinator -> Int -> CExpr
+    breakBulkLog c 1 = com c
+    breakBulkLog B n = foldr ((!) . (bs!!)) comB (init $ bits n) where
+      bs = [sbi, comB ! (comB ! comB) ! sbi]
+    breakBulkLog c n = foldr ((!) . (bs!!)) (prime c) (init $ bits n) ! comI where
+      bs = [sbi, comB ! (comB ! prime c) ! sbi]
+      prime c = comB ! (comB ! com c) ! comB
+      
+    com :: Combinator -> CExpr
+    com c = fromJust $ lookup c primitives
+    sbi :: CExpr
+    sbi = comS ! comB ! comI
+    bits :: Integral t => t -> [t]
+    bits n = r:if q == 0 then [] else bits q where (q, r) = divMod n 2
 
 resolveBulk :: Combinator -> CExpr
 resolveBulk (BulkCom "B" n) = iterate (comB' !) comB !! (n-1) 
 resolveBulk (BulkCom "C" n) = iterate (comC' !) comC !! (n-1)
 resolveBulk (BulkCom "S" n) = iterate (comS' !) comS !! (n-1) 
 resolveBulk anyOther = error $ "not a known combinator: " ++ show anyOther
+
+comI :: CExpr
+comI = CFun id
 
 comS :: CExpr
 comS = CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!(g!x)) -- S F G X = F X (G X)

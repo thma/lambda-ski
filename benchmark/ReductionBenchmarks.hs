@@ -9,7 +9,7 @@ import GraphReduction ( allocate, normalForm, toString, Graph )
 import Data.Maybe (fromJust)
 import Data.STRef ( STRef )
 import Control.Monad.ST ( ST, runST )
-import HhiReducer ( primitives, transLink, CExpr(CInt, CApp) )
+import HhiReducer
 import Control.Monad.Fix ( fix )
 import BenchmarkSources
 
@@ -52,6 +52,9 @@ reduceGraph graph = do
 reducerTest :: CL -> String
 reducerTest expr = show $ transLink primitives expr
 
+reducerTestLog :: CL -> String
+reducerTestLog expr = show $ transLinkLog primitives expr
+
 benchmarks :: IO ()
 benchmarks = do
   fac <- loadTestCase factorial
@@ -75,6 +78,7 @@ benchmarks = do
   print $ reducerTest fac
   print $ reducerTest facEta
   print $ reducerTest facBulk
+  print $ reducerTestLog facBulk
   print $ show $ fact 100
 
   defaultMain [
@@ -82,26 +86,31 @@ benchmarks = do
       , bench "factorial HHI-Reduce"      $ nf reducerTest fac
       , bench "factorial HHI-Eta"         $ nf reducerTest facEta
       , bench "factorial HHI-Bulk"        $ nf reducerTest facBulk
+      , bench "factorial HHI-Bulk-Log"    $ nf reducerTestLog facBulk
       , bench "factorial Native"          $ nf fact 100
       , bench "fibonacci Graph-Reduce"    $ nf graphTest fib
       , bench "fibonacci HHI-Reduce"      $ nf reducerTest fib
       , bench "fibonacci HHI-Eta"         $ nf reducerTest fibEta
       , bench "fibonacci HHi-Bulk"        $ nf reducerTest fibBulk
+      , bench "fibonacci HHI-Bulk-Log"    $ nf reducerTestLog fibBulk
       , bench "fibonacci Native"          $ nf fibo 10
       , bench "ackermann Graph-Reduce"    $ nf graphTest akk
       , bench "ackermann HHI-Reduce"      $ nf reducerTest akk
       , bench "ackermann HHI-Eta"         $ nf reducerTest akkEta
       , bench "ackermann HHI-Bulk"        $ nf reducerTest akkBulk
+      , bench "ackermann HHI-Bulk-Log"    $ nf reducerTestLog akkBulk
       , bench "ackermann Native"          $ nf ack_2 2
       , bench "gaussian  Graph-Reduce"    $ nf graphTest gau
       , bench "gaussian  HHI-Reduce"      $ nf reducerTest gau
       , bench "gaussian  HHI-Eta"         $ nf reducerTest gauEta
       , bench "gaussian  HHI-Bulk"        $ nf reducerTest gauBulk
+      , bench "gaussian  HHI-Bulk-Log"    $ nf reducerTestLog gauBulk
       , bench "gaussian  Native"          $ nf gaussianSum 100
       , bench "tak       Graph-Reduce"    $ nf graphTest tak
       , bench "tak       HHI-Reduce"      $ nf reducerTest tak
       , bench "tak       HHI-Eta"         $ nf reducerTest takEta
       , bench "tak       HHI-Bulk"        $ nf reducerTest takBulk
+      , bench "tak       HHI-Bulk-Log"    $ nf reducerTestLog takBulk
       , bench "tak       Native"          $ nf tak1 (18,6,3) 
       ]
   return ()

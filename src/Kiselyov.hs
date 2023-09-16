@@ -3,7 +3,7 @@ module Kiselyov
   (
     deBruijn,
     bulkOpt,
-    compileKiEither,
+    --compileKiEither,
     compileBulk,
     compileEta,
     optK,
@@ -39,16 +39,15 @@ bulk :: Combinator -> Int -> CL
 bulk c 1 = Com c
 bulk c n = Com $ BulkCom (show c) n
 
-compileKiEither :: Environment -> (Environment -> DB -> ([Bool],CL)) -> Either String CL
-compileKiEither env convertFun = case lookup "main" env of
-  Nothing   -> Left $ error "main function missing in " ++ show env
-  Just main -> Right $ snd $ convertFun env $ deBruijn main
+-- compileKiEither :: Environment -> (Environment -> DB -> ([Bool],CL)) -> Either String CL
+-- compileKiEither env convertFun = case lookup "main" env of
+--   Nothing   -> Left $ error "main function missing in " ++ show env
+--   Just main -> Right $ snd $ convertFun env $ deBruijn main
 
 compileEta :: Environment -> CL
-compileEta env =
-  case compileKiEither env optEta of
-    Left err -> error $ show err
-    Right cl -> cl
+compileEta env = case lookup "main" env of
+  Nothing   -> error "main function missing"
+  Just main -> snd $ optEta env (deBruijn main)
 
 compileBulk :: Environment -> CL
 compileBulk env = case lookup "main" env of
@@ -107,20 +106,6 @@ zipWithDefault :: t -> (t -> t -> b) -> [t] -> [t] -> [b]
 zipWithDefault d f     []     ys = f d <$> ys
 zipWithDefault d f     xs     [] = flip f d <$> xs
 zipWithDefault d f (x:xt) (y:yt) = f x y : zipWithDefault d f xt yt
-
-bits :: Integral t => t -> [t]
-bits n = r:if q == 0 then [] else bits q where (q, r) = divMod n 2
-
-breakBulkLog :: Combinator -> Int -> CL
-breakBulkLog c 1 = Com c
-breakBulkLog B n = foldr ((:@) . (bs!!)) (Com B) (init $ bits n) where
-  bs = [sbi, Com B :@ (Com B :@ Com B) :@ sbi]
-breakBulkLog c n = foldr ((:@) . (bs!!)) (prime c) (init $ bits n) :@ Com I where
-  bs = [sbi, Com B :@ (Com B :@ prime c) :@ sbi]
-  prime c = Com B :@ (Com B :@ Com c) :@ Com B
-
-sbi :: CL
-sbi = Com S :@ Com B :@ Com I
 
 bulkLookup :: String -> Environment -> ([Bool], CL)
 bulkLookup s env = case lookup s env of
