@@ -17,6 +17,7 @@ import Kiselyov
 import System.TimeIt
 import Text.RawString.QQ  
 
+
 printGraph :: ST s (STRef s (Graph s)) -> ST s String
 printGraph graph = do
   gP <- graph
@@ -32,54 +33,66 @@ main = do
   hSetEncoding stdin utf8 -- this is required to handle UTF-8 characters like λ
   hSetEncoding stdout utf8 -- this is required to handle UTF-8 characters like λ
 
-  -- testSource <-readFile "test/tak.ths"
-  let testSource = "main = (\\x y -> + x x) 3 4"
-  putStrLn "The sourcecode: "
-  putStrLn testSource
+  --let testSource = "main = (\\x y -> + x x) 3 4"
+  mapM_ showCompilations [factorial, fibonacci, ackermann, tak]
+  --demo
 
-  let env = parseEnvironment testSource
+type SourceCode = String
+tak :: SourceCode
+tak = [r| 
+  tak  = y(λf x y z -> (if (geq y x) z (f (f (sub1 x) y z) (f (sub1 y) z x) (f (sub1 z) x y ))))
+  main = tak 7 4 2 --18 6 3
+|]
+
+ackermann :: SourceCode 
+ackermann = [r|
+  ack  = y(λf n m -> if (is0 n) (+ m 1) (if (is0 m) (f (sub1 n) 1) (f (sub1 n) (f n (sub1 m)))))
+  main = ack 2 2
+|]
+
+factorial :: SourceCode
+factorial = [r| 
+  fact = y(λf n -> if (is0 n) 1 (* n (f (sub1 n))))
+  main = fact 100
+|]
+
+fibonacci :: SourceCode
+fibonacci = [r| 
+  fib  = y(λf n -> if (is0 n) 1 (if (eql n 1) 1 (+ (f (sub1 n)) (f (sub n 2)))))
+  main = fib 10
+|]
+
+showCompilations :: SourceCode -> IO ()
+showCompilations source = do
+  let env = parseEnvironment source
   putStrLn "The parsed environment of named lambda expressions:"
   mapM_ print env
   putStrLn ""
 
   let expr = compile env abstractToSKI
-  putStrLn "The main expression compiled to SICKYB combinator expressions:"
+  putStrLn "The main expression compiled to SICKBY combinator expressions:"
   print expr
   putStrLn ""
 
-  let graph = allocate expr
-  putStrLn "The allocated graph:"
-  putStrLn $ runST $ printGraph graph
+  let expr' = compileEta env
+  putStrLn "The main expression compiled to SICKBY combinator expressions with eta optimization:"
+  print expr'
+  putStrLn ""
 
-  let reducedGraph = reduceGraph graph
+  let expr'' = compileBulk env
+  putStrLn "The main expression compiled to SICKBY combinator expressions with bulk combinators:"
+  print expr''
+  putStrLn ""
 
-  putStrLn "The result after reducing the graph:"
-  putStrLn $ runST $ printGraph reducedGraph
+  let expr''' = compileBulkLinear env
+  putStrLn "The main expression compiled to SICKBY combinator expressions with bulk combinators and linear elimination:"
+  print expr'''
+  putStrLn ""
 
-
-  --demo
-
-type SourceCode = String
-
-loadTestCase :: String -> IO CL
-loadTestCase name = do
-  src <- readFile $ "test/" ++ name ++ ".ths"
-  putStrLn "The source: "
-  putStrLn src
-  let pEnv = parseEnvironment src
-      expr = compile pEnv abstractToSKI
-  return expr
-
-graphReductionDemo :: IO CL -> IO ()
-graphReductionDemo ioexpr = do
-  expr <- ioexpr
-  let graph = allocate expr      
-      result = reduceGraph graph
-      actual = runST $ printGraph result
-  putStrLn "allocated graph:"
-  print expr
-  putStrLn "after graph reduction:"
-  print actual
+  let expr'''' = compileBulkLog env
+  putStrLn "The main expression compiled to SICKBY combinator expressions with bulk combinators and logarithmic elimination:"
+  print expr''''
+  putStrLn ""
 
 
 hhiReductionDemo :: IO CL -> IO ()
@@ -91,18 +104,4 @@ hhiReductionDemo ioexpr = do
   putStrLn "after graph reduction:"
   print actual
 
-demo :: IO ()
-demo = do
-  let testCases =
-       [
-         "factorial"
-       , "fibonacci"
-       , "tak"
-       , "ackermann"
-       , "gaussian"
-       ]
-  putStrLn "Graph-Reduction"
-  mapM_ (loadTestCase >>> graphReductionDemo) testCases
 
-  putStrLn "HHI Reduction"
-  mapM_ (loadTestCase >>> hhiReductionDemo) testCases

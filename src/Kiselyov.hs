@@ -3,9 +3,10 @@ module Kiselyov
   (
     deBruijn,
     bulkOpt,
-    --compileKiEither,
     compileBulk,
     compileEta,
+    compileBulkLinear,
+    compileBulkLog,
     optK,
     optEta
   )
@@ -39,11 +40,6 @@ bulk :: Combinator -> Int -> CL
 bulk c 1 = Com c
 bulk c n = Com $ BulkCom (show c) n
 
--- compileKiEither :: Environment -> (Environment -> DB -> ([Bool],CL)) -> Either String CL
--- compileKiEither env convertFun = case lookup "main" env of
---   Nothing   -> Left $ error "main function missing in " ++ show env
---   Just main -> Right $ snd $ convertFun env $ deBruijn main
-
 compileEta :: Environment -> CL
 compileEta env = case lookup "main" env of
   Nothing   -> error "main function missing"
@@ -53,6 +49,16 @@ compileBulk :: Environment -> CL
 compileBulk env = case lookup "main" env of
   Nothing   -> error "main function missing"
   Just main -> snd $ bulkOpt bulk env (deBruijn main)
+
+compileBulkLinear :: Environment -> CL
+compileBulkLinear env = case lookup "main" env of
+  Nothing   -> error "main function missing"
+  Just main -> snd $ bulkOpt breakBulkLinear env (deBruijn main)  
+
+compileBulkLog :: Environment -> CL
+compileBulkLog env = case lookup "main" env of
+  Nothing   -> error "main function missing"
+  Just main -> snd $ bulkOpt breakBulkLog env (deBruijn main)  
 
 convertBool :: (([Bool], CL) -> ([Bool], CL) -> CL) -> Environment -> DB -> ([Bool], CL)
 convertBool (#) env = \case
@@ -107,13 +113,13 @@ zipWithDefault d f     []     ys = f d <$> ys
 zipWithDefault d f     xs     [] = flip f d <$> xs
 zipWithDefault d f (x:xt) (y:yt) = f x y : zipWithDefault d f xt yt
 
-bulkLookup :: String -> Environment -> ([Bool], CL)
-bulkLookup s env = case lookup s env of
+bulkLookup :: String -> Environment -> (Combinator -> Int -> CL) -> ([Bool], CL)
+bulkLookup s env bulkFun = case lookup s env of
   Nothing -> ([], Com (fromString s))
-  Just t -> bulkOpt bulk env (deBruijn t)
+  Just t -> bulkOpt bulkFun env (deBruijn t)
 
 bulkOpt :: (Combinator -> Int -> CL) -> Environment -> DB -> ([Bool], CL)
-bulkOpt bulk env = \case
+bulkOpt bulkFun env = \case
   N Z -> ([True], Com I)
   N (Su e) -> first (False:) $ rec env $ N e
   L e -> case rec env e of
@@ -121,23 +127,23 @@ bulkOpt bulk env = \case
     (False:g, d) -> ([], Com K) ## (g, d)
     (True:g, d) -> (g, d)
   A e1 e2 -> rec env e1 ## rec env e2
-  Free s -> bulkLookup s env --([], Com s)
+  Free s -> bulkLookup s env bulkFun--([], Com s)
   IN i -> ([False], INT i)
   where
-  rec = bulkOpt bulk
+  rec = bulkOpt bulkFun
   ([], d1) ## ([], d2) = ([], d1 :@ d2)
   ([], d1) ## ([True], Com I) = ([True], d1)
-  ([], d1) ## (g2, Com I) | and g2 = (g2, bulk B (length g2 - 1) :@ d1)
+  ([], d1) ## (g2, Com I) | and g2 = (g2, bulkFun B (length g2 - 1) :@ d1)
   ([], d1) ## (g2@(h:_), d2) = first (pre++) $ ([], fun1 d1) ## (post, d2)
     where
     fun1 = case h of
-      True -> (bulk B (length pre) :@)
+      True -> (bulkFun B (length pre) :@)
       False -> id
     (pre, post) = span (h ==) g2
 
   ([True], Com I) ## ([], d2) = ([True], Com T :@ d2)
   (g1@(h:_), d1) ## ([], d2) = first (pre++) $ case h of
-    True -> ([], Com C :@ bulk C (length pre) :@ d2) ## (post, d1)
+    True -> ([], Com C :@ bulkFun C (length pre) :@ d2) ## (post, d1)
     False -> (post, d1) ## ([], d2)
     where
     (pre, post) = span (h ==) g1
@@ -145,7 +151,7 @@ bulkOpt bulk env = \case
   ([True], Com I) ## (False:g2, d2) = first (True:) $ ([], Com T) ## (g2, d2)
   (False:g1, d1) ## ([True], Com I) = (True:g1, d1)
   (g1, d1) ## (g2, Com I) | and g2, let n = length g2, all not $ take n g1 =
-    first (g2++) $ ([], bulk B $ n - 1) ## (drop n g1, d1)
+    first (g2++) $ ([], bulkFun B $ n - 1) ## (drop n g1, d1)
   (g1, d1) ## (g2, d2) = pre $ fun1 (drop count g1, d1) ## (drop count g2, d2)
     where
     (h, count) = headGroup $ zip g1 g2
@@ -155,7 +161,7 @@ bulkOpt bulk env = \case
       (True, False) -> apply C
       (True, True) -> apply S
     pre = first (replicate count (uncurry (||) h) ++)
-    apply s = (([], bulk s count) ##)
+    apply s = (([], bulkFun s count) ##)
 
 first :: (t -> a) -> (t, b) -> (a, b)
 first f (x, y) = (f x, y);
@@ -163,3 +169,30 @@ first f (x, y) = (f x, y);
 headGroup :: Eq a => [a] -> (a, Int)
 headGroup (h:t) = (h, 1 + length (takeWhile (== h) t))
 
+breakBulkLinear :: Combinator -> Int -> CL
+breakBulkLinear B n = iterate (comB' :@) (Com B) !! (n - 1)
+breakBulkLinear C n = iterate (comC' :@) (Com C) !! (n - 1)
+breakBulkLinear S n = iterate (comS' :@) (Com S) !! (n - 1)
+
+comB' :: CL
+comB' = Com B:@ Com B
+comC' :: CL
+comC' = Com B :@ (Com B :@ Com C) :@ Com B
+comS' :: CL
+comS' = Com B :@ (Com B :@ Com S) :@ Com B
+
+
+
+breakBulkLog :: Combinator -> Int -> CL
+breakBulkLog c 1 = Com c
+breakBulkLog B n = foldr (:@) (Com B) $ map (bs!!) $ init $ bits n where
+  bs = [sbi, Com B :@ (Com B :@ Com B) :@ sbi]
+breakBulkLog c n = (foldr (:@) (prime c) $ map (bs!!) $ init $ bits n) :@ Com I where
+  bs = [sbi, Com B :@ (Com B :@ prime c) :@ sbi]
+  prime c = Com B :@ (Com B :@ Com c) :@ Com B
+
+bits :: Int -> [Int]
+bits n = r:if q == 0 then [] else bits q where (q, r) = divMod n 2
+
+sbi :: CL
+sbi = Com S :@ Com B :@ Com I

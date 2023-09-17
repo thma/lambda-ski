@@ -1,12 +1,12 @@
 module HhiReducer where
 
-import Parser ( Expr(..) ) 
+import Parser ( Expr(..) )
 import Control.Monad.Fix (fix)
-import CLTerm 
+import CLTerm
 import Data.Maybe (fromJust)
 
 -- | a compiled expression
-data CExpr = 
+data CExpr =
     CComb Combinator
   | CApp CExpr CExpr
   | CFun (CExpr -> CExpr)
@@ -73,8 +73,8 @@ primitives = let (-->) = (,) in
   , S      --> comS --CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!(g!x)) -- S F G X = F X (G X)
   , B      --> comB --CFun (\f -> CFun $ \g -> CFun $ \x -> f!(g!x))   -- B F G X = F (G X)
   , C      --> comC --CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!g)     -- C F G X = F X G
-  , R      --> CFun (\f -> CFun $ \g -> CFun $ \x -> g!x!f)     -- R F G X = G X F  
- -- , T      --> CFun (\x -> CFun $ \y -> x)                    -- T X Y = X
+  , R      --> CFun (\f -> CFun $ \g -> CFun $ \x -> g!x!f)            -- R F G X = G X F  
+  , T      --> CFun (CFun . const)                                     -- T X Y = X
   , B'     --> comB' --CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!q!(r!s))      -- B' P Q R S = P Q (R S)
   , C'     --> comC' --CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!r)      -- C' P Q R S = P (Q S) R
   , S'     --> comS' --CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!(r!s))  -- S' P Q R S = P (Q S) (R S)
@@ -108,38 +108,29 @@ resolveBulkLog (BulkCom c n) = breakBulkLog (fromString c) n
     bits n = r:if q == 0 then [] else bits q where (q, r) = divMod n 2
 
 resolveBulk :: Combinator -> CExpr
-resolveBulk (BulkCom "B" n) = iterate (comB' !) comB !! (n-1) 
+resolveBulk (BulkCom "B" n) = iterate (comB' !) comB !! (n-1)
 resolveBulk (BulkCom "C" n) = iterate (comC' !) comC !! (n-1)
-resolveBulk (BulkCom "S" n) = iterate (comS' !) comS !! (n-1) 
+resolveBulk (BulkCom "S" n) = iterate (comS' !) comS !! (n-1)
 resolveBulk anyOther = error $ "not a known combinator: " ++ show anyOther
 
 comI :: CExpr
 comI = CFun id
 
 comS :: CExpr
-comS = CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!(g!x)) -- S F G X = F X (G X)
+comS = CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!(g!x))                    -- S F G X = F X (G X)
 
 comS' :: CExpr
 comS' = CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!(r!s))  -- S' P Q R S = P (Q S) (R S)
 
-comS2 :: CExpr
-comS2 = comS' ! comS
-
-comS3 = comS' ! comS2
-comS4 = comS' ! comS3
-
-comB = CFun (\f -> CFun $ \g -> CFun $ \x -> f!(g!x))   -- B F G X = F (G X)
+comB :: CExpr
+comB = CFun (\f -> CFun $ \g -> CFun $ \x -> f!(g!x))                      -- B F G X = F (G X)
+comB' :: CExpr
 comB' = CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!q!(r!s))      -- B' P Q R S = P Q (R S)
 
-comB2 = comB' ! comB
-comB3 = comB' ! comB2
-
-comC = CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!g)     -- C F G X = F X G
+comC :: CExpr
+comC = CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!g)                        -- C F G X = F X G
+comC' :: CExpr
 comC' = CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!r)      -- C' P Q R S = P (Q S) R
-
-comC2 = comC' ! comC
-comC3 = comC' ! comC2
-
 
 arith :: (Integer -> Integer -> Integer) -> CExpr
 arith op = CFun $ \(CInt a) -> CFun $ \(CInt b) -> CInt (op a b)
