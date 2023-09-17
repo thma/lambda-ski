@@ -37,5 +37,5 @@ tak :: SourceCode
 tak = [r| 
   expected = 4
   tak  = y(λf x y z -> (if (geq y x) z (f (f (sub1 x) y z) (f (sub1 y) z x) (f (sub1 z) x y ))))
-  main = tak 18 6 3
+  main = tak 7 4 2
 |]

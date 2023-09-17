@@ -111,7 +111,7 @@ benchmarks = do
       , bench "tak       HHI-Eta"         $ nf reducerTest takEta
       , bench "tak       HHI-Bulk"        $ nf reducerTest takBulk
       , bench "tak       HHI-Bulk-Log"    $ nf reducerTestLog takBulk
-      , bench "tak       Native"          $ nf tak1 (18,6,3) 
+      , bench "tak       Native"          $ nf tak1 (7,4,2) 
       ]
   return ()
 

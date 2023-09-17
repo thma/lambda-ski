@@ -629,4 +629,3 @@ Here are some ideas for possible future extensions and improvements.
   (implicit parallelism for strict operations, and an explicit `P`-combinator)
 
 ## Todo
-- testcases for bulkOptLog
