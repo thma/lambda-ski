@@ -41,6 +41,13 @@ link definitions (CComb comb)   = case lookup comb definitions of
   Just e  -> e
 link _definitions expr          = expr
 
+linkLog :: CombinatorDefinitions -> CExpr -> CExpr
+linkLog definitions (CApp fun arg) = link definitions fun ! link definitions arg
+linkLog definitions (CComb comb)   = case lookup comb definitions of
+  Nothing -> resolveBulk comb
+  Just e  -> e
+linkLog _definitions expr          = expr
+
 -- | translate and link in one go
 transLink :: CombinatorDefinitions -> CL -> CExpr
 transLink definitions (fun :@ arg)  = transLink definitions fun ! transLink definitions arg
@@ -92,7 +99,7 @@ resolveBulkLog (BulkCom c n) = breakBulkLog (fromString c) n
     breakBulkLog c n = foldr ((!) . (bs!!)) (prime c) (init $ bits n) ! comI where
       bs = [sbi, comB ! (comB ! prime c) ! sbi]
       prime c = comB ! (comB ! com c) ! comB
-      
+
     com :: Combinator -> CExpr
     com c = fromJust $ lookup c primitives
     sbi :: CExpr

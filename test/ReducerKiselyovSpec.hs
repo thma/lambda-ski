@@ -26,28 +26,44 @@ spec =
       verify ackermann compileEta
     it "computes tak Opt Eta" $
       verify tak compileEta
-    it "computes factorial BulkOpt" $
+
+    it "computes factorial BulkOpt Linear" $
       verify factorial compileBulk
-    it "computes fibonacci BulkOpt" $
+    it "computes fibonacci BulkOpt Linear" $
       verify fibonacci compileBulk
-    it "computes gaussian sum BulkOpt" $
+    it "computes gaussian sum BulkOpt Linear" $
       verify gaussian compileBulk
-    it "computes ackermann function BulkOpt"  $
+    it "computes ackermann function BulkOpt Linear"  $
       verify ackermann compileBulk
-    it "computes tak BulkOpt" $
+    it "computes tak BulkOpt Linear" $
       verify tak compileBulk
+
+    it "computes factorial BulkOpt Log" $
+      verifyLog factorial compileBulk
+    it "computes fibonacci BulkOpt Log" $
+      verifyLog fibonacci compileBulk
+    it "computes gaussian sum BulkOpt Log" $
+      verifyLog gaussian compileBulk
+    it "computes ackermann function BulkOpt Log"  $
+      verifyLog ackermann compileBulk
+    it "computes tak BulkOpt Log" $
+      verifyLog tak compileBulk      
 
 verify :: SourceCode -> (Environment -> CL) -> IO ()
 verify src compileFun = do
-  src `shouldSatisfy` runTest compileFun
+  src `shouldSatisfy` runTest compileFun (link, transLink)
 
-runTest :: (Environment -> CL) -> SourceCode -> Bool
-runTest compileFun src =
+verifyLog :: SourceCode -> (Environment -> CL) -> IO ()
+verifyLog src compileFun = do
+  src `shouldSatisfy` runTest compileFun (linkLog, transLinkLog)
+
+runTest :: (Environment -> CL) -> (CombinatorDefinitions -> CExpr -> CExpr,     CombinatorDefinitions -> CL -> CExpr) -> [Char] -> Bool
+runTest compileFun (linkFun, transLinkFun) src =
   let pEnv = parseEnvironment src
       aExp = compileFun pEnv
       tExp = translate aExp
       expected = translate $ toCL $ fromJust (lookup "expected" pEnv)
-      actual = link primitives tExp
-      actual' = transLink primitives aExp
+      actual = linkFun primitives tExp
+      actual' = transLinkFun primitives aExp
   in    show expected == show actual 
      && show expected == show actual'
