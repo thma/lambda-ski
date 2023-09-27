@@ -62,7 +62,7 @@ compileBulkLog env = case lookup "main" env of
 
 convertBool :: (([Bool], CL) -> ([Bool], CL) -> CL) -> Environment -> DB -> ([Bool], CL)
 convertBool (#) env = \case
-  N Z -> (True:[], Com I)
+  N Z -> ([True], Com I)
   N (Su e) -> (False:g, d) where (g, d) = rec env (N e)
   L e -> case rec env e of
     ([], d) -> ([], Com K :@ d)

@@ -38,7 +38,6 @@ leftAncestors clTerm = leftAncestors' clTerm []
 data Combinator = I | K | S | B | C | Y | P | R | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP | 
                  IF | B' | C' | S' | T | 
                  BulkCom String Int
-                 --S2 | B2 | C2 | S3 | B3 | C3 | S4
   deriving (Eq, Show)
 
 fromString :: String -> Combinator
@@ -67,14 +66,6 @@ fromString "B"    = B
 fromString "C"    = C
 fromString "S"    = S
 fromString "T"    = T
--- fromString "S2"   = S2
--- fromString "B2"   = B2
--- fromString "C2"   = C2
--- fromString "S3"   = S3
--- fromString "B3"   = B3
--- fromString "C3"   = C3
--- fromString "S4"   = S4
-
 fromString _c     = error $ "unknown combinator " ++ _c 
 
 toCL :: Expr -> CL

@@ -34,10 +34,17 @@ main = do
   hSetEncoding stdout utf8 -- this is required to handle UTF-8 characters like λ
 
   --let testSource = "main = (\\x y -> + x x) 3 4"
-  mapM_ showCompilations [factorial, fibonacci, ackermann, tak]
+  mapM_ showCompilations [sqr] --, factorial, fibonacci, ackermann, tak]
   --demo
 
 type SourceCode = String
+
+sqr :: SourceCode
+sqr = [r|
+  sqr  = \x -> * x x
+  main = sqr 3
+|]
+
 tak :: SourceCode
 tak = [r| 
   tak  = y(λf x y z -> (if (geq y x) z (f (f (sub1 x) y z) (f (sub1 y) z x) (f (sub1 z) x y ))))
