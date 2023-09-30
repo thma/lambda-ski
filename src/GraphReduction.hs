@@ -101,7 +101,7 @@ normalForm graph = do
   after <- readSTRef graph
   g <- readSTRef graph
   case g of
-    _lP :@: _rP -> normalForm graph -- if before == after then return graph else normalForm graph
+    _lP :@: _rP -> normalForm graph
     Comb _com   -> return graph
     Num _n      -> return graph
 
@@ -179,6 +179,14 @@ reduce S' (p : q : r : s : _) = do
   node2 <- newSTRef $ pP :@: node1
   node3 <- newSTRef $ rP :@: sP
   writeSTRef s (node2 :@: node3)  
+
+-- R F G X = G X F
+reduce R (f : g : x : _) = do
+  (_ :@: fP) <- readSTRef f
+  (_ :@: gP) <- readSTRef g
+  (_ :@: xP) <- readSTRef x
+  node1 <- newSTRef $ gP :@: xP
+  writeSTRef x (node1 :@: fP)
 
 reduce Y (p1 : _) = do
   (_yP :@: fP) <- readSTRef p1

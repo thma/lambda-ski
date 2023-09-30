@@ -41,31 +41,31 @@ type SourceCode = String
 
 sqr :: SourceCode
 sqr = [r|
-  sqr  = \x -> * x x
+  sqr  = \x. * x x
   main = sqr 3
 |]
 
 tak :: SourceCode
 tak = [r| 
-  tak  = y(λf x y z -> (if (geq y x) z (f (f (sub1 x) y z) (f (sub1 y) z x) (f (sub1 z) x y ))))
+  tak  = y(λf x y z. (if (geq y x) z (f (f (sub1 x) y z) (f (sub1 y) z x) (f (sub1 z) x y ))))
   main = tak 7 4 2 --18 6 3
 |]
 
 ackermann :: SourceCode 
 ackermann = [r|
-  ack  = y(λf n m -> if (is0 n) (+ m 1) (if (is0 m) (f (sub1 n) 1) (f (sub1 n) (f n (sub1 m)))))
+  ack  = y(λf n m. if (is0 n) (+ m 1) (if (is0 m) (f (sub1 n) 1) (f (sub1 n) (f n (sub1 m)))))
   main = ack 2 2
 |]
 
 factorial :: SourceCode
 factorial = [r| 
-  fact = y(λf n -> if (is0 n) 1 (* n (f (sub1 n))))
+  fact = y(λf n. if (is0 n) 1 (* n (f (sub1 n))))
   main = fact 100
 |]
 
 fibonacci :: SourceCode
 fibonacci = [r| 
-  fib  = y(λf n -> if (is0 n) 1 (if (eql n 1) 1 (+ (f (sub1 n)) (f (sub n 2)))))
+  fib  = y(λf n. if (is0 n) 1 (if (eql n 1) 1 (+ (f (sub1 n)) (f (sub n 2)))))
   main = fib 10
 |]
 

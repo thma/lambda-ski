@@ -19,20 +19,23 @@ data Expr
   | Var String
   | Int Integer
   | Lam String Expr
-  deriving (Eq, Show)
+  deriving (Eq) --, Show)
 
--- instance Show Expr where
---   show :: Expr -> String
---   show (Lam s t)  = "\955" ++ s ++ showB t where
---     showB (Lam x y) = " " ++ x ++ showB y
---     showB expr      = "->" ++ show expr
---   show (Var s)    = s
---   show (Int i)    = show i
---   show (App x y)  = showL x ++ showR y where
---     showL (Lam _ _) = "(" ++ show x ++ ")"
---     showL _         = show x
---     showR (Var s)   = ' ':s
---     showR _         = "(" ++ show y ++ ")"
+instance Show Expr where
+  show = toString
+
+
+toString :: Expr -> String
+toString (Lam s t)  = "\955" ++ s ++ toStringB t where
+  toStringB (Lam x y) = " " ++ x ++ toStringB y
+  toStringB expr      = ". " ++ toString expr
+toString (Var s)    = s
+toString (Int i)    = show i
+toString (App x y)  = toStringL x ++ toStringR y where
+  toStringL (Lam _ _) = "(" ++ toString x ++ ")"
+  toStringL _         = toString x
+  toStringR (Var s)   = ' ':s
+  toStringR _         = "(" ++ toString y ++ ")"
 
 type Environment = [(String, Expr)]
 
@@ -59,7 +62,7 @@ source = catMaybes <$> many maybeLet
     lam = flip (foldr Lam) <$> between lam0 lam1 (many1 var) <*> term
       where
         lam0 = str "\\" <|> str "\0955"
-        lam1 = str "->" <|> str "."
+        lam1 = str "." --str "->" <|> str "."
     app :: ParsecT String () Identity Expr
     app =
       foldl1' App 
@@ -73,7 +76,7 @@ source = catMaybes <$> many maybeLet
     var = (mathOp <|> many1 alphaNum) <* ws
 
     mathOp :: ParsecT String u Identity String
-    mathOp = string "+" <|> string "/" <|> string "*" -- <|> string "-"
+    mathOp = string "+" <|> string "/" <|> string "*" <|> string "-"
     str = (>> ws) . string
 
 ws :: ParsecT String u Identity ()

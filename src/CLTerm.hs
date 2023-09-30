@@ -54,6 +54,7 @@ fromString "p"    = P
 fromString "r"    = R
 fromString "+"    = ADD
 fromString "sub"  = SUB
+fromString "-"    = SUB
 fromString "div"  = DIV
 fromString "rem"  = REM
 fromString "*"    = MUL
