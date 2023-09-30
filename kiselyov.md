@@ -37,7 +37,7 @@ My implementation closely follows Ben Lynn's implementation of Kiselyov's algori
 My parser can parse programs of a very rudimentary language that is basically just pure λ-calculus plus integers. Here is an example:
 
 ```haskell
-sqr  = \x -> * x x
+sqr  = λx. * x x
 main = sqr 3
 ```
 
@@ -64,6 +64,90 @@ type Environment = [(String, Expr)]
 
 Now we can define a compiler that translates such λ-expressions to combinator terms. 
 
+Our journey begins by translating λ-expressions to a data type `DB` which is quite similar to the λ-calculus terms but uses indices instead of variable names. This is done by the function `deBruijn`:
+
+```haskell
+data Peano = Succ Peano | Zero deriving Show
+data DB = N Peano | L DB | A DB DB | Free String | IN Integer deriving Show
+
+deBruijn :: Expr -> DB
+deBruijn = go [] where
+  go binds = \case
+    Var x -> maybe (Free x) N $ index x binds
+    Lam x t -> L $ go (x:binds) t
+    App t u -> A (go binds t) (go binds u)
+    Int i -> IN i  
+
+index :: Eq a => a -> [a] -> Maybe Peano
+index x xs = lookup x $ zip xs $ iterate Succ Zero    
+```
+
+Lets see how this works on our example `sqr` and `main` functions:
+
+```haskell
+  let source = [r|
+        sqr  = \x. * x x
+        main = sqr 3
+      |]
+  let env = parseEnvironment source
+  putStrLn "The parsed environment of named lambda expressions:"
+  mapM_ print env
+  putStrLn ""
+  putStrLn "The expressions in de Bruijn notation:"
+  mapM_ (print . Data.Bifunctor.second deBruijn) env
+```
+This will produce the following output:
+
+```haskell
+The parsed environment of named lambda expressions:
+("sqr",  Lam "x" (App (App (Var "*") (Var "x")) (Var "x")))
+("main", App (Var "sqr") (Int 3))
+
+The expressions in de Bruijn notation:
+("sqr",  L (A (A (Free "*") (N Zero)) (N Zero)))
+("main", A (Free "sqr") (IN 3))
+```
+
+It's easy to see that the de Bruijn notation is just a different representation of the λ-calculus terms. The only difference is that the variable names are replaced by indices.
+This is quite helpful as it allows to systematically adress variables by their respective position without having to deal with arbitrary variable names.
+
+But why are we using Peano numbers for the indices? Why not just use integers? 
+Well it's definitely possible to [use integers instead of Peano numbers](https://crypto.stanford.edu/~blynn/lambda/cl.html). 
+But there is a good reason to use Peano numbers in our case:
+In the subsequent compilation steps we want to be able to do pattern matching on the indices. This is not possible with integers but it is possible with Peano numbers, because they are defined as an algebraic data type:
+  
+```haskell
+data Peano = Succ Peano | Zero
+``` 
+
+Now we'll take a look at the next step in the compilation process. The function `convert` translates the de Bruijn notation to a data type `CL` which represents the combinator terms. 
+
+
+
+```haskell
+convert :: ((Int, CL) -> (Int, CL) -> CL) -> [(String, Expr)] -> DB -> (Int, CL)
+convert (#) env = \case
+  N Zero -> (1, Com I)
+  N (Succ e) -> (n + 1, (0, Com K) # t) where t@(n, _) = rec $ N e
+  L e -> case rec e of
+    (0, d) -> (0, Com K :@ d)
+    (n, d) -> (n - 1, d)
+  A e1 e2 -> (max n1 n2, t1 # t2) where
+    t1@(n1, _) = rec e1
+    t2@(n2, _) = rec e2
+  IN i -> (0, INT i)
+  Free s -> convertVar (#) env s
+  where rec = convert (#) env
+```
+
+xxx
+
+
+
+
+
+
+
 Combinator terms are defined as follows:
 
 ```haskell
@@ -73,6 +157,8 @@ data Combinator = I | K | S | B | C | Y | R | B' | C' | S' | T |
                   ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP  
   deriving (Eq, Show)
 ```
+
+
 
 
 ## to be continued...

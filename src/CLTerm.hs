@@ -14,6 +14,7 @@ module CLTerm
 import Parser (Expr(..))
 
 data CL = Com Combinator | INT Integer | CL :@ CL
+
 instance Show CL where
   showsPrec :: Int -> CL -> ShowS
   showsPrec p = \case

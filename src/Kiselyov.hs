@@ -3,6 +3,7 @@ module Kiselyov
   (
     deBruijn,
     bulkOpt,
+    compilePlain,
     compileBulk,
     compileEta,
     compileBulkLinear,
@@ -22,19 +23,53 @@ I've only added minor changes to fit it into my codebase.
 E.g. I've added access to the environment of named lambda expressions for free variables.
 --}
 
-data Peano = Su Peano | Z deriving Show
+data Peano = Succ Peano | Zero deriving Show
 data DB = N Peano | L DB | A DB DB | Free String | IN Integer deriving Show
-
-index :: Eq a => a -> [a] -> Maybe Peano
-index x xs = lookup x $ zip xs $ iterate Su Z
 
 deBruijn :: Expr -> DB
 deBruijn = go [] where
   go binds = \case
     Var x -> maybe (Free x) N $ index x binds
     Lam x t -> L $ go (x:binds) t
-    t `App` u -> A (go binds t) (go binds u)
+    App t u -> A (go binds t) (go binds u)
     Int i -> IN i
+
+index :: Eq a => a -> [a] -> Maybe Peano
+index x xs = lookup x $ zip xs $ iterate Succ Zero
+
+convert :: ((Int, CL) -> (Int, CL) -> CL) -> [(String, Expr)] -> DB -> (Int, CL)
+convert (#) env = \case
+  N Zero -> (1, Com I)
+  N (Succ e) -> (n + 1, (0, Com K) # t) where t@(n, _) = rec $ N e
+  L e -> case rec e of
+    (0, d) -> (0, Com K :@ d)
+    (n, d) -> (n - 1, d)
+  A e1 e2 -> (max n1 n2, t1 # t2) where
+    t1@(n1, _) = rec e1
+    t2@(n2, _) = rec e2
+  IN i -> (0, INT i)
+  Free s -> convertVar (#) env s
+  where rec = convert (#) env
+
+-- | convert a free variable to a combinator.
+--   first we try to find a definition in the environment.
+--   if that fails, we assume it is a SICKBY combinator.
+convertVar :: ((Int, CL) -> (Int, CL) -> CL) -> [(String, Expr)] -> String -> (Int, CL)
+convertVar (#) env s
+  | Just t <- lookup s env = convert (#) env (deBruijn t)
+  | otherwise = (0, Com (fromString s))
+
+plain :: Environment -> DB -> (Int, CL)
+plain = convert (#) where
+  (0 , d1) # (0 , d2) = d1 :@ d2
+  (0 , d1) # (n , d2) = (0, Com B :@ d1) # (n - 1, d2)
+  (n , d1) # (0 , d2) = (0, Com R :@ d2) # (n - 1, d1)
+  (n1, d1) # (n2, d2) = (n1 - 1, (0, Com S) # (n1 - 1, d1)) # (n2 - 1, d2)
+
+compilePlain :: Environment -> CL
+compilePlain env = case lookup "main" env of
+  Nothing   -> error "main function missing"
+  Just main -> snd $ plain env (deBruijn main)
 
 bulk :: Combinator -> Int -> CL
 bulk c 1 = Com c
@@ -53,17 +88,17 @@ compileBulk env = case lookup "main" env of
 compileBulkLinear :: Environment -> CL
 compileBulkLinear env = case lookup "main" env of
   Nothing   -> error "main function missing"
-  Just main -> snd $ bulkOpt breakBulkLinear env (deBruijn main)  
+  Just main -> snd $ bulkOpt breakBulkLinear env (deBruijn main)
 
 compileBulkLog :: Environment -> CL
 compileBulkLog env = case lookup "main" env of
   Nothing   -> error "main function missing"
-  Just main -> snd $ bulkOpt breakBulkLog env (deBruijn main)  
+  Just main -> snd $ bulkOpt breakBulkLog env (deBruijn main)
 
 convertBool :: (([Bool], CL) -> ([Bool], CL) -> CL) -> Environment -> DB -> ([Bool], CL)
 convertBool (#) env = \case
-  N Z -> ([True], Com I)
-  N (Su e) -> (False:g, d) where (g, d) = rec env (N e)
+  N Zero -> ([True], Com I)
+  N (Succ e) -> (False:g, d) where (g, d) = rec env (N e)
   L e -> case rec env e of
     ([], d) -> ([], Com K :@ d)
     (False:g, d) -> (g, ([], Com K) # (g, d))
@@ -75,6 +110,9 @@ convertBool (#) env = \case
   IN i -> ([False], INT i)
   where rec = convertBool (#)
 
+-- | convert a free variable to a combinator.
+--   first we try to find a definition in the environment.
+--   if that fails, we assume it is a SICKBY combinator.
 convertFree :: (([Bool], CL) -> ([Bool], CL) -> CL) -> [(String, Expr)] -> String -> ([Bool], CL)
 convertFree (#) env s
   | Just t <- lookup s env = convertBool (#) env (deBruijn t)
@@ -120,8 +158,8 @@ bulkLookup s env bulkFun = case lookup s env of
 
 bulkOpt :: (Combinator -> Int -> CL) -> Environment -> DB -> ([Bool], CL)
 bulkOpt bulkFun env = \case
-  N Z -> ([True], Com I)
-  N (Su e) -> first (False:) $ rec env $ N e
+  N Zero -> ([True], Com I)
+  N (Succ e) -> first (False:) $ rec env $ N e
   L e -> case rec env e of
     ([], d) -> ([], Com K :@ d)
     (False:g, d) -> ([], Com K) ## (g, d)

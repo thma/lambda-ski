@@ -19,10 +19,10 @@ data Expr
   | Var String
   | Int Integer
   | Lam String Expr
-  deriving (Eq) --, Show)
+  deriving (Eq, Show)
 
-instance Show Expr where
-  show = toString
+-- instance Show Expr where
+--   show = toString
 
 
 toString :: Expr -> String

@@ -15,7 +15,8 @@ import           System.IO        (hSetEncoding, stdin, stdout, utf8)
 import HhiReducer
 import Kiselyov
 import System.TimeIt
-import Text.RawString.QQ  
+import Text.RawString.QQ
+import qualified Data.Bifunctor
 
 
 printGraph :: ST s (STRef s (Graph s)) -> ST s String
@@ -34,7 +35,7 @@ main = do
   hSetEncoding stdout utf8 -- this is required to handle UTF-8 characters like λ
 
   --let testSource = "main = (\\x y -> + x x) 3 4"
-  mapM_ showCompilations [sqr] --, factorial, fibonacci, ackermann, tak]
+  mapM_ showCompilations [sqr, factorial] --, fibonacci, ackermann, tak]
   --demo
 
 type SourceCode = String
@@ -51,7 +52,7 @@ tak = [r|
   main = tak 7 4 2 --18 6 3
 |]
 
-ackermann :: SourceCode 
+ackermann :: SourceCode
 ackermann = [r|
   ack  = y(λf n m. if (is0 n) (+ m 1) (if (is0 m) (f (sub1 n) 1) (f (sub1 n) (f n (sub1 m)))))
   main = ack 2 2
@@ -74,6 +75,12 @@ showCompilations source = do
   let env = parseEnvironment source
   putStrLn "The parsed environment of named lambda expressions:"
   mapM_ print env
+  putStrLn ""
+  putStrLn "The expressions in de Bruijn notation:"
+  mapM_ (print . Data.Bifunctor.second deBruijn) env
+
+  putStrLn "applying plain compilation:"
+  print $ compilePlain env
   putStrLn ""
 
   let expr = compile env abstractToSKI
