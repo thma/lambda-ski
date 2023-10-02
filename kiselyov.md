@@ -82,34 +82,30 @@ index :: Eq a => a -> [a] -> Maybe Peano
 index x xs = lookup x $ zip xs $ iterate Succ Zero    
 ```
 
-Lets see how this works on our example `sqr` and `main` functions:
+Lets see how this works on a simple `main` functions:
 
 ```haskell
-  let source = [r|
-        sqr  = \x. * x x
-        main = sqr 3
-      |]
+  let source = "main = λx y. * x y"
   let env = parseEnvironment source
   putStrLn "The parsed environment of named lambda expressions:"
   mapM_ print env
   putStrLn ""
-  putStrLn "The expressions in de Bruijn notation:"
+  putStrLn "The main expression in de Bruijn notation:"
   mapM_ (print . Data.Bifunctor.second deBruijn) env
 ```
 This will produce the following output:
 
 ```haskell
 The parsed environment of named lambda expressions:
-("sqr",  Lam "x" (App (App (Var "*") (Var "x")) (Var "x")))
-("main", App (Var "sqr") (Int 3))
+("main",Lam "x" (Lam "y" (App (App (Var "*") (Var "x")) (Var "y"))))
 
-The expressions in de Bruijn notation:
-("sqr",  L (A (A (Free "*") (N Zero)) (N Zero)))
-("main", A (Free "sqr") (IN 3))
+The main expression in de Bruijn notation:
+("main",L (L (A (A (Free "*") (N (Succ Zero))) (N Zero))))
 ```
 
-It's easy to see that the de Bruijn notation is just a different representation of the λ-calculus terms. The only difference is that the variable names are replaced by indices.
-This is quite helpful as it allows to systematically adress variables by their respective position without having to deal with arbitrary variable names.
+It's easy to see that the de Bruijn notation is just a different representation of the λ-term. The only difference is that the variable names are replaced by indices.
+The innermost lambda-abstraction binds the variable `y` which is represented by the index `Zero`. The next lambda-abstraction binds the variable `x` which is represented by the index `Succ Zero`. 
+This notation is quite helpful as it allows to systematically adress variables by their respective position in a complex term.
 
 But why are we using Peano numbers for the indices? Why not just use integers? 
 Well it's definitely possible to [use integers instead of Peano numbers](https://crypto.stanford.edu/~blynn/lambda/cl.html). 
@@ -120,11 +116,38 @@ In the subsequent compilation steps we want to be able to do pattern matching on
 data Peano = Succ Peano | Zero
 ``` 
 
-Now we'll take a look at the next step in the compilation process. The function `convert` translates the de Bruijn notation to a data type `CL` which represents the combinator terms. 
+Starting with the de Bruijn notation Ben Lynn's implementation of Kiselyov's algorithm builds up a series of increasingly optimized compilers that translate λ-expressions to combinator terms.
 
+I'll don't want to go into all the details of the algorithm. [Ben's blog post](https://crypto.stanford.edu/~blynn/lambda/kiselyov.html) is a great resource for this. I'll just give a brief overview of the compilation results of the different compilers.
 
+## The Plain compiler
+``` haskell
+compilePlain :: Environment -> CL
+compilePlain env = case lookup "main" env of
+  Nothing   -> error "main function missing"
+  Just main -> snd $ plain env (deBruijn main)
+```
+
+The first compiler is called `plain`. It is a straightforward translation of the de Bruijn notation to combinators. It uses the `CL` data type to represent combinator-terms:
 
 ```haskell
+data CL = Com Combinator | INT Integer | CL :@ CL
+
+data Combinator = I | K | S | B | C | Y | R | B' | C' | S' | T |
+                  ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP  
+  deriving (Eq, Show)
+```
+
+The `plain` function is defined as follows:
+
+```haskell
+plain :: Environment -> DB -> (Int, CL)
+plain = convert (#) where
+  (0 , d1) # (0 , d2) = d1 :@ d2
+  (0 , d1) # (n , d2) = (0, Com B :@ d1) # (n - 1, d2)
+  (n , d1) # (0 , d2) = (0, Com R :@ d2) # (n - 1, d1)
+  (n1, d1) # (n2, d2) = (n1 - 1, (0, Com S) # (n1 - 1, d1)) # (n2 - 1, d2)
+
 convert :: ((Int, CL) -> (Int, CL) -> CL) -> [(String, Expr)] -> DB -> (Int, CL)
 convert (#) env = \case
   N Zero -> (1, Com I)
@@ -138,28 +161,23 @@ convert (#) env = \case
   IN i -> (0, INT i)
   Free s -> convertVar (#) env s
   where rec = convert (#) env
+
+-- | convert a free variable to a combinator.
+--   first we try to find a definition in the environment.
+--   if that fails, we assume it is a combinator.
+convertVar :: ((Int, CL) -> (Int, CL) -> CL) -> [(String, Expr)] -> String -> (Int, CL)
+convertVar (#) env s
+  | Just t <- lookup s env = convert (#) env (deBruijn t)
+  | otherwise = (0, Com (fromString s))
 ```
-
-xxx
-
-
-
-
-
-
-
-Combinator terms are defined as follows:
 
 ```haskell
-data CL = Com Combinator | INT Integer | CL :@ CL
+The main expression compiled to SICKBY combinator expressions by recursice bracket abstraction:
+MUL
 
-data Combinator = I | K | S | B | C | Y | R | B' | C' | S' | T |
-                  ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP  
-  deriving (Eq, Show)
+applying plain Kiselyov compilation:
+R I(B S(B(B MUL)(B K I)))
 ```
-
-
-
 
 ## to be continued...
 

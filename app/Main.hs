@@ -35,16 +35,13 @@ main = do
   hSetEncoding stdout utf8 -- this is required to handle UTF-8 characters like λ
 
   --let testSource = "main = (\\x y -> + x x) 3 4"
-  mapM_ showCompilations [sqr, factorial] --, fibonacci, ackermann, tak]
+  mapM_ showCompilations [prod, factorial] --, fibonacci, ackermann, tak]
   --demo
 
 type SourceCode = String
 
-sqr :: SourceCode
-sqr = [r|
-  sqr  = \x. * x x
-  main = sqr 3
-|]
+prod :: SourceCode
+prod = "main = λx y. * x y"
 
 tak :: SourceCode
 tak = [r| 
@@ -76,16 +73,16 @@ showCompilations source = do
   putStrLn "The parsed environment of named lambda expressions:"
   mapM_ print env
   putStrLn ""
-  putStrLn "The expressions in de Bruijn notation:"
+  putStrLn "The main expression in de Bruijn notation:"
   mapM_ (print . Data.Bifunctor.second deBruijn) env
 
-  putStrLn "applying plain compilation:"
-  print $ compilePlain env
+  let expr = compile env abstractToSKI
+  putStrLn "The main expression compiled to SICKBY combinator expressions by recursice bracket abstraction:"
+  print expr
   putStrLn ""
 
-  let expr = compile env abstractToSKI
-  putStrLn "The main expression compiled to SICKBY combinator expressions:"
-  print expr
+  putStrLn "applying plain Kiselyov compilation:"
+  print $ compilePlain env
   putStrLn ""
 
   let expr' = compileEta env
