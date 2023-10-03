@@ -4,8 +4,9 @@ module Kiselyov
     deBruijn,
     bulkOpt,
     compilePlain,
-    compileBulk,
+    compileK,
     compileEta,
+    compileBulk,
     compileBulkLinear,
     compileBulkLog,
     optK,
@@ -74,6 +75,11 @@ compilePlain env = case lookup "main" env of
 bulk :: Combinator -> Int -> CL
 bulk c 1 = Com c
 bulk c n = Com $ BulkCom (show c) n
+
+compileK :: Environment -> CL
+compileK env = case lookup "main" env of
+  Nothing   -> error "main function missing"
+  Just main -> snd $ optK env (deBruijn main)
 
 compileEta :: Environment -> CL
 compileEta env = case lookup "main" env of

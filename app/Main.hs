@@ -17,6 +17,7 @@ import Kiselyov
 import System.TimeIt
 import Text.RawString.QQ
 import qualified Data.Bifunctor
+import LambdaToSKI (compileBracket)
 
 
 printGraph :: ST s (STRef s (Graph s)) -> ST s String
@@ -35,7 +36,7 @@ main = do
   hSetEncoding stdout utf8 -- this is required to handle UTF-8 characters like λ
 
   --let testSource = "main = (\\x y -> + x x) 3 4"
-  mapM_ showCompilations [prod, factorial] --, fibonacci, ackermann, tak]
+  mapM_ showCompilations [prod, factorial, fibonacci, ackermann, tak]
   --demo
 
 type SourceCode = String
@@ -46,7 +47,7 @@ prod = "main = λx y. * x y"
 tak :: SourceCode
 tak = [r| 
   tak  = y(λf x y z. (if (geq y x) z (f (f (sub1 x) y z) (f (sub1 y) z x) (f (sub1 z) x y ))))
-  main = tak 7 4 2 --18 6 3
+  main = tak 7 4 2
 |]
 
 ackermann :: SourceCode
@@ -76,7 +77,7 @@ showCompilations source = do
   putStrLn "The main expression in de Bruijn notation:"
   mapM_ (print . Data.Bifunctor.second deBruijn) env
 
-  let expr = compile env abstractToSKI
+  let expr = compileBracket env
   putStrLn "The main expression compiled to SICKBY combinator expressions by recursice bracket abstraction:"
   print expr
   putStrLn ""
@@ -85,8 +86,14 @@ showCompilations source = do
   print $ compilePlain env
   putStrLn ""
 
+  let exprK = compileK env
+  putStrLn "The main expression compiled to SICKBY combinator expressions with K-optimization:"
+  print exprK
+  putStrLn ""
+
+
   let expr' = compileEta env
-  putStrLn "The main expression compiled to SICKBY combinator expressions with eta optimization:"
+  putStrLn "The main expression compiled to SICKBY combinator expressions with Eta-optimization:"
   print expr'
   putStrLn ""
 

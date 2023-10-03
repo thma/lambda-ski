@@ -2,7 +2,7 @@ module ReductionBenchmarks where
 
 import Criterion.Main ( defaultMain, bench, nf )
 import Parser ( parseEnvironment, Expr(Int, App) )
-import LambdaToSKI ( abstractToSKI, compile )
+import LambdaToSKI ( compileBracket )
 import CLTerm
 import Kiselyov ( compileBulk, compileEta )
 import GraphReduction ( allocate, normalForm, toString, Graph )
@@ -16,7 +16,7 @@ import BenchmarkSources
 loadTestCase :: SourceCode -> IO CL
 loadTestCase src = do
   let pEnv = parseEnvironment src
-      expr = compile pEnv abstractToSKI
+      expr = compileBracket pEnv
   return expr
 
 loadTestCaseBulk :: SourceCode -> IO CL
@@ -104,13 +104,13 @@ benchmarks = do
       , bench "ackermann HHI-Bulk"         $ nf reducerTest akkBulk
       , bench "ackermann HHI-Bulk-Log"     $ nf reducerTestLog akkBulk
       , bench "ackermann Native"           $ nf ack_2 2
-      , bench "gaussian  Graph-Reduce"     $ nf graphTest gau
-      , bench "gaussian  Graph-Reduce-Eta" $ nf graphTest gauEta
-      , bench "gaussian  HHI-Reduce"       $ nf reducerTest gau
-      , bench "gaussian  HHI-Eta"          $ nf reducerTest gauEta
-      , bench "gaussian  HHI-Bulk"         $ nf reducerTest gauBulk
-      , bench "gaussian  HHI-Bulk-Log"     $ nf reducerTestLog gauBulk
-      , bench "gaussian  Native"           $ nf gaussianSum 100
+      -- , bench "gaussian  Graph-Reduce"     $ nf graphTest gau
+      -- , bench "gaussian  Graph-Reduce-Eta" $ nf graphTest gauEta
+      -- , bench "gaussian  HHI-Reduce"       $ nf reducerTest gau
+      -- , bench "gaussian  HHI-Eta"          $ nf reducerTest gauEta
+      -- , bench "gaussian  HHI-Bulk"         $ nf reducerTest gauBulk
+      -- , bench "gaussian  HHI-Bulk-Log"     $ nf reducerTestLog gauBulk
+      -- , bench "gaussian  Native"           $ nf gaussianSum 100
       , bench "tak       Graph-Reduce"     $ nf graphTest tak
       , bench "tak       Graph-Reduce-Eta" $ nf graphTest takEta
       , bench "tak       HHI-Reduce"       $ nf reducerTest tak

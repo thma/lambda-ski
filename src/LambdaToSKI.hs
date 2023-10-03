@@ -1,6 +1,7 @@
 module LambdaToSKI
   ( compileEither,
     compile,
+    compileBracket,
     abstractToSKI,
     abstractSimple,
     abstractToCCC,
@@ -97,6 +98,9 @@ compileEither :: Environment -> (Environment -> Expr -> Expr) -> Either Error Ex
 compileEither env abstractFun = case lookup "main" env of
   Nothing   -> Left $ "main function missing in " ++ show env
   Just main -> Right $ abstractFun env main
+
+compileBracket :: Environment -> CL
+compileBracket env = compile env abstractToSKI
 
 compile :: Environment -> (Environment -> Expr -> Expr) -> CL
 compile env abstractFun =
