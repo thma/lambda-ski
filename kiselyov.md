@@ -127,7 +127,7 @@ Starting with the de Bruijn notation Ben Lynn's implementation of Kiselyov's alg
 - a compiler that eliminates *Bulk Combinators* with logarithmic size(`compileBulkLog`)
 
 I'll don't want to go into all the details of the algorithms. [Ben's blog post](https://crypto.stanford.edu/~blynn/lambda/kiselyov.html) is a great resource for this. I'll just give a brief overview of the compilation outputs of the different compilers. And then I'll focus on performance comparisons between the different approaches.
-I will use [my original compiler](https://github.com/thma/lambda-ski/blob/main/src/LambdaToSKI.hs) based on the classic (recursively optimized) bracket abstraction as a baseline for the performance comparisons.
+I will use [my original compiler](https://github.com/thma/lambda-ski/blob/main/src/LambdaToSKI.hs) `compileBracket` based on the classic (recursively optimized) bracket abstraction as a baseline for the performance comparisons.
 
 ### The simple `main` example
 
@@ -137,7 +137,7 @@ main = λx y. * x y
 
 | Compiler | Output |
 | --- | --- |
-| `benchmark: bracket abstraction` | `MUL` |
+| `compileBracket` | `MUL` |
 | `compilePlain` | `R I(B S(B(B MUL)(B K I)))` |
 | `compileK` | `R I(B B(B MUL I)))` |
 | `compileEta` | `MUL` |
@@ -166,7 +166,7 @@ main = fact 100
 
 | Compiler | Output |
 | --- | --- |
-| `benchmark: bracket abstraction` | `Y(B' S(C' IF ZEROP 1)(B' S MUL(C' S K SUB1))) 100` |
+| `compileBracket` | `Y(B' S(C' IF ZEROP 1)(B' S MUL(C' S K SUB1))) 100` |
 | `compilePlain` | `Y(B(S(R 1(B IF(B ZEROP I))))(B(S(B MUL I))(R(B SUB1 I)(B S(B K I))))) 100` |
 | `compileK` | `Y(B(S(C(B IF(B ZEROP I)) 1))(B(S(B MUL I))(R(B SUB1 I)(B B I)))) 100` |
 | `compileEta` | `Y(B(S(C(B IF ZEROP) 1))(B(S MUL)(R SUB1 B))) 100` |
@@ -190,7 +190,7 @@ main = fib 10
 
 | Compiler | Output |
 | --- | --- |
-| `benchmark: bracket abstraction` | `Y(B' S(C' IF ZEROP 1)(B' S(C' IF(C EQL 1) 1)(S' S(B' S(K ADD)(C' S K SUB1))(C' S K(C SUB 2))))) 10` |
+| `compileBracket` | `Y(B' S(C' IF ZEROP 1)(B' S(C' IF(C EQL 1) 1)(S' S(B' S(K ADD)(C' S K SUB1))(C' S K(C SUB 2))))) 10` |
 | `compilePlain` | `Y(B(S(R 1(B IF(B ZEROP I))))(B(S(R 1(B IF(R 1(B EQL I)))))(S(B S(B(B ADD)(R(B SUB1 I)(B S(B K I)))))(R(R 2(B SUB I))(B S(B K I)))))) 10` |
 | `compileK` | `Y(B(S(C(B IF(B ZEROP I)) 1))(B(S(C(B IF(C(B EQL I) 1)) 1))(S(B S(B(B ADD)(R(B SUB1 I)(B B I))))(R(C(B SUB I) 2)(B B I))))) 10` |
 | `compileEta` | `Y(B(S(C(B IF ZEROP) 1))(B(S(C(B IF(C EQL 1)) 1))(S(B S(B(B ADD)(R SUB1 B)))(R(C SUB 2) B)))) 10` |
@@ -217,7 +217,7 @@ main = ack 2 2
 
 | Compiler | Output |
 | --- | --- |
-| `benchmark: bracket abstraction` | `Y(B' S(B S(C'(B S K)(B IF ZEROP)(C ADD 1)))(S'(B S(S(K S)))(B' S(K(S(B IF ZEROP)))(B' S(K K)(C' S(C' S K SUB1)(K 1))))(S'(B S(S(K(B S K))))(C' S K SUB1)(C' S(S(K(B S K)))(K SUB1))))) 2 2` |
+| `compileBracket` | `Y(B' S(B S(C'(B S K)(B IF ZEROP)(C ADD 1)))(S'(B S(S(K S)))(B' S(K(S(B IF ZEROP)))(B' S(K K)(C' S(C' S K SUB1)(K 1))))(S'(B S(S(K(B S K))))(C' S K SUB1)(C' S(S(K(B S K)))(K SUB1))))) 2 2` |
 | `compilePlain` | `Y(B(S(B S(R(R 1(B ADD I))(B S(B(B IF)(B(B ZEROP)(B K I)))))))(S(B S(B(B S)(B(B(S(B IF(B ZEROP I))))(B(B(R 1))(R(B(B SUB1)(B K I))(B S(B(B S)(B(B K)(B K I)))))))))(S(B S(B(B S)(R(B(B SUB1)(B K I))(B S(B(B S)(B(B K)(B K I)))))))(B(R(B SUB1 I))(B(B S)(R(B K I)(B S(B(B S)(B(B K)(B K I)))))))))) 2 2` |
 | `compileK` | `Y(B(S(B S(R(C(B ADD I) 1)(B B(B IF(B ZEROP I))))))(S(B S(B(B S)(B(B(C(B IF(B ZEROP I))))(B(R 1)(R(B SUB1 I)(B B I))))))(S(B S(B(B B)(R(B SUB1 I)(B B I))))(B(R(B SUB1 I))(B(B B)(R I(B B I))))))) 2 2` |
 | `compileEta` | `Y(B(S(B S(R(C ADD 1)(B B(B IF ZEROP)))))(S(B S(B(B S)(B(B(C(B IF ZEROP)))(B(R 1)(R SUB1 B)))))(S(B S(B(B B)(R SUB1 B)))(B(R SUB1)(B B))))) 2 2` |
@@ -245,7 +245,7 @@ main = tak 7 4 2
 
 | Compiler | Output |
 | --- | --- |
-| `benchmark: bracket abstraction` | `Y(B' S(B'(S(K S))(S(K S))(B' S(K IF)(B' S GEQ K)))(S'(B S(S(K(B S(S(K S))))))(S'(B S(S(K(B S(S(K S))))))(S'(B'(S(K(B'(S(K S)) K S))) K S) K(C' S K SUB1))(C'(B'(S(K(B S K))) S(S(K S)))(C' S K SUB1)(B K K)))(C'(B S(S(K(B'(S(K S)) K S))))(C'(B'(S(K S)) K S)(C' S K SUB1) K)(K K)))) 7 4 2` |
+| `compileBracket` | `Y(B' S(B'(S(K S))(S(K S))(B' S(K IF)(B' S GEQ K)))(S'(B S(S(K(B S(S(K S))))))(S'(B S(S(K(B S(S(K S))))))(S'(B'(S(K(B'(S(K S)) K S))) K S) K(C' S K SUB1))(C'(B'(S(K(B S K))) S(S(K S)))(C' S K SUB1)(B K K)))(C'(B S(S(K(B'(S(K S)) K S))))(C'(B'(S(K S)) K S)(C' S K SUB1) K)(K K)))) 7 4 2` |
 | `compilePlain` | `Y(B(S(B S(B(B S)(B(R I)(B(B S)(B(B(B IF))(B(S(B S(B(B GEQ)(B K I))))(B(B K)(B K I)))))))))(S(B S(B(B S)(B(B(B S))(S(B S(B(B S)(B(B(B S))(S(B S(B(B S)(B(B(B S))(B(B(B K))(B(B K)(B K I))))))(B(B(R I))(B(B(B S))(B(R(B K I))(B(B S)(B(B(B S))(R(B(B(B SUB1))(B(B K)(B K I)))(B S(B(B S)(B(B(B S))(B(B(B K))(B(B K)(B K I))))))))))))))))(R(B(B K)(B K I))(B S(B(B S)(B(B(B S))(B(B(R I))(B(B(B S))(B(R(B(B SUB1)(B K I)))(B(B S)(B(B(B S))(B(B(B K))(B(B K)(B K I))))))))))))))))(B(R(B K I))(B(B S)(B(B(B S))(R(B(B K)(B K I))(B S(B(B S)(B(B(B S))(B(B(R(B SUB1 I)))(B(B(B S))(B(B(B K))(B(B K)(B K I)))))))))))))) 7 4 2` |
 | `compileK` | `Y(B(S(B S(B(B S)(B(R I)(B(B B)(B(B IF)(B(C(B GEQ I)) I)))))))(S(B S(B(B S)(B(B(B S))(S(B S(B(B S)(B(B(B S))(S(B B(B B(B B I)))(B(B(R I))(B(B(B B))(B(R I)(B(B B)(R(B SUB1 I)(B B I))))))))))(R I(B B(B C(B(B C)(B(R I)(B(B B)(R(B SUB1 I)(B B I))))))))))))(B(R I)(B(B B)(B(B C)(R I(B B(B C(R(B SUB1 I)(B B I)))))))))) 7 4 2` |
 | `compileEta` | `Y(B(S(B S(B(B S)(B(B IF)(C GEQ)))))(S(B S(B(B S)(B(B(B S))(S(B S(B(B S)(B(B(B S))(S(B B(B B B))(R SUB1 B)))))(B C(B(B C)(R SUB1 B)))))))(B(B C)(B C(R SUB1 B))))) 7 4 2` |
@@ -267,7 +267,10 @@ In my suite I am testing the performance of combinations of the following compon
 
 - the compilers `compileBracket`, `compileEta` and `compileBulk` from the previous section
 - the function factorial, fibonacci, ackermann and tak from the previous section
-- the execution backenda Graph Reduction Engine and the native Haskell functions implementaion from my previous post
+- the execution backenda Graph Reduction Engine and the native Haskell functions implementaion from my previous post. I have not implemented the Bulk combinators in the graph reduction engine. So I am only testing this backend only with the `compileBracket` and `compileEta` compilers.
+
+So lets start with an overview of the results for the Graph Reduction Backend.
+
 
 
 ## 
