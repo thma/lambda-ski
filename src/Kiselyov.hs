@@ -225,8 +225,6 @@ comC' = Com B :@ (Com B :@ Com C) :@ Com B
 comS' :: CL
 comS' = Com B :@ (Com B :@ Com S) :@ Com B
 
-
-
 breakBulkLog :: Combinator -> Int -> CL
 breakBulkLog c 1 = Com c
 breakBulkLog B n = foldr (:@) (Com B) $ map (bs!!) $ init $ bits n where

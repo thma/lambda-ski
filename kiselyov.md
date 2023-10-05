@@ -282,16 +282,44 @@ comS' :: CL
 comS' = Com B :@ (Com B :@ Com S) :@ Com B
 ```
 
-As we have seen in the output of the `compileBulkLinear` this conversion expands the code size. To avoid this expansion of the combinator code I have implemented a solution to directly execute *Bulk Combinators*.
+As we have seen in the output of the `compileBulkLinear` this conversion expands the code size. To avoid this expansion of the combinator code I have implemented a solution to directly execute *Bulk Combinators* without any prior code expansion.
 
-At the moment I have only implemented it in the [Haskell-In-Haskell](https://wiki.haskell.org/wikiupload/0/0a/TMR-Issue10.pdf) inspired HHI-Reducer. Implementing it for the Graph Reduction Engine is left as an exercise for the reader ;-).
+At the moment I have only implemented this idea in the [Haskell-In-Haskell](https://wiki.haskell.org/wikiupload/0/0a/TMR-Issue10.pdf) inspired HHI-Reducer. Implementing it for the Graph Reduction Engine is left as an exercise for the reader ;-).
+
+In order to understand the solution we'll have a short recap of the HHI-Reducer core ideas [as described in my last post](https://thma.github.io/posts/2022-02-05-Evaluating-SKI-combinators-as-native-Haskell-functions.html):
+
+The core idea is to take a combinator term and compile it into a set of Haskell functions. This is done in a function `link` as follows:
+
+1. All combinators of the form `(CComb comb)` are mapped to haskell functions implementing the respective combinator reduction rule. For example the combinator `I` is mapped to `CFun id` and the combinator `K` is mapped to `CFun (CFun . const)`.
+
+2. All applications `(CApp fun arg)` have to be replaced by actual function application. In our case we want apply functions of type `CExpr -> CExpr` that are wrapped by a `CFun` constructor. For this particular case we define an application operator `(!)` as follows:
 
 ```haskell
--- | apply a CExpr of shape (CFun f) to argument x by evaluating (f x)
 infixl 0 !
 (!) :: CExpr -> CExpr -> CExpr
 (CFun f) ! x = f x
+```
 
+Thus: 
+```haskell
+(Cfun id) ! 14 = id 14 
+         id 14 = 14
+```
+
+The mapping of Combinators to Haskell functions in step 1. is done by looking up a map of combinator definitions. This map contains definitions for all standard combinators and numeric operations. The Bulk combinators are not defined in this map. Instead they are resolved by the function `resolveBulk`:
+
+```haskell
+resolveBulk :: Combinator -> CExpr
+resolveBulk (BulkCom "B" n) = iterate (comB' !) comB !! (n-1)
+resolveBulk (BulkCom "C" n) = iterate (comC' !) comC !! (n-1)
+resolveBulk (BulkCom "S" n) = iterate (comS' !) comS !! (n-1)
+```
+
+It's interesting to note how this functions resembles the `breakBulkLinear` function. The only difference is that we are using the function application operator `(!)` instead of the data constructor `(:@)`.
+The function `link` is now defined as follows:
+
+
+```haskell
 -- | "link" a compiled expression into Haskell native functions.
 --   application terms will be transformed into real (!) applications
 --   combinator symbols will be replaced by their actual function definition
@@ -301,19 +329,9 @@ link definitions (CComb comb)   = case lookup comb definitions of
                                     Nothing -> resolveBulk comb
                                     Just e  -> e
 link _definitions expr          = expr
-
-
-resolveBulk :: Combinator -> CExpr
-resolveBulk (BulkCom "B" n) = iterate (comB' !) comB !! (n-1)
-resolveBulk (BulkCom "C" n) = iterate (comC' !) comC !! (n-1)
-resolveBulk (BulkCom "S" n) = iterate (comS' !) comS !! (n-1)
-
-comS :: CExpr
-comS = CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!(g!x))                    -- S F G X = F X (G X)
-
-comS' :: CExpr
-comS' = CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!(r!s))  -- S' P Q R S = P (Q S) (R S)
 ```
+
+In the same way I have re-implemented Ben's function `breakBulkLog` as `resolveBulkLog`.
 
 
 ## performance comparison
@@ -327,13 +345,14 @@ In my suite I am testing the performance of combinations of the following compon
 
 - the compilers `compileBracket`, `compileEta` and `compileBulk` from the previous section
 - the function factorial, fibonacci, ackermann and tak from the previous section
-- the execution backenda Graph Reduction Engine and the native Haskell functions implementaion from my previous post. I have not implemented the Bulk combinators in the graph reduction engine. So I am only testing this backend only with the `compileBracket` and `compileEta` compilers.
+- the execution backenda Graph Reduction Engine and the HHI-reducer implementaion from my previous post. I have not implemented the Bulk combinators in the graph reduction engine. So I am only testing this backend with the `compileBracket` and `compileEta` compilers.
+- the HHI-Reducer with both `resolveBulkLinear` and `resolveBulkLog`
 
 So lets start with an overview of the results for the Graph Reduction Backend.
 
+### Graph Reduction Engine
 
-
-## 
+|
 
 
 ![Alt text](image.png)
