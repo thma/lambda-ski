@@ -390,11 +390,18 @@ Overall `compileEta` gives the best result for the Graph Reduction Engine.
 
 | execution time [μs] | compileBracket | compileEta | compileBulk (linear execution) | compileBulk (logarith. execution) |compileBulkLinear | compileBulkLog |
 | --- | --- | --- | --- | --- | --- | --- |
-| factorial | 41.34 | 41.26 | 41.46 | 41.45 | 41.46 | 41.45 |
-| fibonacci | 107.8 | 108.4 | 108.9 | 113.4 | 108.9 | 113.4 |
-| ackermann | 32.22 | 24.11 | 25.15 | 34.27 | 25.15 | 34.27 |
-| tak | 194.7 | 80.18 | 83.15 | 102.7 | 83.15 | 102.7 |
+| factorial | 14.29 | 14.30 | 14.34 | 14.28 | 14.33 | 14.28 |
+| fibonacci | 25.53 | 25.68 | 25.73 | 25.91 | 25.88 | 27.12 |
+| ackermann | 10.19 | 7.309 | 7.350 | 7.349 | 8.012 | 10.12 |
+| tak | 30.35 | 21.28 | 17.90 | 17.97 | 21.81 | 26.21 |
 
+
+| code size [# comb.] | compileBracket | compileEta | compileBulk (linear execution) | compileBulk (logarith. execution) |compileBulkLinear | compileBulkLog |
+| --- | --- | --- | --- | --- | --- | --- |
+| factorial | 13 | 13 | 14 | 14 | 14 | 14 |
+| fibonacci | 27 | 27 | 26 | 26 | 32 | 36 |
+| ackermann | 59 | 44 | 36 | 36 | 64 | 83 |
+| tak | 98 | 58 | 29 | 29 | 73 | 81 |
 
 
 
