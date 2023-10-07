@@ -1,0 +1,277 @@
+benchmarking factorial Graph-Reduce
+time                 41.34 μs   (41.06 μs .. 41.55 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 41.56 μs   (41.39 μs .. 41.74 μs)
+std dev              551.8 ns   (407.8 ns .. 740.1 ns)
+
+benchmarking factorial Graph-Reduce-Eta
+time                 41.26 μs   (41.03 μs .. 41.44 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 41.21 μs   (41.07 μs .. 41.37 μs)
+std dev              554.0 ns   (422.9 ns .. 775.3 ns)
+
+benchmarking factorial Graph-Reduce-Lin
+time                 41.46 μs   (41.37 μs .. 41.55 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 41.33 μs   (41.10 μs .. 41.53 μs)
+std dev              728.4 ns   (578.5 ns .. 939.7 ns)
+variance introduced by outliers: 13% (moderately inflated)
+
+benchmarking factorial Graph-Reduce-Log
+time                 41.45 μs   (41.21 μs .. 41.62 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 41.45 μs   (41.29 μs .. 41.65 μs)
+std dev              611.0 ns   (486.0 ns .. 713.3 ns)
+
+benchmarking factorial HHI-Reduce
+time                 14.29 μs   (14.26 μs .. 14.33 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 14.30 μs   (14.24 μs .. 14.35 μs)
+std dev              160.7 ns   (120.3 ns .. 194.2 ns)
+
+benchmarking factorial HHI-Eta
+time                 14.30 μs   (14.24 μs .. 14.35 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 14.24 μs   (14.18 μs .. 14.30 μs)
+std dev              186.7 ns   (150.8 ns .. 234.8 ns)
+
+benchmarking factorial HHI-Bulk
+time                 14.34 μs   (14.28 μs .. 14.44 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 14.34 μs   (14.29 μs .. 14.41 μs)
+std dev              212.1 ns   (144.6 ns .. 322.5 ns)
+variance introduced by outliers: 11% (moderately inflated)
+
+benchmarking factorial HHI-Bulk-Log
+time                 14.28 μs   (14.22 μs .. 14.33 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 14.26 μs   (14.19 μs .. 14.31 μs)
+std dev              195.0 ns   (157.2 ns .. 241.3 ns)
+
+benchmarking factorial HHI-Break-Bulk
+time                 14.33 μs   (14.28 μs .. 14.38 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 14.32 μs   (14.27 μs .. 14.37 μs)
+std dev              172.5 ns   (141.2 ns .. 209.1 ns)
+
+benchmarking factorial HHI-Break-Log
+time                 14.28 μs   (14.20 μs .. 14.35 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 14.25 μs   (14.18 μs .. 14.31 μs)
+std dev              191.6 ns   (149.9 ns .. 261.5 ns)
+
+benchmarking factorial Native
+time                 2.776 μs   (2.769 μs .. 2.783 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 2.780 μs   (2.773 μs .. 2.787 μs)
+std dev              24.38 ns   (18.97 ns .. 33.65 ns)
+
+benchmarking fibonacci Graph-Reduce
+time                 107.8 μs   (107.2 μs .. 108.3 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 107.9 μs   (107.4 μs .. 108.5 μs)
+std dev              1.670 μs   (1.228 μs .. 2.222 μs)
+
+benchmarking fibonacci Graph-Reduce-Eta
+time                 108.4 μs   (108.2 μs .. 108.6 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 108.5 μs   (108.2 μs .. 109.0 μs)
+std dev              1.276 μs   (825.8 ns .. 1.953 μs)
+
+benchmarking fibonacci Graph-Reduce-Lin
+time                 108.9 μs   (108.5 μs .. 109.1 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 108.6 μs   (108.2 μs .. 108.9 μs)
+std dev              1.053 μs   (851.0 ns .. 1.423 μs)
+
+benchmarking fibonacci Graph-Reduce-Log
+time                 113.4 μs   (113.0 μs .. 113.9 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 113.5 μs   (113.0 μs .. 113.8 μs)
+std dev              1.395 μs   (1.126 μs .. 1.853 μs)
+
+benchmarking fibonacci HHI-Reduce
+time                 25.53 μs   (25.44 μs .. 25.61 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 25.46 μs   (25.32 μs .. 25.58 μs)
+std dev              428.9 ns   (332.1 ns .. 608.2 ns)
+variance introduced by outliers: 13% (moderately inflated)
+
+benchmarking fibonacci HHI-Eta
+time                 25.68 μs   (25.60 μs .. 25.77 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 25.62 μs   (25.54 μs .. 25.70 μs)
+std dev              278.5 ns   (207.9 ns .. 357.6 ns)
+
+benchmarking fibonacci HHi-Bulk
+time                 25.73 μs   (25.63 μs .. 25.81 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 25.69 μs   (25.61 μs .. 25.78 μs)
+std dev              312.0 ns   (259.8 ns .. 394.1 ns)
+
+benchmarking fibonacci HHI-Bulk-Log
+time                 25.91 μs   (25.81 μs .. 26.00 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 25.85 μs   (25.77 μs .. 25.94 μs)
+std dev              270.6 ns   (231.8 ns .. 364.0 ns)
+
+benchmarking fibonacci HHI-Break-Bulk
+time                 25.88 μs   (25.77 μs .. 26.01 μs)
+                     1.000 R²   (0.999 R² .. 1.000 R²)
+mean                 25.95 μs   (25.83 μs .. 26.27 μs)
+std dev              661.0 ns   (245.4 ns .. 1.195 μs)
+variance introduced by outliers: 25% (moderately inflated)
+
+benchmarking fibonacci HHI-Break-Log
+time                 27.12 μs   (27.04 μs .. 27.20 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 27.13 μs   (27.05 μs .. 27.22 μs)
+std dev              316.0 ns   (241.3 ns .. 461.7 ns)
+
+benchmarking fibonacci Native
+time                 1.824 μs   (1.820 μs .. 1.829 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 1.820 μs   (1.815 μs .. 1.825 μs)
+std dev              18.05 ns   (15.39 ns .. 22.41 ns)
+
+benchmarking ackermann Graph-Reduce
+time                 32.22 μs   (32.15 μs .. 32.29 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 32.27 μs   (32.16 μs .. 32.40 μs)
+std dev              431.1 ns   (308.1 ns .. 607.1 ns)
+
+benchmarking ackermann Graph-Reduce-Eta
+time                 24.11 μs   (23.99 μs .. 24.22 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 24.12 μs   (24.04 μs .. 24.20 μs)
+std dev              264.3 ns   (220.8 ns .. 359.5 ns)
+
+benchmarking ackermann Graph-Reduce-Lin
+time                 25.15 μs   (25.07 μs .. 25.22 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 25.20 μs   (25.10 μs .. 25.31 μs)
+std dev              322.6 ns   (239.8 ns .. 431.8 ns)
+
+benchmarking ackermann Graph-Reduce-Log
+time                 34.27 μs   (34.14 μs .. 34.43 μs)
+                     1.000 R²   (0.999 R² .. 1.000 R²)
+mean                 34.45 μs   (34.24 μs .. 34.83 μs)
+std dev              1.019 μs   (594.7 ns .. 1.697 μs)
+variance introduced by outliers: 31% (moderately inflated)
+
+benchmarking ackermann HHI-Reduce
+time                 10.19 μs   (9.308 μs .. 11.74 μs)
+                     0.889 R²   (0.784 R² .. 0.997 R²)
+mean                 9.730 μs   (9.288 μs .. 11.29 μs)
+std dev              2.576 μs   (584.5 ns .. 5.322 μs)
+variance introduced by outliers: 98% (severely inflated)
+
+benchmarking ackermann HHI-Eta
+time                 7.309 μs   (7.222 μs .. 7.439 μs)
+                     0.995 R²   (0.990 R² .. 0.999 R²)
+mean                 7.361 μs   (7.229 μs .. 7.606 μs)
+std dev              582.0 ns   (336.4 ns .. 955.9 ns)
+variance introduced by outliers: 80% (severely inflated)
+
+benchmarking ackermann HHI-Bulk
+time                 7.350 μs   (7.310 μs .. 7.392 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 7.339 μs   (7.301 μs .. 7.378 μs)
+std dev              124.5 ns   (103.8 ns .. 154.1 ns)
+variance introduced by outliers: 15% (moderately inflated)
+
+benchmarking ackermann HHI-Bulk-Log
+time                 7.349 μs   (7.318 μs .. 7.377 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 7.328 μs   (7.293 μs .. 7.361 μs)
+std dev              120.2 ns   (89.67 ns .. 172.1 ns)
+variance introduced by outliers: 14% (moderately inflated)
+
+benchmarking ackermann HHI-Break-Bulk
+time                 8.040 μs   (8.015 μs .. 8.069 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 8.012 μs   (7.983 μs .. 8.035 μs)
+std dev              86.72 ns   (67.27 ns .. 109.9 ns)
+
+benchmarking ackermann HHI-Break-Log
+time                 10.12 μs   (10.08 μs .. 10.16 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 10.08 μs   (10.04 μs .. 10.13 μs)
+std dev              170.5 ns   (130.3 ns .. 251.0 ns)
+variance introduced by outliers: 14% (moderately inflated)
+
+benchmarking ackermann Native
+time                 258.8 ns   (257.9 ns .. 259.8 ns)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 258.4 ns   (257.2 ns .. 259.7 ns)
+std dev              3.964 ns   (3.161 ns .. 4.891 ns)
+variance introduced by outliers: 17% (moderately inflated)
+
+benchmarking tak       Graph-Reduce
+time                 194.7 μs   (193.9 μs .. 195.5 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 194.2 μs   (193.5 μs .. 194.9 μs)
+std dev              2.210 μs   (1.857 μs .. 2.779 μs)
+
+benchmarking tak       Graph-Reduce-Eta
+time                 80.18 μs   (79.93 μs .. 80.45 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 80.00 μs   (79.80 μs .. 80.27 μs)
+std dev              782.4 ns   (627.7 ns .. 984.2 ns)
+
+benchmarking tak       Graph-Reduce-Lin
+time                 83.15 μs   (82.90 μs .. 83.40 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 83.21 μs   (82.88 μs .. 83.46 μs)
+std dev              1.085 μs   (865.6 ns .. 1.588 μs)
+
+benchmarking tak       Graph-Reduce-Log
+time                 102.7 μs   (102.2 μs .. 103.1 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 102.7 μs   (102.3 μs .. 103.0 μs)
+std dev              1.257 μs   (983.0 ns .. 1.737 μs)
+
+benchmarking tak       HHI-Reduce
+time                 30.35 μs   (30.19 μs .. 30.52 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 30.40 μs   (30.28 μs .. 30.52 μs)
+std dev              408.9 ns   (329.6 ns .. 517.3 ns)
+
+benchmarking tak       HHI-Eta
+time                 21.28 μs   (21.22 μs .. 21.34 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 21.29 μs   (21.21 μs .. 21.38 μs)
+std dev              274.6 ns   (220.3 ns .. 337.3 ns)
+
+benchmarking tak       HHI-Bulk
+time                 17.90 μs   (17.82 μs .. 17.96 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 17.85 μs   (17.78 μs .. 17.94 μs)
+std dev              261.2 ns   (197.6 ns .. 326.4 ns)
+variance introduced by outliers: 11% (moderately inflated)
+
+benchmarking tak       HHI-Bulk-Log
+time                 17.97 μs   (17.86 μs .. 18.07 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 17.92 μs   (17.82 μs .. 18.04 μs)
+std dev              375.7 ns   (287.7 ns .. 557.5 ns)
+variance introduced by outliers: 19% (moderately inflated)
+
+benchmarking tak       HHI-Break-Bulk
+time                 21.81 μs   (21.63 μs .. 21.96 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 21.84 μs   (21.75 μs .. 21.92 μs)
+std dev              290.9 ns   (227.9 ns .. 370.4 ns)
+
+benchmarking tak       HHI-Break-Log
+time                 26.21 μs   (26.11 μs .. 26.30 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 26.21 μs   (26.13 μs .. 26.31 μs)
+std dev              285.0 ns   (238.6 ns .. 364.2 ns)
+
+benchmarking tak       Native
+time                 809.9 ns   (806.8 ns .. 812.5 ns)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 809.9 ns   (806.8 ns .. 814.0 ns)
+std dev              10.66 ns   (8.216 ns .. 13.47 ns)
+variance introduced by outliers: 12% (moderately inflated)

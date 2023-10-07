@@ -68,6 +68,13 @@ fibonacci = [r|
   main = fib 10
 |]
 
+
+-- data CL = Com Combinator | INT Integer | CL :@ CL
+codeSize :: CL -> Int
+codeSize (Com _) = 1
+codeSize (INT _) = 0
+codeSize (t :@ u) = codeSize t + codeSize u
+
 showCompilations :: SourceCode -> IO ()
 showCompilations source = do
   let env = parseEnvironment source
@@ -80,36 +87,43 @@ showCompilations source = do
   let expr = compileBracket env
   putStrLn "The main expression compiled to SICKBY combinator expressions by recursice bracket abstraction:"
   print expr
+  print $ codeSize expr
   putStrLn ""
 
   putStrLn "applying plain Kiselyov compilation:"
   print $ compilePlain env
+  print $ codeSize $ compilePlain env
   putStrLn ""
 
   let exprK = compileK env
   putStrLn "The main expression compiled to SICKBY combinator expressions with K-optimization:"
   print exprK
+  print $ codeSize exprK
   putStrLn ""
 
 
   let expr' = compileEta env
   putStrLn "The main expression compiled to SICKBY combinator expressions with Eta-optimization:"
   print expr'
+  print $ codeSize expr'
   putStrLn ""
 
   let expr'' = compileBulk env
   putStrLn "The main expression compiled to SICKBY combinator expressions with bulk combinators:"
   print expr''
+  print $ codeSize expr''
   putStrLn ""
 
   let expr''' = compileBulkLinear env
   putStrLn "The main expression compiled to SICKBY combinator expressions with bulk combinators and linear elimination:"
   print expr'''
+  print $ codeSize expr'''
   putStrLn ""
 
   let expr'''' = compileBulkLog env
   putStrLn "The main expression compiled to SICKBY combinator expressions with bulk combinators and logarithmic elimination:"
   print expr''''
+  print $ codeSize expr''''
   putStrLn ""
 
 

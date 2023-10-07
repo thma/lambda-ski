@@ -4,7 +4,7 @@ import Criterion.Main ( defaultMain, bench, nf )
 import Parser ( parseEnvironment, Expr(Int, App) )
 import LambdaToSKI ( compileBracket )
 import CLTerm
-import Kiselyov ( compileBulk, compileEta )
+import Kiselyov
 import GraphReduction ( allocate, normalForm, toString, Graph )
 import Data.Maybe (fromJust)
 import Data.STRef ( STRef )
@@ -23,6 +23,18 @@ loadTestCaseBulk :: SourceCode -> IO CL
 loadTestCaseBulk src = do
   let pEnv = parseEnvironment src
       expr = compileBulk pEnv
+  return expr
+
+loadTestCaseBreakBulkLinear :: SourceCode -> IO CL
+loadTestCaseBreakBulkLinear src = do
+  let pEnv = parseEnvironment src
+      expr = compileBulkLinear pEnv
+  return expr
+
+loadTestCaseBreakBulkLog :: SourceCode -> IO CL
+loadTestCaseBreakBulkLog src = do
+  let pEnv = parseEnvironment src
+      expr = compileBulkLog pEnv
   return expr
 
 loadTestCaseEta :: SourceCode -> IO CL
@@ -72,6 +84,19 @@ benchmarks = do
   akkBulk <- loadTestCaseBulk ackermann
   gauBulk <- loadTestCaseBulk gaussian
   takBulk <- loadTestCaseBulk BenchmarkSources.tak
+  facBulkLinear <- loadTestCaseBreakBulkLinear factorial
+  fibBulkLinear <- loadTestCaseBreakBulkLinear fibonacci
+  akkBulkLinear <- loadTestCaseBreakBulkLinear ackermann
+  gauBulkLinear <- loadTestCaseBreakBulkLinear gaussian
+  takBulkLinear <- loadTestCaseBreakBulkLinear BenchmarkSources.tak
+  facBulkLog <- loadTestCaseBreakBulkLog factorial
+  fibBulkLog <- loadTestCaseBreakBulkLog fibonacci
+  akkBulkLog <- loadTestCaseBreakBulkLog ackermann
+  gauBulkLog <- loadTestCaseBreakBulkLog gaussian
+  takBulkLog <- loadTestCaseBreakBulkLog BenchmarkSources.tak
+
+
+
 
   -- sanity checks
   print $ graphTest fac
@@ -84,25 +109,37 @@ benchmarks = do
 
   defaultMain [
         bench "factorial Graph-Reduce"     $ nf graphTest fac
-      , bench "factorial Graph-Reduce-Eta" $ nf graphTest facEta  
+      , bench "factorial Graph-Reduce-Eta" $ nf graphTest facEta
+      , bench "factorial Graph-Reduce-Lin" $ nf graphTest facBulkLinear
+      , bench "factorial Graph-Reduce-Log" $ nf graphTest facBulkLog
       , bench "factorial HHI-Reduce"       $ nf reducerTest fac
       , bench "factorial HHI-Eta"          $ nf reducerTest facEta
       , bench "factorial HHI-Bulk"         $ nf reducerTest facBulk
       , bench "factorial HHI-Bulk-Log"     $ nf reducerTestLog facBulk
+      , bench "factorial HHI-Break-Bulk"   $ nf reducerTest facBulkLinear
+      , bench "factorial HHI-Break-Log"    $ nf reducerTestLog facBulkLog
       , bench "factorial Native"           $ nf fact 100
       , bench "fibonacci Graph-Reduce"     $ nf graphTest fib
       , bench "fibonacci Graph-Reduce-Eta" $ nf graphTest fibEta
+      , bench "fibonacci Graph-Reduce-Lin" $ nf graphTest fibBulkLinear
+      , bench "fibonacci Graph-Reduce-Log" $ nf graphTest fibBulkLog
       , bench "fibonacci HHI-Reduce"       $ nf reducerTest fib
       , bench "fibonacci HHI-Eta"          $ nf reducerTest fibEta
       , bench "fibonacci HHi-Bulk"         $ nf reducerTest fibBulk
       , bench "fibonacci HHI-Bulk-Log"     $ nf reducerTestLog fibBulk
+      , bench "fibonacci HHI-Break-Bulk"   $ nf reducerTest fibBulkLinear
+      , bench "fibonacci HHI-Break-Log"    $ nf reducerTestLog fibBulkLog
       , bench "fibonacci Native"           $ nf fibo 10
       , bench "ackermann Graph-Reduce"     $ nf graphTest akk
       , bench "ackermann Graph-Reduce-Eta" $ nf graphTest akkEta
+      , bench "ackermann Graph-Reduce-Lin" $ nf graphTest akkBulkLinear
+      , bench "ackermann Graph-Reduce-Log" $ nf graphTest akkBulkLog
       , bench "ackermann HHI-Reduce"       $ nf reducerTest akk
       , bench "ackermann HHI-Eta"          $ nf reducerTest akkEta
       , bench "ackermann HHI-Bulk"         $ nf reducerTest akkBulk
       , bench "ackermann HHI-Bulk-Log"     $ nf reducerTestLog akkBulk
+      , bench "ackermann HHI-Break-Bulk"   $ nf reducerTest akkBulkLinear
+      , bench "ackermann HHI-Break-Log"    $ nf reducerTestLog akkBulkLog
       , bench "ackermann Native"           $ nf ack_2 2
       -- , bench "gaussian  Graph-Reduce"     $ nf graphTest gau
       -- , bench "gaussian  Graph-Reduce-Eta" $ nf graphTest gauEta
@@ -113,10 +150,14 @@ benchmarks = do
       -- , bench "gaussian  Native"           $ nf gaussianSum 100
       , bench "tak       Graph-Reduce"     $ nf graphTest tak
       , bench "tak       Graph-Reduce-Eta" $ nf graphTest takEta
+      , bench "tak       Graph-Reduce-Lin" $ nf graphTest takBulkLinear
+      , bench "tak       Graph-Reduce-Log" $ nf graphTest takBulkLog
       , bench "tak       HHI-Reduce"       $ nf reducerTest tak
       , bench "tak       HHI-Eta"          $ nf reducerTest takEta
       , bench "tak       HHI-Bulk"         $ nf reducerTest takBulk
       , bench "tak       HHI-Bulk-Log"     $ nf reducerTestLog takBulk
+      , bench "tak       HHI-Break-Bulk"   $ nf reducerTest takBulkLinear
+      , bench "tak       HHI-Break-Log"    $ nf reducerTestLog takBulkLog
       , bench "tak       Native"           $ nf tak1 (7,4,2) 
       ]
   return ()
