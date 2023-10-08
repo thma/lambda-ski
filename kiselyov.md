@@ -135,17 +135,26 @@ I will use [my original compiler](https://github.com/thma/lambda-ski/blob/main/s
 main = λx y. * x y
 ```
 
-| Compiler | Output |
-| --- | --- |
-| `compileBracket` | `MUL` |
-| `compilePlain` | `R I(B S(B(B MUL)(B K I)))` |
-| `compileK` | `R I(B B(B MUL I)))` |
-| `compileEta` | `MUL` |
-| `compileBulk` | `MUL` |
-| `compileBulkLinear` | `MUL` |
-| `compileBulkLog` | `MUL` |
+| Compiler | Output | Code Size |
+| --- | --- | --- |
+| `compileBracket` | `MUL` | 1 |
+| `compilePlain` | `R I(B S(B(B MUL)(B K I)))` | 10 |
+| `compileK` | `R I(B B(B MUL I)))` | 7 |
+| `compileEta` | `MUL` |  1 |
+| `compileBulk` | `MUL` | 1 |
+| `compileBulkLinear` | `MUL` | 1 |
+| `compileBulkLog` | `MUL` |  1 |
 
 From this simple example it's obvious that `compilePlain` and `compileK` generate a lot of redundant code. All the other compilers generate the same output as the baseline.
+
+In order to have a simple metric for quality of the code generation I am showing the code size of the generated code for each compiler. The code size is measured in the number of emitted combinators. The `codeSize` function is defined as follows:
+
+```haskell
+codeSize :: CL -> Int
+codeSize (Com _) = 1
+codeSize (INT _) = 0
+codeSize (t :@ u) = codeSize t + codeSize u
+``````
 
 Please also note that the Kiselyov algorithms may emit code for an additional `R` combinator with the following reduction rule:
 
@@ -164,15 +173,15 @@ main = fact 100
 ("main", A (Free "fact") (IN 100))
 ```
 
-| Compiler | Output |
-| --- | --- |
-| `compileBracket` | `Y(B' S(C' IF ZEROP 1)(B' S MUL(C' S K SUB1))) 100` |
-| `compilePlain` | `Y(B(S(R 1(B IF(B ZEROP I))))(B(S(B MUL I))(R(B SUB1 I)(B S(B K I))))) 100` |
-| `compileK` | `Y(B(S(C(B IF(B ZEROP I)) 1))(B(S(B MUL I))(R(B SUB1 I)(B B I)))) 100` |
-| `compileEta` | `Y(B(S(C(B IF ZEROP) 1))(B(S MUL)(R SUB1 B))) 100` |
-| `compileBulk` | `Y(B(S(C(B IF ZEROP) 1))(B(S MUL)(C C SUB1 B))) 100` |
-| `compileBulkLinear` | `Y(B(S(C(B IF ZEROP) 1))(B(S MUL)(C C SUB1 B))) 100` |
-| `compileBulkLog` | `Y(B(S(C(B IF ZEROP) 1))(B(S MUL)(C C SUB1 B))) 100` |
+| Compiler | Output | Code Size |
+| --- | --- | --- |
+| `compileBracket` | `Y(B' S(C' IF ZEROP 1)(B' S MUL(C' S K SUB1))) 100` | 13 |
+| `compilePlain` | `Y(B(S(R 1(B IF(B ZEROP I))))(B(S(B MUL I))(R(B SUB1 I)(B S(B K I))))) 100` | 23 |
+| `compileK` | `Y(B(S(C(B IF(B ZEROP I)) 1))(B(S(B MUL I))(R(B SUB1 I)(B B I)))) 100` | 21 |
+| `compileEta` | `Y(B(S(C(B IF ZEROP) 1))(B(S MUL)(R SUB1 B))) 100` | 13 |
+| `compileBulk` | `Y(B(S(C(B IF ZEROP) 1))(B(S MUL)(C C SUB1 B))) 100` | 14 |
+| `compileBulkLinear` | `Y(B(S(C(B IF ZEROP) 1))(B(S MUL)(C C SUB1 B))) 100` | 14 |
+| `compileBulkLog` | `Y(B(S(C(B IF ZEROP) 1))(B(S MUL)(C C SUB1 B))) 100` | 14 |
 
 
 What's interesting here is that only `compileEta` produces code of the same size as the baseline. All others produce code that uses at least one more combinator. Again `compilePlain` and `compileK` generate the largest code sizes.
@@ -188,15 +197,15 @@ main = fib 10
 ("main", A (Free "fib") (IN 10))
 ```
 
-| Compiler | Output |
-| --- | --- |
-| `compileBracket` | `Y(B' S(C' IF ZEROP 1)(B' S(C' IF(C EQL 1) 1)(S' S(B' S(K ADD)(C' S K SUB1))(C' S K(C SUB 2))))) 10` |
-| `compilePlain` | `Y(B(S(R 1(B IF(B ZEROP I))))(B(S(R 1(B IF(R 1(B EQL I)))))(S(B S(B(B ADD)(R(B SUB1 I)(B S(B K I)))))(R(R 2(B SUB I))(B S(B K I)))))) 10` |
-| `compileK` | `Y(B(S(C(B IF(B ZEROP I)) 1))(B(S(C(B IF(C(B EQL I) 1)) 1))(S(B S(B(B ADD)(R(B SUB1 I)(B B I))))(R(C(B SUB I) 2)(B B I))))) 10` |
-| `compileEta` | `Y(B(S(C(B IF ZEROP) 1))(B(S(C(B IF(C EQL 1)) 1))(S(B S(B(B ADD)(R SUB1 B)))(R(C SUB 2) B)))) 10` |
-| `compileBulk` | `Y(B(S(C(B IF ZEROP) 1))(B(S(C(B IF(C EQL 1)) 1))(S2(B2 ADD(C C SUB1 B))(C C(C SUB 2) B)))) 10` |
-| `compileBulkLinear` | `Y(B(S(C(B IF ZEROP) 1))(B(S(C(B IF(C EQL 1)) 1))(B(B S) B S(B B B ADD(C C SUB1 B))(C C(C SUB 2) B)))) 10` |
-| `compileBulkLog` | `Y(B(S(C(B IF ZEROP) 1))(B(S(C(B IF(C EQL 1)) 1))(S B I(B(B S) B) I(S B I B ADD(C C SUB1 B))(C C(C SUB 2) B)))) 10` |
+| Compiler | Output | Code Size |
+| --- | --- | --- |
+| `compileBracket` | `Y(B' S(C' IF ZEROP 1)(B' S(C' IF(C EQL 1) 1)(S' S(B' S(K ADD)(C' S K SUB1))(C' S K(C SUB 2))))) 10` | 27 |
+| `compilePlain` | `Y(B(S(R 1(B IF(B ZEROP I))))(B(S(R 1(B IF(R 1(B EQL I)))))(S(B S(B(B ADD)(R(B SUB1 I)(B S(B K I)))))(R(R 2(B SUB I))(B S(B K I)))))) 10` | 43 | 
+| `compileK` | `Y(B(S(C(B IF(B ZEROP I)) 1))(B(S(C(B IF(C(B EQL I) 1)) 1))(S(B S(B(B ADD)(R(B SUB1 I)(B B I))))(R(C(B SUB I) 2)(B B I))))) 10` | 39 |
+| `compileEta` | `Y(B(S(C(B IF ZEROP) 1))(B(S(C(B IF(C EQL 1)) 1))(S(B S(B(B ADD)(R SUB1 B)))(R(C SUB 2) B)))) 10` | 27 |
+| `compileBulk` | `Y(B(S(C(B IF ZEROP) 1))(B(S(C(B IF(C EQL 1)) 1))(S2(B2 ADD(C C SUB1 B))(C C(C SUB 2) B)))) 10` | 26 |
+| `compileBulkLinear` | `Y(B(S(C(B IF ZEROP) 1))(B(S(C(B IF(C EQL 1)) 1))(B(B S) B S(B B B ADD(C C SUB1 B))(C C(C SUB 2) B)))) 10` | 32 |
+| `compileBulkLog` | `Y(B(S(C(B IF ZEROP) 1))(B(S(C(B IF(C EQL 1)) 1))(S B I(B(B S) B) I(S B I B ADD(C C SUB1 B))(C C(C SUB 2) B)))) 10` | 36 |
 
 
 Here we see that `compileEta` produce code of the same size as the baseline. `compileBulk` generates code with one less combinator.
@@ -215,15 +224,15 @@ main = ack 2 2
 ("main", A (A (Free "ack") (IN 2)) (IN 2))
 ```
 
-| Compiler | Output |
-| --- | --- |
-| `compileBracket` | `Y(B' S(B S(C'(B S K)(B IF ZEROP)(C ADD 1)))(S'(B S(S(K S)))(B' S(K(S(B IF ZEROP)))(B' S(K K)(C' S(C' S K SUB1)(K 1))))(S'(B S(S(K(B S K))))(C' S K SUB1)(C' S(S(K(B S K)))(K SUB1))))) 2 2` |
-| `compilePlain` | `Y(B(S(B S(R(R 1(B ADD I))(B S(B(B IF)(B(B ZEROP)(B K I)))))))(S(B S(B(B S)(B(B(S(B IF(B ZEROP I))))(B(B(R 1))(R(B(B SUB1)(B K I))(B S(B(B S)(B(B K)(B K I)))))))))(S(B S(B(B S)(R(B(B SUB1)(B K I))(B S(B(B S)(B(B K)(B K I)))))))(B(R(B SUB1 I))(B(B S)(R(B K I)(B S(B(B S)(B(B K)(B K I)))))))))) 2 2` |
-| `compileK` | `Y(B(S(B S(R(C(B ADD I) 1)(B B(B IF(B ZEROP I))))))(S(B S(B(B S)(B(B(C(B IF(B ZEROP I))))(B(R 1)(R(B SUB1 I)(B B I))))))(S(B S(B(B B)(R(B SUB1 I)(B B I))))(B(R(B SUB1 I))(B(B B)(R I(B B I))))))) 2 2` |
-| `compileEta` | `Y(B(S(B S(R(C ADD 1)(B B(B IF ZEROP)))))(S(B S(B(B S)(B(B(C(B IF ZEROP)))(B(R 1)(R SUB1 B)))))(S(B S(B(B B)(R SUB1 B)))(B(R SUB1)(B B))))) 2 2` |
-| `compileBulk` | `Y(B(S2(C C(C ADD 1)(B B(B IF ZEROP))))(S3(B2(C(B IF ZEROP))(C C2 1(C C SUB1 B)))(S2(B2 B(C C SUB1 B))(C C2 SUB1(B B))))) 2 2` |
-| `compileBulkLinear` | `Y(B(B(B S) B S(C C(C ADD 1)(B B(B IF ZEROP))))(B(B S) B(B(B S) B S)(B B B(C(B IF ZEROP))(C(B(B C) B C) 1(C C SUB1 B)))(B(B S) B S(B B B B(C C SUB1 B))(C(B(B C) B C) SUB1(B B))))) 2 2` |
-| `compileBulkLog` | `Y(B(S B I(B(B S) B) I(C C(C ADD 1)(B B(B IF ZEROP))))(B(B(B(B S) B))(S B I)(B(B S) B) I(S B I B(C(B IF ZEROP))(C(S B I(B(B C) B) I) 1(C C SUB1 B)))(S B I(B(B S) B) I(S B I B B(C C SUB1 B))(C(S B I(B(B C) B) I) SUB1(B B))))) 2 2` |
+| Compiler | Output | Code Size |
+| --- | --- | --- |
+| `compileBracket` | `Y(B' S(B S(C'(B S K)(B IF ZEROP)(C ADD 1)))(S'(B S(S(K S)))(B' S(K(S(B IF ZEROP)))(B' S(K K)(C' S(C' S K SUB1)(K 1))))(S'(B S(S(K(B S K))))(C' S K SUB1)(C' S(S(K(B S K)))(K SUB1))))) 2 2` | 59 |
+| `compilePlain` | `Y(B(S(B S(R(R 1(B ADD I))(B S(B(B IF)(B(B ZEROP)(B K I)))))))(S(B S(B(B S)(B(B(S(B IF(B ZEROP I))))(B(B(R 1))(R(B(B SUB1)(B K I))(B S(B(B S)(B(B K)(B K I)))))))))(S(B S(B(B S)(R(B(B SUB1)(B K I))(B S(B(B S)(B(B K)(B K I)))))))(B(R(B SUB1 I))(B(B S)(R(B K I)(B S(B(B S)(B(B K)(B K I)))))))))) 2 2` | 103 |
+| `compileK` | `Y(B(S(B S(R(C(B ADD I) 1)(B B(B IF(B ZEROP I))))))(S(B S(B(B S)(B(B(C(B IF(B ZEROP I))))(B(R 1)(R(B SUB1 I)(B B I))))))(S(B S(B(B B)(R(B SUB1 I)(B B I))))(B(R(B SUB1 I))(B(B B)(R I(B B I))))))) 2 2` | 66 |
+| `compileEta` | `Y(B(S(B S(R(C ADD 1)(B B(B IF ZEROP)))))(S(B S(B(B S)(B(B(C(B IF ZEROP)))(B(R 1)(R SUB1 B)))))(S(B S(B(B B)(R SUB1 B)))(B(R SUB1)(B B))))) 2 2` | 44 |
+| `compileBulk` | `Y(B(S2(C C(C ADD 1)(B B(B IF ZEROP))))(S3(B2(C(B IF ZEROP))(C C2 1(C C SUB1 B)))(S2(B2 B(C C SUB1 B))(C C2 SUB1(B B))))) 2 2` | 36 |
+| `compileBulkLinear` | `Y(B(B(B S) B S(C C(C ADD 1)(B B(B IF ZEROP))))(B(B S) B(B(B S) B S)(B B B(C(B IF ZEROP))(C(B(B C) B C) 1(C C SUB1 B)))(B(B S) B S(B B B B(C C SUB1 B))(C(B(B C) B C) SUB1(B B))))) 2 2` | 64 |
+| `compileBulkLog` | `Y(B(S B I(B(B S) B) I(C C(C ADD 1)(B B(B IF ZEROP))))(B(B(B(B S) B))(S B I)(B(B S) B) I(S B I B(C(B IF ZEROP))(C(S B I(B(B C) B) I) 1(C C SUB1 B)))(S B I(B(B S) B) I(S B I B B(C C SUB1 B))(C(S B I(B(B C) B) I) SUB1(B B))))) 2 2` | 83 |
 
 As mentioned in my last post the output size of braxcket abstraction grows quadratic with the number of variables.
 In this case with three variables the output size for the bracket abstraction is already significantly larger than for 
@@ -244,15 +253,15 @@ main = tak 7 4 2
 ("main",A (A (A (Free "tak") (IN 7)) (IN 4)) (IN 2))
 ```
 
-| Compiler | Output |
-| --- | --- |
-| `compileBracket` | `Y(B' S(B'(S(K S))(S(K S))(B' S(K IF)(B' S GEQ K)))(S'(B S(S(K(B S(S(K S))))))(S'(B S(S(K(B S(S(K S))))))(S'(B'(S(K(B'(S(K S)) K S))) K S) K(C' S K SUB1))(C'(B'(S(K(B S K))) S(S(K S)))(C' S K SUB1)(B K K)))(C'(B S(S(K(B'(S(K S)) K S))))(C'(B'(S(K S)) K S)(C' S K SUB1) K)(K K)))) 7 4 2` |
-| `compilePlain` | `Y(B(S(B S(B(B S)(B(R I)(B(B S)(B(B(B IF))(B(S(B S(B(B GEQ)(B K I))))(B(B K)(B K I)))))))))(S(B S(B(B S)(B(B(B S))(S(B S(B(B S)(B(B(B S))(S(B S(B(B S)(B(B(B S))(B(B(B K))(B(B K)(B K I))))))(B(B(R I))(B(B(B S))(B(R(B K I))(B(B S)(B(B(B S))(R(B(B(B SUB1))(B(B K)(B K I)))(B S(B(B S)(B(B(B S))(B(B(B K))(B(B K)(B K I))))))))))))))))(R(B(B K)(B K I))(B S(B(B S)(B(B(B S))(B(B(R I))(B(B(B S))(B(R(B(B SUB1)(B K I)))(B(B S)(B(B(B S))(B(B(B K))(B(B K)(B K I))))))))))))))))(B(R(B K I))(B(B S)(B(B(B S))(R(B(B K)(B K I))(B S(B(B S)(B(B(B S))(B(B(R(B SUB1 I)))(B(B(B S))(B(B(B K))(B(B K)(B K I)))))))))))))) 7 4 2` |
-| `compileK` | `Y(B(S(B S(B(B S)(B(R I)(B(B B)(B(B IF)(B(C(B GEQ I)) I)))))))(S(B S(B(B S)(B(B(B S))(S(B S(B(B S)(B(B(B S))(S(B B(B B(B B I)))(B(B(R I))(B(B(B B))(B(R I)(B(B B)(R(B SUB1 I)(B B I))))))))))(R I(B B(B C(B(B C)(B(R I)(B(B B)(R(B SUB1 I)(B B I))))))))))))(B(R I)(B(B B)(B(B C)(R I(B B(B C(R(B SUB1 I)(B B I)))))))))) 7 4 2` |
-| `compileEta` | `Y(B(S(B S(B(B S)(B(B IF)(C GEQ)))))(S(B S(B(B S)(B(B(B S))(S(B S(B(B S)(B(B(B S))(S(B B(B B B))(R SUB1 B)))))(B C(B(B C)(R SUB1 B)))))))(B(B C)(B C(R SUB1 B))))) 7 4 2` |
-| `compileBulk` | `Y(B(S3(B2 IF(C GEQ)))(S4(S4(S B3(C C SUB1 B))(B C2(C C SUB1 B)))(B2 C(B C(C C SUB1 B))))) 7 4 2` |
-| `compileBulkLinear` | `Y(B(B(B S) B(B(B S) B S)(B B B IF(C GEQ)))(B(B S) B(B(B S) B(B(B S) B S))(B(B S) B(B(B S) B(B(B S) B S))(S(B B(B B B))(C C SUB1 B))(B(B(B C) B C)(C C SUB1 B)))(B B B C(B C(C C SUB1 B))))) 7 4 2` |
-| `compileBulkLog` | `Y(B(B(B(B(B S) B))(S B I)(B(B S) B) I(S B I B IF(C GEQ)))(S B I(S B I(B(B S) B)) I(S B I(S B I(B(B S) B)) I(S(B(B B)(S B I) B)(C C SUB1 B))(B(S B I(B(B C) B) I)(C C SUB1 B)))(S B I B C(B C(C C SUB1 B))))) 7 4 2` |
+| Compiler | Output | Code Size |
+| --- | --- | --- |
+| `compileBracket` | `Y(B' S(B'(S(K S))(S(K S))(B' S(K IF)(B' S GEQ K)))(S'(B S(S(K(B S(S(K S))))))(S'(B S(S(K(B S(S(K S))))))(S'(B'(S(K(B'(S(K S)) K S))) K S) K(C' S K SUB1))(C'(B'(S(K(B S K))) S(S(K S)))(C' S K SUB1)(B K K)))(C'(B S(S(K(B'(S(K S)) K S))))(C'(B'(S(K S)) K S)(C' S K SUB1) K)(K K)))) 7 4 2` | 98 |
+| `compilePlain` | `Y(B(S(B S(B(B S)(B(R I)(B(B S)(B(B(B IF))(B(S(B S(B(B GEQ)(B K I))))(B(B K)(B K I)))))))))(S(B S(B(B S)(B(B(B S))(S(B S(B(B S)(B(B(B S))(S(B S(B(B S)(B(B(B S))(B(B(B K))(B(B K)(B K I))))))(B(B(R I))(B(B(B S))(B(R(B K I))(B(B S)(B(B(B S))(R(B(B(B SUB1))(B(B K)(B K I)))(B S(B(B S)(B(B(B S))(B(B(B K))(B(B K)(B K I))))))))))))))))(R(B(B K)(B K I))(B S(B(B S)(B(B(B S))(B(B(R I))(B(B(B S))(B(R(B(B SUB1)(B K I)))(B(B S)(B(B(B S))(B(B(B K))(B(B K)(B K I))))))))))))))))(B(R(B K I))(B(B S)(B(B(B S))(R(B(B K)(B K I))(B S(B(B S)(B(B(B S))(B(B(R(B SUB1 I)))(B(B(B S))(B(B(B K))(B(B K)(B K I)))))))))))))) 7 4 2` | 221 |
+| `compileK` | `Y(B(S(B S(B(B S)(B(R I)(B(B B)(B(B IF)(B(C(B GEQ I)) I)))))))(S(B S(B(B S)(B(B(B S))(S(B S(B(B S)(B(B(B S))(S(B B(B B(B B I)))(B(B(R I))(B(B(B B))(B(R I)(B(B B)(R(B SUB1 I)(B B I))))))))))(R I(B B(B C(B(B C)(B(R I)(B(B B)(R(B SUB1 I)(B B I))))))))))))(B(R I)(B(B B)(B(B C)(R I(B B(B C(R(B SUB1 I)(B B I)))))))))) 7 4 2` | 116 |
+| `compileEta` | `Y(B(S(B S(B(B S)(B(B IF)(C GEQ)))))(S(B S(B(B S)(B(B(B S))(S(B S(B(B S)(B(B(B S))(S(B B(B B B))(R SUB1 B)))))(B C(B(B C)(R SUB1 B)))))))(B(B C)(B C(R SUB1 B))))) 7 4 2` | 58 |
+| `compileBulk` | `Y(B(S3(B2 IF(C GEQ)))(S4(S4(S B3(C C SUB1 B))(B C2(C C SUB1 B)))(B2 C(B C(C C SUB1 B))))) 7 4 2` | 29  
+| `compileBulkLinear` | `Y(B(B(B S) B(B(B S) B S)(B B B IF(C GEQ)))(B(B S) B(B(B S) B(B(B S) B S))(B(B S) B(B(B S) B(B(B S) B S))(S(B B(B B B))(C C SUB1 B))(B(B(B C) B C)(C C SUB1 B)))(B B B C(B C(C C SUB1 B))))) 7 4 2` | 73 |
+| `compileBulkLog` | `Y(B(B(B(B(B S) B))(S B I)(B(B S) B) I(S B I B IF(C GEQ)))(S B I(S B I(B(B S) B)) I(S B I(S B I(B(B S) B)) I(S(B(B B)(S B I) B)(C C SUB1 B))(B(S B I(B(B C) B) I)(C C SUB1 B)))(S B I B C(B C(C C SUB1 B))))) 7 4 2` | 81 |
 
 In this example with four variables the trend continues. `compileEta` produces code is significantly smaller as the baseline. And `compileBulk` output now is only about 1/3 of the baseline.
 
@@ -388,23 +397,89 @@ Overall `compileEta` gives the best result for the Graph Reduction Engine.
 
 ### Performance figures for the HHI-Reducer
 
-| execution time [μs] | compileBracket | compileEta | compileBulk (linear execution) | compileBulk (logarith. execution) |compileBulkLinear | compileBulkLog |
+first all figures without the Bulk Combinators execution
+
+| execution time [μs] | compileBracket | compileEta | compileBulkLinear | compileBulkLog |
+| --- | --- | --- | --- | --- | 
+| factorial | 14.29 | 14.30 | 14.33 | 14.28 |
+| fibonacci | 25.53 | 25.68 | 25.88 | 27.12 |
+| ackermann | 10.19 | 7.309 | 8.012 | 10.12 |
+| tak       | 30.35 | 21.28 | 21.81 | 26.21 |
+
+The absolute execeution times are significantly smaller than for the Graph Reduction Engine. But the relative performance figures are very similar. Again `compileEta` gives the best result for the HHI-Reducer. In particular for `ackermann` and `tak` the performance of `compileEta` code is significantly better than for the other compilers.
+
+### Performance figures with Bulk Combinators execution
+
+Now we want to see whether the native implementation of Bulk Combinators in the HHI-Reducer - [as outlined in the previous section](#executing-bulk-combinators) - can beat the performance of the `compileEta` compilation.
+
+| execution time [μs] | compileBracket | compileEta | compileBulk (lin. execution) | compileBulk (log. execution) |compileBulkLinear | compileBulkLog |
 | --- | --- | --- | --- | --- | --- | --- |
 | factorial | 14.29 | 14.30 | 14.34 | 14.28 | 14.33 | 14.28 |
 | fibonacci | 25.53 | 25.68 | 25.73 | 25.91 | 25.88 | 27.12 |
 | ackermann | 10.19 | 7.309 | 7.350 | 7.349 | 8.012 | 10.12 |
 | tak | 30.35 | 21.28 | 17.90 | 17.97 | 21.81 | 26.21 |
 
+I see two main findings here:
 
-| code size [# comb.] | compileBracket | compileEta | compileBulk (linear execution) | compileBulk (logarith. execution) |compileBulkLinear | compileBulkLog |
+1. For `factorial`, `fibonacci` and `ackermann` the performance of linear and logarithmic execution of Bulk Combinators is not better than the performance of `compileEta` code.
+
+    But for `tak` the performance of both linear and logarithmic execution of Bulk Combinators is significantly better than the performance of `compileEta` code. The linear exceution of Bulk Combinators is slightly faster than the logarithmic execution.
+
+2. The native implementation of Bulk Combinators is significantly faster than the `resolveBulkLinear` and `resolveBulkLog` for `ackermann` and `tak`. 
+
+Let's put these results into perspective by comparing them to the emitted code size (in number of combinators):
+
+
+| code size [# comb.] | compileBracket | compileEta | compileBulk (lin. execution) | compileBulk (log. execution) |compileBulkLinear | compileBulkLog |
 | --- | --- | --- | --- | --- | --- | --- |
 | factorial | 13 | 13 | 14 | 14 | 14 | 14 |
 | fibonacci | 27 | 27 | 26 | 26 | 32 | 36 |
 | ackermann | 59 | 44 | 36 | 36 | 64 | 83 |
 | tak | 98 | 58 | 29 | 29 | 73 | 81 |
 
+1. For `factorial` and `fibonacci` the code size is very similar for all compilers. And the performance figures also don't vary much.
 
+    For `ackermann` the code size for `compileBulk` is about 82% of the code size for `compileEta`. But the execution time is not faster. This is due to the fact that the Bulk Combinator are more complex than the standard combinators. So the execution time per combinator is higher.
+
+    For `tak` the code size for `compileBulk` is only 50% of the code size for `compileEta`. The execution time is now 84% of the execution time for `compileEta`. So even if the execution time per combinator is higher the overall execution time is now lower as the code size is significantly smaller.
+
+2. Looking at the code sizes of the `compileBulkLinear` and `compileBulkLog` compilers we see that the code size is signifantly larger than for the `compileEta` and `compileBulk` compilers for `ackermann` and `tak`. So it is now wonder that the execution time is slower than for the ``compileEta` and `compileBulk` compilers.
+
+### Comparison to native Haskell code
+
+As a final comparison I have also implemented the factorial, fibonacci, ackermann and tak functions as native Haskell functions. To make the comparison fair I have used a notation using the `fix` function to implement the Y-Combinator. See for example the implementation of the factorial function:
+
+```haskell
+fact :: Integer -> Integer
+fact = fix (\f n -> if n == 0 then 1 else n * f (n-1))
+```
+
+For Graph Reduction Engine I am using the `compileEta` compiler and for the HHI-Reducer I am using the `compileBulk` compiler with linear execution of Bulk combinators. The results are as follows:
+
+| execution time [μs] | GraphReduction with compileEta | HHI-Reducer with compileBulk (lin. ex.) | native Haskell |
+| --- | --- | --- | --- |
+| factorial | 41.26 | 14.34 | 2.776 |
+| fibonacci | 108.4 | 25.73 | 1.824 |
+| ackermann | 24.11 | 7.350 | 0.259 |
+| tak | 80.18 | 17.90 | 0.810 |
+
+In the following table I'm computing ratios to get simpler comparison metrics:
+
+| time ratios | ratio GR / HHI | ratio GR/ native | ratio HHI / native |
+| --- | --- | --- | --- |
+| factorial | 2.88 | 14.86 | 5.17 |
+| fibonacci | 4.21 | 59.43 | 14.11 |
+| ackermann | 3.28 | 93.12 | 28.38 |
+| tak | 4.48 | 98.99 | 22.10 |
 
 
 
 ## Conclusion
+
+In this post I have shown that the Kiselyov algorithms for compiling SKI combinators to lambda calculus can be used to generate code that is significantly smaller than optimized versions of classic bracket abstraction. 
+
+In particular for functions with more than two variables the generation of Bulk-Combinator code avoids the quadratic growth of the code size that is typical for bracket abstraction.
+
+The reduced code size also leads to better performance. In particular for functions with more than two variables the Kiselyov algorithms generate code that is significantly faster than optimized versions of classic bracket abstraction.
+
+I have also shown that the native implementation of Bulk Combinators in the HHI-Reducer can beat the performance of the `compileEta` compilation. In particular for functions with more than two variables the native implementation of Bulk Combinators is significantly faster. 
