@@ -13,7 +13,7 @@ module CLTerm
 
 import Parser (Expr(..))
 
-data CL = Com Combinator | INT Integer | CL :@ CL
+data CL = Com Combinator | INT Integer | CL :@ CL deriving (Eq)
 
 instance Show CL where
   showsPrec :: Int -> CL -> ShowS

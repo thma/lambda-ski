@@ -34,6 +34,7 @@ library
       Kiselyov
       LambdaToSKI
       Parser
+      TermReducer
   other-modules:
       Paths_lambda_ski
   hs-source-dirs:

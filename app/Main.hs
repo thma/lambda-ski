@@ -18,6 +18,7 @@ import System.TimeIt
 import Text.RawString.QQ
 import qualified Data.Bifunctor
 import LambdaToSKI (compileBracket)
+import TermReducer
 
 
 printGraph :: ST s (STRef s (Graph s)) -> ST s String
@@ -36,13 +37,16 @@ main = do
   hSetEncoding stdout utf8 -- this is required to handle UTF-8 characters like λ
 
   --let testSource = "main = (\\x y -> + x x) 3 4"
-  mapM_ showCompilations [prod, factorial, fibonacci, ackermann, tak]
+  mapM_ showCompilations [factorial, fibonacci, ackermann, tak]
   --demo
 
 type SourceCode = String
 
 prod :: SourceCode
-prod = "main = λx y. * x y"
+prod = [r| 
+  mult = λx y. * y x
+  main = mult 3 (+ 5 7)
+|]
 
 tak :: SourceCode
 tak = [r| 
@@ -110,6 +114,9 @@ showCompilations source = do
   print expr'
   printCS expr'
   putStrLn ""
+  --putStr "reduced: " 
+  --x <- red expr'
+  --print x
 
   let expr'' = compileBulk env
   putStrLn "The main expression compiled to SICKBY combinator expressions with bulk combinators:"
