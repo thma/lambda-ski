@@ -27,6 +27,7 @@ dependencies:
 - base >= 4.7 && < 5
 - parsec
 - raw-strings-qq
+- MicroHs
 
 library:
   source-dirs: src

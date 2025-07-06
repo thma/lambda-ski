@@ -19,6 +19,7 @@ import Text.RawString.QQ
 import qualified Data.Bifunctor
 import LambdaToSKI (compileBracket)
 import TermReducer
+import IonAssembly (toIon)
 
 
 printGraph :: ST s (STRef s (Graph s)) -> ST s String
@@ -74,7 +75,9 @@ fibonacci = [r|
 
 
 printCS :: CL -> IO ()
-printCS cl = putStrLn ("code size: " ++ show (codeSize cl))
+printCS cl = do
+  putStrLn ("ION code: " ++ toIon cl)
+  putStrLn ("code size: " ++ show (codeSize cl))
 
 -- data CL = Com Combinator | INT Integer | CL :@ CL
 codeSize :: CL -> Int
@@ -114,9 +117,7 @@ showCompilations source = do
   print expr'
   printCS expr'
   putStrLn ""
-  --putStr "reduced: " 
-  --x <- red expr'
-  --print x
+
 
   let expr'' = compileBulk env
   putStrLn "The main expression compiled to SICKBY combinator expressions with bulk combinators:"

@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.2.
+-- This file has been generated from package.yaml by hpack version 0.37.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -31,6 +31,7 @@ library
       CLTerm
       GraphReduction
       HhiReducer
+      IonAssembly
       Kiselyov
       LambdaToSKI
       Parser
@@ -40,7 +41,8 @@ library
   hs-source-dirs:
       src
   build-depends:
-      base >=4.7 && <5
+      MicroHs
+    , base >=4.7 && <5
     , parsec
     , raw-strings-qq
   default-language: GHC2021
@@ -55,7 +57,8 @@ executable benchmark
       benchmark
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      MicroHs
+    , base >=4.7 && <5
     , criterion
     , lambda-ski
     , parsec
@@ -70,7 +73,8 @@ executable lambda-ski-exe
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      MicroHs
+    , base >=4.7 && <5
     , lambda-ski
     , parsec
     , raw-strings-qq
@@ -90,7 +94,8 @@ test-suite lambda-ski-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      QuickCheck
+      MicroHs
+    , QuickCheck
     , base >=4.7 && <5
     , hspec
     , lambda-ski
