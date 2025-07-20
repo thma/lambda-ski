@@ -20,6 +20,7 @@ import qualified Data.Bifunctor
 import LambdaToSKI (compileBracket)
 import TermReducer
 import IonAssembly (toIon)
+import MicroHsExp (toMhsPrg)
 
 
 printGraph :: ST s (STRef s (Graph s)) -> ST s String
@@ -63,7 +64,7 @@ ackermann = [r|
 
 factorial :: SourceCode
 factorial = [r| 
-  fact = y(λf n. if (is0 n) 1 (* n (f (sub1 n))))
+  fact = y(λf n. if (eql n 0) 1 (* n (f (- n 1))))
   main = fact 100
 |]
 
@@ -73,6 +74,10 @@ fibonacci = [r|
   main = fib 10
 |]
 
+printMhs :: CL -> IO ()
+printMhs cl = do
+  --let (n, exps, prg) = toStringCMdl ([], toMhsExp cl)
+  putStrLn ("MicroHs expression: " ++ toMhsPrg cl)
 
 printCS :: CL -> IO ()
 printCS cl = do
@@ -98,17 +103,20 @@ showCompilations source = do
   putStrLn "The main expression compiled to SICKBY combinator expressions by recursice bracket abstraction:"
   print expr
   printCS expr
+  printMhs expr
   putStrLn ""
 
   putStrLn "applying plain Kiselyov compilation:"
   print $ compilePlain env
   printCS $ compilePlain env
+  printMhs $ compilePlain env
   putStrLn ""
 
   let exprK = compileK env
   putStrLn "The main expression compiled to SICKBY combinator expressions with K-optimization:"
   print exprK
   printCS exprK
+  printMhs exprK
   putStrLn ""
 
 
