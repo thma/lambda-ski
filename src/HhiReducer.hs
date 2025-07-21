@@ -87,7 +87,7 @@ primitives = let (-->) = (,) in
   , S      --> comS --CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!(g!x)) -- S F G X = F X (G X)
   , B      --> comB --CFun (\f -> CFun $ \g -> CFun $ \x -> f!(g!x))   -- B F G X = F (G X)
   , C      --> comC --CFun (\f -> CFun $ \g -> CFun $ \x -> f!x!g)     -- C F G X = F X G
-  , A      --> CFun (\x -> CFun $ \y -> y)                             -- A X Y = Y (λx y. y)
+  , A      --> CFun (\x -> CFun $ \y -> y)                             -- A X Y = Y 
   , R      --> CFun (\f -> CFun $ \g -> CFun $ \x -> g!x!f)            -- R F G X = G X F  
   , T      --> CFun (CFun . const)                                     -- T X Y = X
   , B'     --> comB' --CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!q!(r!s))      -- B' P Q R S = P Q (R S)

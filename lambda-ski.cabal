@@ -44,8 +44,11 @@ library
   build-depends:
       MicroHs
     , base >=4.7 && <5
+    , containers
+    , mtl
     , parsec
     , raw-strings-qq
+    , uniplate
   default-language: GHC2021
 
 executable benchmark
@@ -60,10 +63,13 @@ executable benchmark
   build-depends:
       MicroHs
     , base >=4.7 && <5
+    , containers
     , criterion
     , lambda-ski
+    , mtl
     , parsec
     , raw-strings-qq
+    , uniplate
   default-language: GHC2021
 
 executable lambda-ski-exe
@@ -76,10 +82,13 @@ executable lambda-ski-exe
   build-depends:
       MicroHs
     , base >=4.7 && <5
+    , containers
     , lambda-ski
+    , mtl
     , parsec
     , raw-strings-qq
     , timeit
+    , uniplate
   default-language: GHC2021
 
 test-suite lambda-ski-test
@@ -89,6 +98,8 @@ test-suite lambda-ski-test
       GraphReductionSpec
       ReducerKiselyovSpec
       ReducerSpec
+      SimpleTestSources
+      TermReducerSpec
       TestSources
       Paths_lambda_ski
   hs-source-dirs:
@@ -98,10 +109,13 @@ test-suite lambda-ski-test
       MicroHs
     , QuickCheck
     , base >=4.7 && <5
+    , containers
     , hspec
     , lambda-ski
+    , mtl
     , parsec
     , quickcheck-io
     , raw-strings-qq
+    , uniplate
   default-language: GHC2021
   build-tool-depends: hspec-discover:hspec-discover

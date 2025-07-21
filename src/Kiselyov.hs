@@ -15,7 +15,7 @@ module Kiselyov
 where
 import Parser
 import CLTerm
-import LambdaToSKI (transformIf, transformEnv)
+import LambdaToSKI
 
 {--
 This is almost a verbatim copy of the Kiselyov compiler from B. Lynn's exposition of Kiselyov's bracket abstraction
@@ -71,7 +71,7 @@ plain = convert (#) where
 compilePlain :: Environment -> CL
 compilePlain env = case lookup "main" env of
   Nothing   -> error "main function missing"
-  Just main -> snd $ plain (transformEnv env) (deBruijn (transformIf main))
+  Just main -> snd $ plain (desugarEnv env) (deBruijn (desugarIf main))
 
 bulk :: Combinator -> Int -> CL
 bulk c 1 = Com c
@@ -80,27 +80,27 @@ bulk c n = Com $ BulkCom (show c) n
 compileK :: Environment -> CL
 compileK env = case lookup "main" env of
   Nothing   -> error "main function missing"
-  Just main -> snd $ optK (transformEnv env) (deBruijn (transformIf main))
+  Just main -> snd $ optK (desugarEnv env) (deBruijn (desugarIf main))
 
 compileEta :: Environment -> CL
 compileEta env = case lookup "main" env of
   Nothing   -> error "main function missing"
-  Just main -> snd $ optEta (transformEnv env) (deBruijn (transformIf main))
+  Just main -> snd $ optEta (desugarEnv env) (deBruijn (desugarIf main))
 
 compileBulk :: Environment -> CL
 compileBulk env = case lookup "main" env of
   Nothing   -> error "main function missing"
-  Just main -> snd $ bulkOpt bulk (transformEnv env) (deBruijn (transformIf main))
+  Just main -> snd $ bulkOpt bulk (desugarEnv env) (deBruijn (desugarIf main))
 
 compileBulkLinear :: Environment -> CL
 compileBulkLinear env = case lookup "main" env of
   Nothing   -> error "main function missing"
-  Just main -> snd $ bulkOpt breakBulkLinear (transformEnv env) (deBruijn (transformIf main))
+  Just main -> snd $ bulkOpt breakBulkLinear (desugarEnv env) (deBruijn (desugarIf main))
 
 compileBulkLog :: Environment -> CL
 compileBulkLog env = case lookup "main" env of
   Nothing   -> error "main function missing"
-  Just main -> snd $ bulkOpt breakBulkLog (transformEnv env) (deBruijn (transformIf main))
+  Just main -> snd $ bulkOpt breakBulkLog (desugarEnv env) (deBruijn (desugarIf main))
 
 convertBool :: (([Bool], CL) -> ([Bool], CL) -> CL) -> Environment -> DB -> ([Bool], CL)
 convertBool (#) env = \case

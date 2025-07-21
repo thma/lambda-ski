@@ -28,6 +28,9 @@ dependencies:
 - parsec
 - raw-strings-qq
 - MicroHs
+- mtl
+- containers
+- uniplate
 
 library:
   source-dirs: src

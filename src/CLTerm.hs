@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module CLTerm
   (
     CL(..),
@@ -14,6 +15,7 @@ module CLTerm
   where
 
 import Parser (Expr(..))
+import Data.Data(Data)
 
 data CL = Com Combinator | INT Integer | CL :@ CL deriving (Eq)
 
@@ -27,6 +29,8 @@ instance Show CL where
       toString :: Combinator -> String
       toString (BulkCom c n) = c ++ show n
       toString c = show c
+
+instance Data CL
 
 type LeftAncestors = [CL]
 
