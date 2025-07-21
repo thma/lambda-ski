@@ -17,7 +17,7 @@ import           Control.Monad.ST (ST)
 import           Data.STRef       (STRef, newSTRef, readSTRef,
                                    writeSTRef)
 import           Parser           (Expr (..))
-import CLTerm
+import CLTerm (CL(..), Combinator(..))
 
 #if MIN_VERSION_base(4,17,0)
 -- explicit MonadFail declaration required for newer base versions
@@ -191,14 +191,6 @@ reduce R (f : g : x : _) = do
 reduce Y (p1 : _) = do
   (_yP :@: fP) <- readSTRef p1
   writeSTRef p1 (fP :@: p1)
-reduce TRUE (p1 : p2 : _) = do
-  (_ :@: thenP) <- readSTRef p1
-  thenPart <- readSTRef thenP
-  writeSTRef p2 thenPart
-reduce FALSE (p1 : p2 : _) = do
-  (_ :@: elseP) <- readSTRef p2
-  elsePart <- readSTRef elseP
-  writeSTRef p2 elsePart
 reduce ADD (p1 : p2 : _) = binaryMathOp (+) p1 p2
 reduce MUL (p1 : p2 : _) = binaryMathOp (*) p1 p2
 reduce DIV (p1 : p2 : _) = binaryMathOp div p1 p2
@@ -214,8 +206,9 @@ reduce SUB1 (p1 : _) = do
 reduce ZEROP (p1 : _) = do
   (_ :@: xP) <- readSTRef p1
   (Num xVal) <- (readSTRef <=< normalForm) xP
-  let result = if xVal == 0 then TRUE else FALSE
-  writeSTRef p1 (Comb result)
+  result <- if xVal == 0 then allocTrue else allocFalse
+  resultGraph <- readSTRef result
+  writeSTRef p1 resultGraph
 reduce _ _ = return ()
 
 binaryMathOp ::
@@ -230,6 +223,16 @@ binaryMathOp op p1 p2 = do
   (Num yVal) <- (readSTRef <=< normalForm) yP
   writeSTRef p2 (Num $ xVal `op` yVal)
 
+-- Helper functions to create Scott-encoded boolean Graph structures
+allocTrue :: ST s (STRef s (Graph s))
+allocTrue = newSTRef (Comb K)
+
+allocFalse :: ST s (STRef s (Graph s))
+allocFalse = do
+  kRef <- newSTRef (Comb K)
+  iRef <- newSTRef (Comb I)
+  newSTRef (kRef :@: iRef)
+
 -- Binary comparison operations that return TRUE/FALSE combinators
 binaryCompOp ::
   (Integer -> Integer -> Bool) ->
@@ -241,5 +244,6 @@ binaryCompOp op p1 p2 = do
   (_ :@: yP) <- readSTRef p2
   (Num xVal) <- (readSTRef <=< normalForm) xP
   (Num yVal) <- (readSTRef <=< normalForm) yP
-  let result = if xVal `op` yVal then TRUE else FALSE
-  writeSTRef p2 (Comb result)
+  result <- if xVal `op` yVal then allocTrue else allocFalse
+  resultGraph <- readSTRef result
+  writeSTRef p2 resultGraph

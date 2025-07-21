@@ -18,6 +18,19 @@ instance Show CExpr where
   show (CFun _f)  = "<function>"
   show (CInt i)   = show i
 
+-- | Convert CL expression to CExpr
+clToCExpr :: CL -> CExpr
+clToCExpr (Com c) = CComb c
+clToCExpr (INT i) = CInt i
+clToCExpr (cl1 :@ cl2) = CApp (clToCExpr cl1) (clToCExpr cl2)
+
+-- | Helper functions for Scott-encoded booleans
+trueCExpr :: CExpr
+trueCExpr = link primitives (translate trueCL)
+
+falseCExpr :: CExpr
+falseCExpr = link primitives (translate falseCL)
+
 -- | translating a CL term expression into a compiled expression
 translate :: CL -> CExpr
 translate (fun :@ arg)   = CApp (translate fun) (translate arg)
@@ -79,8 +92,6 @@ primitives = let (-->) = (,) in
   , B'     --> comB' --CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!q!(r!s))      -- B' P Q R S = P Q (R S)
   , C'     --> comC' --CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!r)      -- C' P Q R S = P (Q S) R
   , S'     --> comS' --CFun (\p -> CFun $ \q -> CFun $ \r -> CFun $ \s -> p!(q!s)!(r!s))  -- S' P Q R S = P (Q S) (R S)
-  , TRUE   --> CFun (CFun . const)                                     -- TRUE X Y = X (Scott encoded true)
-  , FALSE  --> CFun (\_ -> CFun id)                                     -- FALSE X Y = Y (Scott encoded false)
   , Y      --> CFun (\(CFun f) -> fix f)
   , ADD    --> arith (+)
   , SUB    --> arith (-)
@@ -139,27 +150,27 @@ arith op = CFun $ \(CInt a) -> CFun $ \(CInt b) -> CInt (op a b)
 
 -- Comparison operations that return TRUE/FALSE combinators
 compArith :: (Integer -> Integer -> Bool) -> CExpr
-compArith op = CFun $ \(CInt a) -> CFun $ \(CInt b) -> if op a b then CComb TRUE else CComb FALSE
+compArith op = CFun $ \(CInt a) -> CFun $ \(CInt b) -> if op a b then trueCExpr else falseCExpr
 
 eql :: (Eq a) => a -> a -> CExpr
-eql n m = if n == m then CComb TRUE else CComb FALSE
+eql n m = if n == m then trueCExpr else falseCExpr
 
 geq :: (Ord a) => a -> a -> CExpr
-geq n m = if n >= m then CComb TRUE else CComb FALSE
+geq n m = if n >= m then trueCExpr else falseCExpr
 
 leq :: (Ord a) => a -> a -> CExpr
-leq n m = if n <= m then CComb TRUE else CComb FALSE
+leq n m = if n <= m then trueCExpr else falseCExpr
 
 gre :: (Ord a) => a -> a -> CExpr
-gre n m = if n > m then CComb TRUE else CComb FALSE
+gre n m = if n > m then trueCExpr else falseCExpr
 
 le :: (Ord a) => a -> a -> CExpr
-le n m = if n < m then CComb TRUE else CComb FALSE
+le n m = if n < m then trueCExpr else falseCExpr
 
 sub1 :: CExpr -> CExpr
 sub1 (CInt n) = CInt $ n -1
 sub1 x        = error $ show x ++ " is not a number"
 
 isZero :: CExpr -> CExpr
-isZero (CInt n) = if n == 0 then CComb TRUE else CComb FALSE
-isZero _        = CComb FALSE
+isZero (CInt n) = if n == 0 then trueCExpr else falseCExpr
+isZero _        = falseCExpr

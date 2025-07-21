@@ -3,8 +3,6 @@ module TermReducer where
 import CLTerm
 
 
--- data CL = Com Combinator | INT Integer | CL :@ CL
-
 reduce :: CL -> IO CL
 reduce (Com c) = pure $ Com c
 reduce (INT i) = pure $ INT i
@@ -28,14 +26,12 @@ reduce (Com REM :@ INT i :@ INT j) = pure $ INT (i `rem` j)
 reduce (Com REM :@ i :@ j) = do ri <- red i; rj <- red j; reduce (Com REM :@ ri :@ rj)
 reduce (Com SUB1 :@ INT i) = pure $ INT (i - 1)
 reduce (Com SUB1 :@ i) = do ri <- red i; reduce (Com SUB1 :@ ri)
-reduce (Com EQL :@ INT i :@ INT j) = if i == j then pure $ Com TRUE else pure $ Com FALSE
+reduce (Com EQL :@ INT i :@ INT j) = if i == j then pure trueCL else pure falseCL
 reduce (Com EQL :@ i :@ j) = do ri <- red i; rj <- red j; reduce (Com EQL :@ ri :@ rj)
-reduce (Com GEQ :@ INT i :@ INT j) = if i >= j then pure $ Com TRUE else pure $ Com FALSE
+reduce (Com GEQ :@ INT i :@ INT j) = if i >= j then pure trueCL else pure falseCL
 reduce (Com GEQ :@ i :@ j) = do ri <- red i; rj <- red j;  reduce (Com GEQ :@ ri :@ rj)
-reduce (Com ZEROP :@ INT i) = if i == 0 then pure $ Com TRUE else pure $ Com FALSE
+reduce (Com ZEROP :@ INT i) = if i == 0 then pure trueCL else pure falseCL
 reduce (Com ZEROP :@ i) = do ri <- red i; reduce (Com ZEROP :@ ri)
-reduce (Com TRUE :@ t :@ _) = red t
-reduce (Com FALSE :@ _ :@ u) = red u
 reduce (Com B' :@ t :@ u :@ v) = pure $ t :@ (u :@ v)
 reduce (Com C' :@ t :@ u :@ v) = pure $ t :@ v :@ u
 reduce (Com S' :@ t :@ u :@ v) = pure $ (t :@ v) :@ (u :@ v)

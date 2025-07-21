@@ -7,7 +7,9 @@ module CLTerm
     fromString,
     toCL,
     LeftAncestors,
-    leftAncestors
+    leftAncestors,
+    trueCL,
+    falseCL
   )
   where
 
@@ -37,7 +39,7 @@ leftAncestors clTerm = leftAncestors' clTerm []
 
 
 data Combinator = I | K | S | B | C | Y | P | R | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP | 
-                 TRUE | FALSE | B' | C' | S' | T | 
+                 B' | C' | S' | T | 
                  BulkCom String Int
   deriving (Eq, Show)
 
@@ -63,8 +65,6 @@ fromString "sub1" = SUB1
 fromString "eql"  = EQL
 fromString "geq"  = GEQ
 fromString "is0"  = ZEROP
-fromString "true" = TRUE
-fromString "false" = FALSE
 fromString "B"    = B
 fromString "C"    = C
 fromString "S"    = S
@@ -76,3 +76,12 @@ toCL (Var s) = Com (fromString s)
 toCL (Lam x e) = error "toCL: lambda expression not in normal form"
 toCL (m `App` n) = toCL m :@ toCL n
 toCL (Int i) = INT i
+
+-- | Scott-encoded TRUE and FALSE using basic SKI combinators
+-- TRUE  = λt e. t = K
+-- FALSE = λt e. e = K I  
+trueCL :: CL
+trueCL = Com K
+
+falseCL :: CL 
+falseCL = Com K :@ Com I
