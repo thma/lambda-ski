@@ -38,7 +38,8 @@ reduce (Com B' :@ t :@ u :@ v) = t :@ (u :@ v)
 reduce (Com C' :@ t :@ u :@ v) = t :@ v :@ u
 reduce (Com S' :@ t :@ u :@ v) = (t :@ v) :@ (u :@ v)
 reduce (Com T :@ t) = t
-reduce x = error $ "not a known combinator: " ++ show x
+reduce x = x
+--reduce x = error $ "not a known combinator: " ++ show x
 
 
 red :: CL -> CL

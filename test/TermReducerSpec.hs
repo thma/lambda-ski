@@ -26,8 +26,8 @@ spec = do
       verify Simple.basicArithmetic
     it "computes basic comparison" $
       verify Simple.basicComparison
-    -- it "computes basic boolean" $
-    --   verify Simple.basicBoolean
+    it "computes basic boolean" $
+       verify Simple.basicBoolean
     it "computes basic subtraction" $
       verify Simple.basicSubtraction
     it "computes basic multiplication" $
@@ -43,7 +43,7 @@ spec = do
     it "computes simple composition" $
       verify simpleComposition
     -- it "computes Y combinator test" $
-    --   verify simpleYCombinator
+    --    verify simpleYCombinator
     -- it "computes simple fac (recursive)" $
     --   verify smallFactorial
 
@@ -123,7 +123,10 @@ runTest src = do
   -- Capture result with timeout handling
   result <- catch 
     (let actual = red aExp
-      in return $ show expected == show actual)
+      in do 
+        putStrLn $ "Expected: " ++ show expected
+        putStrLn $ "Actual: " ++ show actual 
+        return $ show expected == show actual)
     (\e -> do 
         putStrLn $ "Error during reduction: " ++ show (e :: SomeException)
         return False)

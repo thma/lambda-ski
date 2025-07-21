@@ -17,7 +17,7 @@ module CLTerm
 import Parser (Expr(..))
 import Data.Data(Data)
 
-data CL = Com Combinator | INT Integer | CL :@ CL deriving (Eq)
+data CL = Com Combinator | INT Integer | CL :@ CL deriving (Eq, Data)
 
 instance Show CL where
   showsPrec :: Int -> CL -> ShowS
@@ -29,8 +29,6 @@ instance Show CL where
       toString :: Combinator -> String
       toString (BulkCom c n) = c ++ show n
       toString c = show c
-
-instance Data CL
 
 type LeftAncestors = [CL]
 
@@ -45,7 +43,7 @@ leftAncestors clTerm = leftAncestors' clTerm []
 data Combinator = I | K | S | B | C | Y | P | R | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP | 
                  A | B' | C' | S' | T | 
                  BulkCom String Int
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data)
 
 fromString :: String -> Combinator
 fromString "i"    = I
