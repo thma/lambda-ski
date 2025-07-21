@@ -39,7 +39,7 @@ leftAncestors clTerm = leftAncestors' clTerm []
 
 
 data Combinator = I | K | S | B | C | Y | P | R | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP | 
-                 B' | C' | S' | T | 
+                 A | B' | C' | S' | T | 
                  BulkCom String Int
   deriving (Eq, Show)
 
@@ -49,6 +49,7 @@ fromString "k"    = K
 fromString "s"    = S
 fromString "b"    = B
 fromString "c"    = C
+fromString "a"    = A
 fromString "s'"   = S'
 fromString "b'"   = B'
 fromString "c'"   = C'
@@ -65,6 +66,7 @@ fromString "sub1" = SUB1
 fromString "eql"  = EQL
 fromString "geq"  = GEQ
 fromString "is0"  = ZEROP
+fromString "A"    = A
 fromString "B"    = B
 fromString "C"    = C
 fromString "S"    = S
@@ -79,9 +81,9 @@ toCL (Int i) = INT i
 
 -- | Scott-encoded TRUE and FALSE using basic SKI combinators
 -- TRUE  = λt e. t = K
--- FALSE = λt e. e = K I  
+-- FALSE = λt e. e = A (where A is λx y. y)
 trueCL :: CL
 trueCL = Com K
 
 falseCL :: CL 
-falseCL = Com K :@ Com I
+falseCL = Com A

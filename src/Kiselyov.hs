@@ -26,14 +26,14 @@ E.g. I've added access to the environment of named lambda expressions for free v
 --}
 
 data Peano = Succ Peano | Zero deriving Show
-data DB = N Peano | L DB | A DB DB | Free String | IN Integer deriving Show
+data DB = N Peano | L DB | Ap DB DB | Free String | IN Integer deriving Show
 
 deBruijn :: Expr -> DB
 deBruijn = go [] where
   go binds = \case
     Var x -> maybe (Free x) N $ index x binds
     Lam x t -> L $ go (x:binds) t
-    App t u -> A (go binds t) (go binds u)
+    App t u -> Ap (go binds t) (go binds u)
     Int i -> IN i
 
 index :: Eq a => a -> [a] -> Maybe Peano
@@ -46,7 +46,7 @@ convert (#) env = \case
   L e -> case rec e of
     (0, d) -> (0, Com K :@ d)
     (n, d) -> (n - 1, d)
-  A e1 e2 -> (max n1 n2, t1 # t2) where
+  Ap e1 e2 -> (max n1 n2, t1 # t2) where
     t1@(n1, _) = rec e1
     t2@(n2, _) = rec e2
   IN i -> (0, INT i)
@@ -71,7 +71,7 @@ plain = convert (#) where
 compilePlain :: Environment -> CL
 compilePlain env = case lookup "main" env of
   Nothing   -> error "main function missing"
-  Just main -> snd $ plain env (deBruijn main)
+  Just main -> snd $ plain (transformEnv env) (deBruijn (transformIf main))
 
 bulk :: Combinator -> Int -> CL
 bulk c 1 = Com c
@@ -80,7 +80,7 @@ bulk c n = Com $ BulkCom (show c) n
 compileK :: Environment -> CL
 compileK env = case lookup "main" env of
   Nothing   -> error "main function missing"
-  Just main -> snd $ optK env (deBruijn main)
+  Just main -> snd $ optK (transformEnv env) (deBruijn (transformIf main))
 
 compileEta :: Environment -> CL
 compileEta env = case lookup "main" env of
@@ -110,7 +110,7 @@ convertBool (#) env = \case
     ([], d) -> ([], Com K :@ d)
     (False:g, d) -> (g, ([], Com K) # (g, d))
     (True:g, d) -> (g, d)
-  A e1 e2 -> (zipWithDefault False (||) g1 g2, t1 # t2) where
+  Ap e1 e2 -> (zipWithDefault False (||) g1 g2, t1 # t2) where
     t1@(g1, _) = rec env e1
     t2@(g2, _) = rec env e2
   Free fun -> convertFree (#) env fun
@@ -171,7 +171,7 @@ bulkOpt bulkFun env = \case
     ([], d) -> ([], Com K :@ d)
     (False:g, d) -> ([], Com K) ## (g, d)
     (True:g, d) -> (g, d)
-  A e1 e2 -> rec env e1 ## rec env e2
+  Ap e1 e2 -> rec env e1 ## rec env e2
   Free s -> bulkLookup s env bulkFun--([], Com s)
   IN i -> ([False], INT i)
   where

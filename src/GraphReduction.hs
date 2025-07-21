@@ -129,6 +129,11 @@ reduce K (p1 : p2 : _) = do
   (_ :@: xP) <- readSTRef p1
   xVal <- readSTRef xP
   writeSTRef p2 xVal
+reduce A (p1 : p2 : _) = do
+  (_ :@: xP) <- readSTRef p1
+  (_ :@: yP) <- readSTRef p2
+  yVal <- readSTRef yP
+  writeSTRef p2 yVal
 reduce S (p1 : p2 : p3 : _) = do
   (_ :@: xP) <- readSTRef p1
   (_ :@: yP) <- readSTRef p2
@@ -228,10 +233,7 @@ allocTrue :: ST s (STRef s (Graph s))
 allocTrue = newSTRef (Comb K)
 
 allocFalse :: ST s (STRef s (Graph s))
-allocFalse = do
-  kRef <- newSTRef (Comb K)
-  iRef <- newSTRef (Comb I)
-  newSTRef (kRef :@: iRef)
+allocFalse = newSTRef (Comb A)
 
 -- Binary comparison operations that return TRUE/FALSE combinators
 binaryCompOp ::

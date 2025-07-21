@@ -8,6 +8,7 @@ reduce (Com c) = pure $ Com c
 reduce (INT i) = pure $ INT i
 reduce (Com I :@ t) = pure t
 reduce (Com K :@ t :@ _) = pure t
+reduce (Com A :@ _ :@ u) = pure u
 reduce (Com S :@ t :@ u :@ v) = pure $ (t :@ v) :@ (u :@ v)
 reduce (Com B :@ f :@ g :@ x) = pure $ f :@ (g :@ x)      -- B F G X = F (G X)
 reduce (Com C :@ t :@ u :@ v) = pure $ t :@ v :@ u
