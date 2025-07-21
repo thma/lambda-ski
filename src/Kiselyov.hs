@@ -15,6 +15,7 @@ module Kiselyov
 where
 import Parser
 import CLTerm
+import LambdaToSKI (transformIf, transformEnv)
 
 {--
 This is almost a verbatim copy of the Kiselyov compiler from B. Lynn's exposition of Kiselyov's bracket abstraction
@@ -84,22 +85,22 @@ compileK env = case lookup "main" env of
 compileEta :: Environment -> CL
 compileEta env = case lookup "main" env of
   Nothing   -> error "main function missing"
-  Just main -> snd $ optEta env (deBruijn main)
+  Just main -> snd $ optEta (transformEnv env) (deBruijn (transformIf main))
 
 compileBulk :: Environment -> CL
 compileBulk env = case lookup "main" env of
   Nothing   -> error "main function missing"
-  Just main -> snd $ bulkOpt bulk env (deBruijn main)
+  Just main -> snd $ bulkOpt bulk (transformEnv env) (deBruijn (transformIf main))
 
 compileBulkLinear :: Environment -> CL
 compileBulkLinear env = case lookup "main" env of
   Nothing   -> error "main function missing"
-  Just main -> snd $ bulkOpt breakBulkLinear env (deBruijn main)
+  Just main -> snd $ bulkOpt breakBulkLinear (transformEnv env) (deBruijn (transformIf main))
 
 compileBulkLog :: Environment -> CL
 compileBulkLog env = case lookup "main" env of
   Nothing   -> error "main function missing"
-  Just main -> snd $ bulkOpt breakBulkLog env (deBruijn main)
+  Just main -> snd $ bulkOpt breakBulkLog (transformEnv env) (deBruijn (transformIf main))
 
 convertBool :: (([Bool], CL) -> ([Bool], CL) -> CL) -> Environment -> DB -> ([Bool], CL)
 convertBool (#) env = \case

@@ -8,6 +8,8 @@ module LambdaToSKI
     babs,
     babs0,
     ropt,
+    transformIf,
+    transformEnv,
   )
 where
 
@@ -97,7 +99,11 @@ ropt expr =
 compileEither :: Environment -> (Environment -> Expr -> Expr) -> Either Error Expr
 compileEither env abstractFun = case lookup "main" env of
   Nothing   -> Left $ "main function missing in " ++ show env
-  Just main -> Right $ abstractFun env main
+  Just main -> Right $ abstractFun (transformEnv env) (transformIf main)
+
+-- | Transform all expressions in the environment 
+transformEnv :: Environment -> Environment
+transformEnv = map (\(name, expr) -> (name, transformIf expr))
 
 compileBracket :: Environment -> CL
 compileBracket env = compile env abstractToSKI
@@ -116,6 +122,16 @@ abstractSimple env = ropt . babs0 env
 
 abstractToCCC :: Environment -> Expr -> Expr
 abstractToCCC = cccAbs
+
+-- | Transform If expressions to Scott encoded boolean applications
+--   Detects pattern: ((if condition) thenExpr) elseExpr
+--   and transforms it to: condition thenExpr elseExpr
+transformIf :: Expr -> Expr
+transformIf (((Var "if" `App` condition) `App` thenExpr) `App` elseExpr) =
+  (transformIf condition `App` transformIf thenExpr) `App` transformIf elseExpr
+transformIf (App e1 e2) = App (transformIf e1) (transformIf e2)
+transformIf (Lam x e) = Lam x (transformIf e)
+transformIf expr = expr  -- Var, Int remain unchanged
 
 cccAbs :: Environment -> Expr -> Expr
 cccAbs env (Lam x e)

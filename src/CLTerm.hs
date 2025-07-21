@@ -37,7 +37,7 @@ leftAncestors clTerm = leftAncestors' clTerm []
 
 
 data Combinator = I | K | S | B | C | Y | P | R | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP | 
-                 IF | B' | C' | S' | T | 
+                 TRUE | FALSE | B' | C' | S' | T | 
                  BulkCom String Int
   deriving (Eq, Show)
 
@@ -63,7 +63,8 @@ fromString "sub1" = SUB1
 fromString "eql"  = EQL
 fromString "geq"  = GEQ
 fromString "is0"  = ZEROP
-fromString "if"   = IF
+fromString "true" = TRUE
+fromString "false" = FALSE
 fromString "B"    = B
 fromString "C"    = C
 fromString "S"    = S

@@ -191,27 +191,21 @@ reduce R (f : g : x : _) = do
 reduce Y (p1 : _) = do
   (_yP :@: fP) <- readSTRef p1
   writeSTRef p1 (fP :@: p1)
-reduce IF (p1 : p2 : p3 : _) = do
-  (_ :@: testP) <- readSTRef p1
-  (_ :@: xP) <- readSTRef p2
-  (_ :@: yP) <- readSTRef p3
-  test <- (readSTRef <=< normalForm) testP
-  thenPart <- readSTRef xP
-  elsePart <- readSTRef yP
-  case test of
-    (_ :@: _) -> error "does not eval to bool"
-    Comb comb -> error $ "does not eval to bool: " ++ show comb
-    Num n ->
-      if n == 1
-        then writeSTRef p3 thenPart
-        else writeSTRef p3 elsePart
+reduce TRUE (p1 : p2 : _) = do
+  (_ :@: thenP) <- readSTRef p1
+  thenPart <- readSTRef thenP
+  writeSTRef p2 thenPart
+reduce FALSE (p1 : p2 : _) = do
+  (_ :@: elseP) <- readSTRef p2
+  elsePart <- readSTRef elseP
+  writeSTRef p2 elsePart
 reduce ADD (p1 : p2 : _) = binaryMathOp (+) p1 p2
 reduce MUL (p1 : p2 : _) = binaryMathOp (*) p1 p2
 reduce DIV (p1 : p2 : _) = binaryMathOp div p1 p2
 reduce SUB (p1 : p2 : _) = binaryMathOp (-) p1 p2
 reduce REM (p1 : p2 : _) = binaryMathOp rem p1 p2
-reduce EQL (p1 : p2 : _) = binaryMathOp binOpEql p1 p2
-reduce GEQ (p1 : p2 : _) = binaryMathOp binOpGeq p1 p2
+reduce EQL (p1 : p2 : _) = binaryCompOp (==) p1 p2
+reduce GEQ (p1 : p2 : _) = binaryCompOp (>=) p1 p2
 reduce SUB1 (p1 : _) = do
   (_ :@: xP) <- readSTRef p1
   x <- normalForm xP
@@ -220,8 +214,8 @@ reduce SUB1 (p1 : _) = do
 reduce ZEROP (p1 : _) = do
   (_ :@: xP) <- readSTRef p1
   (Num xVal) <- (readSTRef <=< normalForm) xP
-  let result = if xVal == 0 then 1 else 0
-  writeSTRef p1 (Num result)
+  let result = if xVal == 0 then TRUE else FALSE
+  writeSTRef p1 (Comb result)
 reduce _ _ = return ()
 
 binaryMathOp ::
@@ -236,8 +230,16 @@ binaryMathOp op p1 p2 = do
   (Num yVal) <- (readSTRef <=< normalForm) yP
   writeSTRef p2 (Num $ xVal `op` yVal)
 
-binOpEql :: Integer -> Integer -> Integer 
-binOpEql x y = if x == y then 1 else 0
-
-binOpGeq :: Integer -> Integer -> Integer 
-binOpGeq x y = if x >= y then 1 else 0
+-- Binary comparison operations that return TRUE/FALSE combinators
+binaryCompOp ::
+  (Integer -> Integer -> Bool) ->
+  STRef s (Graph s) ->
+  STRef s (Graph s) ->
+  ST s ()
+binaryCompOp op p1 p2 = do
+  (_ :@: xP) <- readSTRef p1
+  (_ :@: yP) <- readSTRef p2
+  (Num xVal) <- (readSTRef <=< normalForm) xP
+  (Num yVal) <- (readSTRef <=< normalForm) yP
+  let result = if xVal `op` yVal then TRUE else FALSE
+  writeSTRef p2 (Comb result)
