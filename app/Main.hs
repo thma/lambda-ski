@@ -65,7 +65,7 @@ ackermann = [r|
 factorial :: SourceCode
 factorial = [r| 
   fact = y(λf n. if (eql n 0) 1 (* n (f (- n 1))))
-  main = fact 100
+  main = fact 10
 |]
 
 fibonacci :: SourceCode

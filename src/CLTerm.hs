@@ -82,10 +82,10 @@ toCL (m `App` n) = toCL m :@ toCL n
 toCL (Int i) = INT i
 
 -- | Scott-encoded TRUE and FALSE using basic SKI combinators
--- TRUE  = λt e. t = K
--- FALSE = λt e. e = A (where A is λx y. y)
+-- TRUE  = λt e. e = A (selects second argument)
+-- FALSE = λt e. t = K (selects first argument)
 trueCL :: CL
-trueCL = Com K
+trueCL = Com A
 
 falseCL :: CL 
-falseCL = Com A
+falseCL = Com K

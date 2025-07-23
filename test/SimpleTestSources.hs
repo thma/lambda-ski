@@ -14,7 +14,7 @@ basicArithmetic = [r|
 
 basicComparison :: SourceCode
 basicComparison = [r| 
-  expected = k
+  expected = a
   main = eql 5 5
 |]
 

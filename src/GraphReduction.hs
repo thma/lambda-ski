@@ -230,10 +230,10 @@ binaryMathOp op p1 p2 = do
 
 -- Helper functions to create Scott-encoded boolean Graph structures
 allocTrue :: ST s (STRef s (Graph s))
-allocTrue = newSTRef (Comb K)
+allocTrue = newSTRef (Comb A)
 
 allocFalse :: ST s (STRef s (Graph s))
-allocFalse = newSTRef (Comb A)
+allocFalse = newSTRef (Comb K)
 
 -- Binary comparison operations that return TRUE/FALSE combinators
 binaryCompOp ::

@@ -127,10 +127,12 @@ abstractToCCC = cccAbs
 
 -- | Desugar If expressions to Scott encoded boolean applications
 --   Detects pattern: ((if condition) thenExpr) elseExpr
---   and transforms it to: condition thenExpr elseExpr
+--   and transforms it to: condition elseExpr thenExpr
+--   With TRUE=A (selects second arg) and FALSE=K (selects first arg)
+--   This ensures TRUE selects thenExpr and FALSE selects elseExpr
 desugarIf :: Expr -> Expr
 desugarIf (((Var "if" `App` condition) `App` thenExpr) `App` elseExpr) =
-  (desugarIf condition `App` desugarIf thenExpr) `App` desugarIf elseExpr
+  (desugarIf condition `App` desugarIf elseExpr) `App` desugarIf thenExpr
 desugarIf (App e1 e2) = App (desugarIf e1) (desugarIf e2)
 desugarIf (Lam x e) = Lam x (desugarIf e)
 desugarIf expr = expr  -- Var, Int remain unchanged
