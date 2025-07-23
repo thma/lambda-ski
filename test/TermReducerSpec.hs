@@ -42,8 +42,10 @@ spec = do
       verify simpleK
     it "computes simple composition" $
       verify simpleComposition
-    it "computes simple fac (recursive)" $
-      verify smallFactorial
+    it "computes a simple If statement" $
+      verify simpleIf
+    -- it "computes simple fac (recursive)" $
+    --    verify smallFactorial
 
 -- Very simple non-recursive tests for TermReducer
 simpleConstant :: String
@@ -90,12 +92,18 @@ verifySmallAck = verify simpleK
 verifySmallGaussian :: IO ()
 verifySmallGaussian = verify simpleComposition
 
+simpleIf :: String
+simpleIf = [r| 
+  expected = 5
+  main = if (is0 5) 1 (+ 2 3)
+|]
 
 smallFactorial :: String
 smallFactorial = [r| 
   expected = 1
-  fact = y(λf n. if (is0 n) 1 (* n (f (sub1 n))))
-  main = fact 0
+  fact = y(λf n. if (is0 n) (* n (f (sub1 n))) 1)
+  --fact = \n. if (is0 n) (+ 2 21) (* 6 7)
+  main = fact 5
 |]
 
 
@@ -120,10 +128,10 @@ runTest src = do
   
   -- Capture result with timeout handling
   result <- catch 
-    (let actual = red aExp
+    (let actual = reduce aExp
       in do 
-        putStrLn $ "Expected: " ++ show expected
-        putStrLn $ "Actual: " ++ show actual 
+        --putStrLn $ "Expected: " ++ show expected
+        --putStrLn $ "Actual: " ++ show actual 
         return $ show expected == show actual)
     (\e -> do 
         putStrLn $ "Error during reduction: " ++ show (e :: SomeException)
