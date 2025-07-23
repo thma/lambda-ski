@@ -42,10 +42,8 @@ spec = do
       verify simpleK
     it "computes simple composition" $
       verify simpleComposition
-    -- it "computes Y combinator test" $
-    --    verify simpleYCombinator
-    -- it "computes simple fac (recursive)" $
-    --   verify smallFactorial
+    it "computes simple fac (recursive)" $
+      verify smallFactorial
 
 -- Very simple non-recursive tests for TermReducer
 simpleConstant :: String
