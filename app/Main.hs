@@ -52,13 +52,13 @@ prod = [r|
 
 tak :: SourceCode
 tak = [r| 
-  tak  = y(λf x y z. (if (geq y x) z (f (f (sub1 x) y z) (f (sub1 y) z x) (f (sub1 z) x y ))))
+  tak  = y(λf x y z. (if (geq y x) z (f (f (- x 1) y z) (f (- y 1) z x) (f (- z 1) x y ))))
   main = tak 7 4 2
 |]
 
 ackermann :: SourceCode
 ackermann = [r|
-  ack  = y(λf n m. if (is0 n) (+ m 1) (if (is0 m) (f (sub1 n) 1) (f (sub1 n) (f n (sub1 m)))))
+  ack  = y(λf n m. if (eql n 0) (+ m 1) (if (eql m 0) (f (- n 1) 1) (f (- n 1) (f n (- m 1)))))
   main = ack 2 2
 |]
 
@@ -70,7 +70,7 @@ factorial = [r|
 
 fibonacci :: SourceCode
 fibonacci = [r| 
-  fib  = y(λf n. if (is0 n) 1 (if (eql n 1) 1 (+ (f (sub1 n)) (f (sub n 2)))))
+  fib  = y(λf n. if (eql n 0) 1 (if (eql n 1) 1 (+ (f (- n 1)) (f (- n 2)))))
   main = fib 10
 |]
 
