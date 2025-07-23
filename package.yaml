@@ -57,6 +57,7 @@ executables:
     dependencies:
       - lambda-ski
       - criterion
+      - process
 
 
 tests:

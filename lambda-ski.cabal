@@ -68,6 +68,7 @@ executable benchmark
     , lambda-ski
     , mtl
     , parsec
+    , process
     , raw-strings-qq
     , uniplate
   default-language: GHC2021

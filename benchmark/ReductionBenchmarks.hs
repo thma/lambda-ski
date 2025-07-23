@@ -1,6 +1,6 @@
 module ReductionBenchmarks where
 
-import Criterion.Main ( defaultMain, bench, nf )
+import Criterion.Main ( defaultMain, bench, nf, nfIO )
 import Parser ( parseEnvironment, Expr(Int, App) )
 import LambdaToSKI ( compileBracket )
 import CLTerm
@@ -12,6 +12,8 @@ import Control.Monad.ST ( ST, runST )
 import HhiReducer
 import Control.Monad.Fix ( fix )
 import BenchmarkSources
+import MicroHsExp ( toMhsPrg )
+import System.Process ( readProcess )
 
 loadTestCase :: SourceCode -> IO CL
 loadTestCase src = do
@@ -67,6 +69,13 @@ reducerTest expr = show $ transLink primitives expr
 reducerTestLog :: CL -> String
 reducerTestLog expr = show $ transLinkLog primitives expr
 
+microHsTest :: CL -> IO String
+microHsTest expr = do 
+  let prg = toMhsPrg expr
+  -- writeFile "out.comb" prg
+  output <- readProcess "mhsEval" ["+RTS", "-r/dev/stdin", "-RTS"] prg
+  return output
+
 benchmarks :: IO ()
 benchmarks = do
   fac <- loadTestCase factorial
@@ -106,6 +115,7 @@ benchmarks = do
   print $ reducerTest facBulk
   print $ reducerTestLog facBulk
   print $ show $ fact 100
+  print <$> microHsTest fac
 
   defaultMain [
         bench "factorial Graph-Reduce"     $ nf graphTest fac
@@ -118,6 +128,7 @@ benchmarks = do
       , bench "factorial HHI-Bulk-Log"     $ nf reducerTestLog facBulk
       , bench "factorial HHI-Break-Bulk"   $ nf reducerTest facBulkLinear
       , bench "factorial HHI-Break-Log"    $ nf reducerTestLog facBulkLog
+      , bench "factorial MicroHs"          $ nfIO (microHsTest fac)
       , bench "factorial Native"           $ nf fact 100
       , bench "fibonacci Graph-Reduce"     $ nf graphTest fib
       , bench "fibonacci Graph-Reduce-Eta" $ nf graphTest fibEta
