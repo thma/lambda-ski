@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.37.0.
+-- This file has been generated from package.yaml by hpack version 0.38.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -68,7 +68,6 @@ executable benchmark
     , lambda-ski
     , mtl
     , parsec
-    , process
     , raw-strings-qq
     , uniplate
   default-language: GHC2021

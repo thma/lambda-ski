@@ -2,5 +2,5 @@ packages: .
 
 source-repository-package
     type: git
-    location: https://github.com/augustss/MicroHs.git
-    tag: 38cbb10b8f1bd5bee13d9afb2b15239d8c897000
+    location: https://github.com/thma/MicroHs.git
+    tag: 7e51fcc74d57c870ffba32a806e7013de32513b5

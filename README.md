@@ -629,3 +629,15 @@ Here are some ideas for possible future extensions and improvements.
   (implicit parallelism for strict operations, and an explicit `P`-combinator)
 
 ## Todo
+# FFI Library target (wrapper around mhseval)
+MHSEVAL_LIB = libmhseval.so
+MHSEVAL_HEADER = src/runtime/mhseval.h
+MHSEVAL_SOURCE = src/runtime/mhseval.c
+
+$(MHSEVAL_LIB): $(MHSEVAL_SOURCE) $(MHSEVAL_HEADER)
+	$(CC) $(RTSINC) -fPIC -O2 -Wall -DWANT_STDIO=1 -DWANT_FLOAT=1 -shared -o $@ $(MHSEVAL_SOURCE)
+
+mhseval-lib: $(MHSEVAL_LIB)
+
+mhseval-clean: 
+	rm -f $(MHSEVAL_LIB)

@@ -13,7 +13,7 @@ import HhiReducer
 import Control.Monad.Fix ( fix )
 import BenchmarkSources
 import MicroHsExp ( toMhsPrg )
-import System.Process ( readProcess )
+import MicroHs.Eval
 
 loadTestCase :: SourceCode -> IO CL
 loadTestCase src = do
@@ -69,12 +69,11 @@ reducerTest expr = show $ transLink primitives expr
 reducerTestLog :: CL -> String
 reducerTestLog expr = show $ transLinkLog primitives expr
 
-microHsTest :: CL -> IO String
-microHsTest expr = do 
+microHsTest :: MhsContext -> CL -> IO String
+microHsTest ctx expr = do
   let prg = toMhsPrg expr
-  -- writeFile "out.comb" prg
-  output <- readProcess "mhsEval" ["+RTS", "-r/dev/stdin", "-RTS"] prg
-  return output
+  result <- evalString ctx prg
+  return result
 
 benchmarks :: IO ()
 benchmarks = do
@@ -104,8 +103,7 @@ benchmarks = do
   gauBulkLog <- loadTestCaseBreakBulkLog gaussian
   takBulkLog <- loadTestCaseBreakBulkLog BenchmarkSources.tak
 
-
-
+  mhsContext <- createMhsContext
 
   -- sanity checks
   print $ graphTest fac
@@ -114,61 +112,64 @@ benchmarks = do
   print $ reducerTest facEta
   print $ reducerTest facBulk
   print $ reducerTestLog facBulk
-  print $ show $ fact 100
-  print <$> microHsTest fac
+  print $ show $ fact 10
+  do 
+    microHsResult <- microHsTest mhsContext facEta
+    print microHsResult
 
   defaultMain [
         bench "factorial Graph-Reduce"     $ nf graphTest fac
       , bench "factorial Graph-Reduce-Eta" $ nf graphTest facEta
-      , bench "factorial Graph-Reduce-Lin" $ nf graphTest facBulkLinear
-      , bench "factorial Graph-Reduce-Log" $ nf graphTest facBulkLog
-      , bench "factorial HHI-Reduce"       $ nf reducerTest fac
+      -- , bench "factorial Graph-Reduce-Lin" $ nf graphTest facBulkLinear
+      -- , bench "factorial Graph-Reduce-Log" $ nf graphTest facBulkLog
+      -- , bench "factorial HHI-Reduce"       $ nf reducerTest fac
       , bench "factorial HHI-Eta"          $ nf reducerTest facEta
-      , bench "factorial HHI-Bulk"         $ nf reducerTest facBulk
-      , bench "factorial HHI-Bulk-Log"     $ nf reducerTestLog facBulk
-      , bench "factorial HHI-Break-Bulk"   $ nf reducerTest facBulkLinear
-      , bench "factorial HHI-Break-Log"    $ nf reducerTestLog facBulkLog
-      , bench "factorial MicroHs"          $ nfIO (microHsTest fac)
-      , bench "factorial Native"           $ nf fact 100
-      , bench "fibonacci Graph-Reduce"     $ nf graphTest fib
-      , bench "fibonacci Graph-Reduce-Eta" $ nf graphTest fibEta
-      , bench "fibonacci Graph-Reduce-Lin" $ nf graphTest fibBulkLinear
-      , bench "fibonacci Graph-Reduce-Log" $ nf graphTest fibBulkLog
-      , bench "fibonacci HHI-Reduce"       $ nf reducerTest fib
-      , bench "fibonacci HHI-Eta"          $ nf reducerTest fibEta
-      , bench "fibonacci HHi-Bulk"         $ nf reducerTest fibBulk
-      , bench "fibonacci HHI-Bulk-Log"     $ nf reducerTestLog fibBulk
-      , bench "fibonacci HHI-Break-Bulk"   $ nf reducerTest fibBulkLinear
-      , bench "fibonacci HHI-Break-Log"    $ nf reducerTestLog fibBulkLog
-      , bench "fibonacci Native"           $ nf fibo 10
-      , bench "ackermann Graph-Reduce"     $ nf graphTest akk
-      , bench "ackermann Graph-Reduce-Eta" $ nf graphTest akkEta
-      , bench "ackermann Graph-Reduce-Lin" $ nf graphTest akkBulkLinear
-      , bench "ackermann Graph-Reduce-Log" $ nf graphTest akkBulkLog
-      , bench "ackermann HHI-Reduce"       $ nf reducerTest akk
-      , bench "ackermann HHI-Eta"          $ nf reducerTest akkEta
-      , bench "ackermann HHI-Bulk"         $ nf reducerTest akkBulk
-      , bench "ackermann HHI-Bulk-Log"     $ nf reducerTestLog akkBulk
-      , bench "ackermann HHI-Break-Bulk"   $ nf reducerTest akkBulkLinear
-      , bench "ackermann HHI-Break-Log"    $ nf reducerTestLog akkBulkLog
-      , bench "ackermann Native"           $ nf ack_2 2
-      -- , bench "gaussian  Graph-Reduce"     $ nf graphTest gau
-      -- , bench "gaussian  Graph-Reduce-Eta" $ nf graphTest gauEta
-      -- , bench "gaussian  HHI-Reduce"       $ nf reducerTest gau
-      -- , bench "gaussian  HHI-Eta"          $ nf reducerTest gauEta
-      -- , bench "gaussian  HHI-Bulk"         $ nf reducerTest gauBulk
-      -- , bench "gaussian  HHI-Bulk-Log"     $ nf reducerTestLog gauBulk
-      -- , bench "gaussian  Native"           $ nf gaussianSum 100
-      , bench "tak       Graph-Reduce"     $ nf graphTest tak
+      -- , bench "factorial HHI-Bulk"         $ nf reducerTest facBulk
+      -- , bench "factorial HHI-Bulk-Log"     $ nf reducerTestLog facBulk
+      -- , bench "factorial HHI-Break-Bulk"   $ nf reducerTest facBulkLinear
+      -- , bench "factorial HHI-Break-Log"    $ nf reducerTestLog facBulkLog
+      , bench "factorial MicroHs"          $ nfIO (microHsTest mhsContext facEta)
+      , bench "factorial Native"           $ nf fact 10
+      -- , bench "fibonacci Graph-Reduce"     $ nf graphTest fib
+      -- , bench "fibonacci Graph-Reduce-Eta" $ nf graphTest fibEta
+      -- , bench "fibonacci Graph-Reduce-Lin" $ nf graphTest fibBulkLinear
+      -- , bench "fibonacci Graph-Reduce-Log" $ nf graphTest fibBulkLog
+      -- , bench "fibonacci HHI-Reduce"       $ nf reducerTest fib
+      -- , bench "fibonacci HHI-Eta"          $ nf reducerTest fibEta
+      -- , bench "fibonacci HHi-Bulk"         $ nf reducerTest fibBulk
+      -- , bench "fibonacci HHI-Bulk-Log"     $ nf reducerTestLog fibBulk
+      -- , bench "fibonacci HHI-Break-Bulk"   $ nf reducerTest fibBulkLinear
+      -- , bench "fibonacci HHI-Break-Log"    $ nf reducerTestLog fibBulkLog
+      -- , bench "fibonacci Native"           $ nf fibo 10
+      -- , bench "ackermann Graph-Reduce"     $ nf graphTest akk
+      -- , bench "ackermann Graph-Reduce-Eta" $ nf graphTest akkEta
+      -- , bench "ackermann Graph-Reduce-Lin" $ nf graphTest akkBulkLinear
+      -- , bench "ackermann Graph-Reduce-Log" $ nf graphTest akkBulkLog
+      -- , bench "ackermann HHI-Reduce"       $ nf reducerTest akk
+      -- , bench "ackermann HHI-Eta"          $ nf reducerTest akkEta
+      -- , bench "ackermann HHI-Bulk"         $ nf reducerTest akkBulk
+      -- , bench "ackermann HHI-Bulk-Log"     $ nf reducerTestLog akkBulk
+      -- , bench "ackermann HHI-Break-Bulk"   $ nf reducerTest akkBulkLinear
+      -- , bench "ackermann HHI-Break-Log"    $ nf reducerTestLog akkBulkLog
+      -- , bench "ackermann Native"           $ nf ack_2 2
+      -- -- , bench "gaussian  Graph-Reduce"     $ nf graphTest gau
+      -- -- , bench "gaussian  Graph-Reduce-Eta" $ nf graphTest gauEta
+      -- -- , bench "gaussian  HHI-Reduce"       $ nf reducerTest gau
+      -- -- , bench "gaussian  HHI-Eta"          $ nf reducerTest gauEta
+      -- -- , bench "gaussian  HHI-Bulk"         $ nf reducerTest gauBulk
+      -- -- , bench "gaussian  HHI-Bulk-Log"     $ nf reducerTestLog gauBulk
+      -- -- , bench "gaussian  Native"           $ nf gaussianSum 100
+      -- , bench "tak       Graph-Reduce"     $ nf graphTest tak
       , bench "tak       Graph-Reduce-Eta" $ nf graphTest takEta
-      , bench "tak       Graph-Reduce-Lin" $ nf graphTest takBulkLinear
-      , bench "tak       Graph-Reduce-Log" $ nf graphTest takBulkLog
-      , bench "tak       HHI-Reduce"       $ nf reducerTest tak
+      -- , bench "tak       Graph-Reduce-Lin" $ nf graphTest takBulkLinear
+      -- , bench "tak       Graph-Reduce-Log" $ nf graphTest takBulkLog
+      -- , bench "tak       HHI-Reduce"       $ nf reducerTest tak
       , bench "tak       HHI-Eta"          $ nf reducerTest takEta
-      , bench "tak       HHI-Bulk"         $ nf reducerTest takBulk
-      , bench "tak       HHI-Bulk-Log"     $ nf reducerTestLog takBulk
-      , bench "tak       HHI-Break-Bulk"   $ nf reducerTest takBulkLinear
-      , bench "tak       HHI-Break-Log"    $ nf reducerTestLog takBulkLog
+      -- , bench "tak       HHI-Bulk"         $ nf reducerTest takBulk
+      -- , bench "tak       HHI-Bulk-Log"     $ nf reducerTestLog takBulk
+      -- , bench "tak       HHI-Break-Bulk"   $ nf reducerTest takBulkLinear
+      -- , bench "tak       HHI-Break-Log"    $ nf reducerTestLog takBulkLog
+      , bench "tak       MicroHs"          $ nfIO (microHsTest mhsContext takEta)
       , bench "tak       Native"           $ nf tak1 (7,4,2) 
       ]
   return ()
@@ -202,5 +203,3 @@ takN :: Integer -> Integer -> Integer -> Integer
 takN  = fix (\f x y z -> (if y >= x then z else f (f (x-1) y z) (f (y-1) z x) (f (z-1) x y )))
 
 tak1 (x,y,z) = takN x y z
-
-

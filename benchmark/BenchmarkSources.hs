@@ -35,7 +35,7 @@ gaussian = [r|
 
 tak :: SourceCode
 tak = [r| 
-  expected = 4
-  tak  = y(λf x y z. (if (geq y x) z (f (f (sub1 x) y z) (f (sub1 y) z x) (f (sub1 z) x y ))))
-  main = tak 7 4 2
+  expected = 6
+  tak  = y(λf x y z. (if (geq y x) z (f (f (- x 1) y z) (f (- y 1) z x) (f (- z 1) x y ))))
+  main = tak 18 6 3
 |]
