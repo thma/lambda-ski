@@ -6,6 +6,5 @@ fac n = n * fac(n - 1)
 
 main :: IO ()
 main = do
-  let rs = map fac [1,2,3,10]
-  putStrLn "Some factorials"
-  print rs
+  putStrLn "computing some factorials"
+  print $ map fac [0..10]

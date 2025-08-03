@@ -13,7 +13,7 @@ import HhiReducer
 import Control.Monad.Fix ( fix )
 import BenchmarkSources
 import MicroHsExp ( toMhsPrg )
-import MicroHs.Eval
+import MicroHs.MhsEval
 
 loadTestCase :: SourceCode -> IO CL
 loadTestCase src = do
@@ -72,7 +72,7 @@ reducerTestLog expr = show $ transLinkLog primitives expr
 microHsTest :: MhsContext -> CL -> IO String
 microHsTest ctx expr = do
   let prg = toMhsPrg expr
-  result <- evalString ctx prg
+  result <- eval ctx prg
   return result
 
 benchmarks :: IO ()

@@ -22,7 +22,7 @@ import LambdaToSKI (compileBracket)
 import TermReducer
 import IonAssembly (toIon)
 import MicroHsExp (toMhsPrg)
-import MicroHs.Eval (withMhsContext, evalString)
+import MicroHs.MhsEval (withMhsContext, eval, run)
 import MicroHs.Main (main)
 
 
@@ -36,7 +36,6 @@ reduceGraph graph = do
   gP <- graph
   normalForm gP
 
-
 main :: IO ()
 main = do
   hSetEncoding stdin utf8 -- this is required to handle UTF-8 characters like λ
@@ -44,17 +43,22 @@ main = do
   let source = ackermann
   let env = parseEnvironment source
   let expr' = compileEta env
-  --let prg = toMhsPrg expr'
-  --print prg
+  let prg = toMhsPrg expr'
   
-  -- use MicroHs to compile the Example.hs program
-  withArgs ["Example"] MicroHs.Main.main
-  prg <- readFile "out.comb"
+  -- use MicroHs to compile AND execute the Example.hs program
+  withArgs ["-r", "Example"] MicroHs.Main.main
+  --prg <- readFile "out.comb"
   
-  result <- withMhsContext $ \ctx -> do
-    evalString ctx prg
+  result <- withMhsContext $ \ctx ->
+     eval ctx prg
   putStrLn $ "Result: " ++ result
   return ()
+
+  combCode <- readFile "out.comb"
+  withMhsContext $ \ctx -> do
+    putStrLn "Running the compiled program:"
+    run ctx combCode
+
 
   --let testSource = "main = (\\x y -> + x x) 3 4"
   --mapM_ showCompilations [factorial, fibonacci, ackermann, tak]

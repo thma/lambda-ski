@@ -38,7 +38,7 @@ packages:
 extra-deps:
 #- MicroHs-0.10.5.0
 - git: https://github.com/thma/MicroHs.git
-  commit: 7e51fcc74d57c870ffba32a806e7013de32513b5
+  commit: fca862b31e7cedbf7695028b6cbefa65c9def19b
 
 
 # - acme-missiles-0.3
