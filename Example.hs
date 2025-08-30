@@ -1,10 +1,9 @@
-module Example(fac, main) where
+module Example where
 
-fac :: Int -> Int
-fac 0 = 1
-fac n = n * fac(n - 1)
+--fix :: (Int -> Int) -> Int
+fix f = f $ fix f
 
-main :: IO ()
-main = do
-  putStrLn "computing some factorials"
-  print $ map fac [0..10]
+fib :: Int -> Int
+fib  = fix (\f n -> if n <= 2 then 1 else f (n-1) + f (n - 2))
+
+main = print (fib 10)

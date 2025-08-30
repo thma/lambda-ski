@@ -8,8 +8,8 @@ type SourceCode = String
 ackermann :: SourceCode 
 ackermann = [r|
   expected = 7
-  ack  = y(λf n m. if (is0 n) (+ m 1) (if (is0 m) (f (sub1 n) 1) (f (sub1 n) (f n (sub1 m)))))
-  main = ack 2 2
+  ack  = y(λf n m. if (eql n 0) (+ m 1) (if (eql m 0) (f (- n 1) 1) (f (- n 1) (f n (- m 1)))))
+  main = ack 3 9
 |]
 
 factorial :: SourceCode
@@ -22,8 +22,8 @@ factorial = [r|
 fibonacci :: SourceCode
 fibonacci = [r| 
   expected = 89
-  fib  = y(λf n. if (is0 n) 1 (if (eql n 1) 1 (+ (f (sub1 n)) (f (sub n 2)))))
-  main = fib 10
+  fib  = y(λf n. if (leq n 1) 1 (+ (f (- n 1)) (f (- n 2))))
+  main = fib 37
 |]
 
 gaussian :: SourceCode

@@ -46,6 +46,7 @@ executables:
     dependencies:
     - lambda-ski
     - timeit
+    - process
 
   benchmark:
     main:                Main.hs

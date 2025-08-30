@@ -100,6 +100,7 @@ primitives = let (-->) = (,) in
   , MUL    --> arith (*)
   , EQL    --> compArith (==)
   , GEQ    --> compArith (>=)
+  , LEQ    --> compArith (<=)
   , ZEROP  --> CFun isZero
   ]
 

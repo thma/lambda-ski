@@ -22,9 +22,16 @@ import LambdaToSKI (compileBracket)
 import TermReducer
 import IonAssembly (toIon)
 import MicroHsExp (toMhsPrg)
-import MicroHs.MhsEval (withMhsContext, eval, run)
-import MicroHs.Main (main)
+import MhsEval (withMhsContext, eval, run)
+import qualified MicroHs.Main as MHS (main)
+import System.Process (readProcess)
 
+
+
+microHsevalTest :: CL -> IO String
+microHsevalTest expr = do
+  let prg = toMhsPrg expr
+  readProcess "mhseval" [] prg
 
 printGraph :: ST s (STRef s (Graph s)) -> ST s String
 printGraph graph = do
@@ -38,26 +45,37 @@ reduceGraph graph = do
 
 main :: IO ()
 main = do
-  hSetEncoding stdin utf8 -- this is required to handle UTF-8 characters like λ
-  hSetEncoding stdout utf8 -- this is required to handle UTF-8 characters like λ
-  let source = ackermann
+  --hSetEncoding stdin utf8 -- this is required to handle UTF-8 characters like λ
+  --hSetEncoding stdout utf8 -- this is required to handle UTF-8 characters like λ
+  let source = factorial
   let env = parseEnvironment source
   let expr' = compileEta env
+  putStrLn $ "Factorial compiled to combinator expression:\n" ++ show expr'
+
   let prg = toMhsPrg expr'
-  
-  -- use MicroHs to compile AND execute the Example.hs program
-  withArgs ["-r", "Example"] MicroHs.Main.main
-  --prg <- readFile "out.comb"
+  putStrLn $ "The resulting MicroHs program: \n" ++ prg
+
+  -- use microHs to compile 'Example.hs' to 'out.comb'
+  withArgs ["Example.hs"] MHS.main
+  -- read the program 'out.comb' into a string
+  prg' <- readFile "out.comb"
+  -- use the MicroHs runtime to execute the program
+  withMhsContext $ \ctx ->
+    run ctx prg'
+
+  -- -- use MicroHs to compile AND execute the Example.hs program
+  withArgs ["-r", "Example.hs"] MHS.main
+  -- --prg <- readFile "out.comb"
   
   result <- withMhsContext $ \ctx ->
-     eval ctx prg
+    eval ctx prg
   putStrLn $ "Result: " ++ result
-  return ()
+  -- return ()
 
-  combCode <- readFile "out.comb"
-  withMhsContext $ \ctx -> do
-    putStrLn "Running the compiled program:"
-    run ctx combCode
+  -- combCode <- readFile "out.comb"
+  -- withMhsContext $ \ctx -> do
+  --   putStrLn "Running the compiled program:"
+  --   run ctx combCode
 
 
   --let testSource = "main = (\\x y -> + x x) 3 4"
@@ -65,6 +83,12 @@ main = do
   --demo
 
 type SourceCode = String
+
+ex :: SourceCode
+ex = [r| 
+
+  main = if (eql 0 1) 23 42
+|]
 
 prod :: SourceCode
 prod = [r| 
@@ -86,7 +110,7 @@ ackermann = [r|
 
 factorial :: SourceCode
 factorial = [r| 
-  fact = y(λf n. if (eql n 0) 1 (* n (f (- n 1))))
+  fact = y(\f n. if (eql n 0) 1 (* n (f (- n 1))))
   main = fact 10
 |]
 

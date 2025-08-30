@@ -3,12 +3,10 @@ module MicroHsExp (
   toMhsPrg
 ) where
 
-import CLTerm
-import MicroHs.Exp
-import MicroHs.Expr
+import CLTerm (CL(..), Combinator(..))
+import MicroHs.Exp (Exp(..))
+import MicroHs.Expr (Lit(..))
 import MicroHs.ExpPrint (toStringCMdl)
-import MicroHs.Desugar (LDef)
-import MicroHs.Ident
 
 toMhsPrg :: CL -> String
 toMhsPrg cl = 
@@ -28,6 +26,7 @@ combToMhscomb DIV = "/"
 combToMhscomb REM = "rem"
 combToMhscomb EQL = "=="
 combToMhscomb GEQ = ">="
+combToMhscomb LEQ = "<="
 combToMhscomb c = show c
 
 

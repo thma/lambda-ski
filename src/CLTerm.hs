@@ -40,7 +40,7 @@ leftAncestors clTerm = leftAncestors' clTerm []
     leftAncestors' t stack = t : stack
 
 
-data Combinator = I | K | S | B | C | Y | P | R | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | ZEROP | 
+data Combinator = I | K | S | B | C | Y | P | R | ADD | SUB | MUL | DIV | REM | SUB1 | EQL | GEQ | LEQ | ZEROP | 
                  A | B' | C' | S' | T | 
                  BulkCom String Int
   deriving (Eq, Show, Data)
@@ -67,6 +67,7 @@ fromString "*"    = MUL
 fromString "sub1" = SUB1
 fromString "eql"  = EQL
 fromString "geq"  = GEQ
+fromString "leq"  = LEQ
 fromString "is0"  = ZEROP
 fromString "A"    = A
 fromString "B"    = B

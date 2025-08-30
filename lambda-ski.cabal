@@ -86,6 +86,7 @@ executable lambda-ski-exe
     , lambda-ski
     , mtl
     , parsec
+    , process
     , raw-strings-qq
     , timeit
     , uniplate

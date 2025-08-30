@@ -31,14 +31,14 @@ resolver: lts-23.26
 #   - wai
 packages:
 - .
+#- ../MicroHs
 # Dependency packages to be pulled from upstream that are not in the resolver.
 # These entries can reference officially published versions as well as
 # forks / in-progress versions pinned to a git hash. For example:
 #
 extra-deps:
-#- MicroHs-0.10.5.0
-- git: https://github.com/thma/MicroHs.git
-  commit: fca862b31e7cedbf7695028b6cbefa65c9def19b
+ - git: https://github.com/augustss/MicroHs.git
+   commit: aa8d6e39cc9ce7f3a23f369c5b255c1b237376f3
 
 
 # - acme-missiles-0.3
@@ -59,6 +59,9 @@ extra-deps:
 # Require a specific version of Stack, using version ranges
 # require-stack-version: -any # Default
 # require-stack-version: ">=2.11"
+#
+# Override the architecture used by Stack, using version ranges
+# ghc-version-range: ">=9.0.1"
 #
 # Override the architecture used by Stack, especially useful on Windows
 # arch: i386
