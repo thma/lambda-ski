@@ -13,6 +13,9 @@ import HhiReducer
 import Control.Monad.Fix ( fix )
 import BenchmarkSources
 import MicroHsExp ( toMhsPrg )
+import qualified MicroHs.Main as MHS (main)
+import           System.Environment (withArgs)
+import System.IO (readFile')
 import MhsEval 
 
 loadTestCase :: SourceCode -> IO CL
@@ -72,7 +75,15 @@ reducerTestLog expr = show $ transLinkLog primitives expr
 microHsTest :: MhsContext -> String -> IO ()
 microHsTest ctx prg = run ctx prg
 
-  
+microHsCompile :: FilePath -> IO String
+microHsCompile fileName = do
+  -- use microHs to compile file fileName to 'out.comb'
+  withArgs [fileName] MHS.main
+  -- return the program 'out.comb' as a string
+  content <- readFile' "out.comb"
+  --deleteFile "out.comb"
+  return content
+
 benchmarks :: IO ()
 benchmarks = do
   fac <- loadTestCase factorial
@@ -107,6 +118,11 @@ benchmarks = do
       mhsFibEta = toMhsPrg fibEta
       mhsAckEta = toMhsPrg akkEta
 
+  -- prepare MicroHs programs
+  mhsFib <- microHsCompile "benchmark/Fib.mhs"
+  mhsAkk <- microHsCompile "benchmark/Akk.mhs"
+  mhsTak <- microHsCompile "benchmark/Tak.mhs"
+
   print facEta
   print takEta
   print fibEta
@@ -130,19 +146,19 @@ benchmarks = do
       -- , bench "factorial Graph-Reduce-Lin" $ nf graphTest facBulkLinear
       -- , bench "factorial Graph-Reduce-Log" $ nf graphTest facBulkLog
       -- , bench "factorial HHI-Reduce"       $ nf reducerTest fac
-        bench "factorial HHI-Eta"          $ nf reducerTest facEta
+      --  bench "factorial HHI-Eta"          $ nf reducerTest facEta
       -- , bench "factorial HHI-Bulk"         $ nf reducerTest facBulk
       -- , bench "factorial HHI-Bulk-Log"     $ nf reducerTestLog facBulk
       -- , bench "factorial HHI-Break-Bulk"   $ nf reducerTest facBulkLinear
       -- , bench "factorial HHI-Break-Log"    $ nf reducerTestLog facBulkLog
-      , bench "factorial MicroHs"          $ nfIO (microHsTest mhsContext mhsFacEta)
-      , bench "factorial Native"           $ nf fact 10
+      --, bench "factorial MicroHs"          $ nfIO (microHsTest mhsContext mhsFacEta)
+      --, bench "factorial Native"           $ nf fact 10
       -- bench "fibonacci Graph-Reduce"     $ nf graphTest fib
       --, bench "fibonacci Graph-Reduce-Eta" $ nf graphTest fibEta
       --, bench "fibonacci Graph-Reduce-Lin" $ nf graphTest fibBulkLinear
       --, bench "fibonacci Graph-Reduce-Log" $ nf graphTest fibBulkLog
       --, bench "fibonacci HHI-Reduce"       $ nf reducerTest fib
-      , bench "fibonacci HHI-Eta"          $ nf reducerTest fibEta
+       bench "fibonacci HHI-Eta"          $ nf reducerTest fibEta
       -- , bench "fibonacci HHi-Bulk"         $ nf reducerTest fibBulk
       -- , bench "fibonacci HHI-Bulk-Log"     $ nf reducerTestLog fibBulk
       -- , bench "fibonacci HHI-Break-Bulk"   $ nf reducerTest fibBulkLinear
@@ -153,6 +169,7 @@ benchmarks = do
       --, bench "ackermann Graph-Reduce-Eta" $ nf graphTest akkEta
       -- , bench "ackermann Graph-Reduce-Lin" $ nf graphTest akkBulkLinear
       -- , bench "ackermann Graph-Reduce-Log" $ nf graphTest akkBulkLog
+      , bench "fibonacci MHS Haskell"      $ nfIO (microHsTest mhsContext mhsFib)
       , bench "ackermann HHI-Reduce"       $ nf reducerTest akkEta
       -- , bench "ackermann HHI-Eta"          $ nf reducerTest akkEta
       -- , bench "ackermann HHI-Bulk"         $ nf reducerTest akkBulk
@@ -173,6 +190,7 @@ benchmarks = do
       -- , bench "tak       Graph-Reduce-Lin" $ nf graphTest takBulkLinear
       -- , bench "tak       Graph-Reduce-Log" $ nf graphTest takBulkLog
       -- , bench "tak       HHI-Reduce"       $ nf reducerTest tak
+      , bench "ackermann MHS Haskell"      $ nfIO (microHsTest mhsContext mhsAkk)
       , bench "tak       HHI-Eta"          $ nf reducerTest takEta
       -- , bench "tak       HHI-Bulk"         $ nf reducerTest takBulk
       -- , bench "tak       HHI-Bulk-Log"     $ nf reducerTestLog takBulk
@@ -180,6 +198,7 @@ benchmarks = do
       -- , bench "tak       HHI-Break-Log"    $ nf reducerTestLog takBulkLog
       , bench "tak       MicroHs"          $ nfIO (run mhsContext mhsTakEta)
       , bench "tak       Native"           $ nf tak1 (18,6,3) 
+      , bench "tak       MHS Haskell"      $ nfIO (microHsTest mhsContext mhsTak)
       ]
   closeMhsContext mhsContext
   putStrLn "Benchmarks completed."    
@@ -214,6 +233,9 @@ tak_18_6 :: Int -> Int
 tak_18_6 = takN 18 6
 
 takN :: Int -> Int -> Int -> Int
-takN  = fix (\f x y z -> (if y >= x then z else f (f (x-1) y z) (f (y-1) z x) (f (z-1) x y )))
+takN  = fix (\f x y z -> 
+  if y >= x 
+    then z 
+    else f (f (x-1) y z) (f (y-1) z x) (f (z-1) x y ))
 
 tak1 (x,y,z) = takN x y z

@@ -1,0 +1,12 @@
+module Akk (main) where
+import Data.Function (fix)
+
+ack :: Int -> Int -> Int
+ack  = fix (\f n m ->
+  if n == 0
+    then m + 1
+    else (if m == 0
+      then f (n-1) 1
+      else f (n-1) (f n (m-1))))
+
+main = ack 3 9

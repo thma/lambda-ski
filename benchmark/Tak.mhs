@@ -1,0 +1,10 @@
+module Tak (main) where
+import Data.Function (fix)
+
+takN :: Int -> Int -> Int -> Int
+takN  = fix (\f x y z -> 
+  if y >= x 
+    then z 
+    else f (f (x-1) y z) (f (y-1) z x) (f (z-1) x y ))
+
+main = takN 18 6 3
