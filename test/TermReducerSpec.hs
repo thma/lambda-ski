@@ -129,7 +129,7 @@ runTest src = do
   
   -- Capture result with timeout handling
   result <- catch 
-    (let actual = reduce aExp
+    (let actual = reduce' aExp
       in do 
         putStrLn $ "Expected: " ++ show expected
         putStrLn $ "Actual: " ++ show actual 

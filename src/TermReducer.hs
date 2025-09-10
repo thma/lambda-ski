@@ -1,6 +1,6 @@
 module TermReducer where
 
-import Data.Generics.Uniplate.Data 
+import Data.Generics.Uniplate.Data (descend)
 import CLTerm
 
 
@@ -42,37 +42,27 @@ reduceStep ((Com A :@ x) :@ y) = y  -- A combinator: λx y. y (like TRUE, select
 reduceStep (f :@ x) = f :@ x  -- No reduction for general applications
 --reduceStep x = x
 
--- | Reduce with step limit using leftmost-outermost strategy
+
+
+-- | reduction using uniplate with custom traversal
+-- The key insight: we need to control the order of reduction
 reduce :: CL -> CL
-reduce x = 
-  let x' = reduceOnce x
-  in if x' == x 
-     then x  -- Normal form reached
-     else reduce x'
+reduce = fixpoint reduceOnce
+  where
+    fixpoint f x = let x' = f x in if x' == x then x else fixpoint f x'
 
--- | Perform one reduction step using leftmost-outermost strategy
-reduceOnce :: CL -> CL
-reduceOnce term = 
-  -- First try direct reduction at the top level
-  let stepped = reduceStep term
-  in if stepped /= term
-     then stepped  -- A reduction happened at the top level
-     else case term of
-       -- For applications, use leftmost-outermost strategy
-       f :@ x -> 
-         -- Try to reduce f first (leftmost)
-         let f' = reduceOnce f
-         in if f' /= f
-            then f' :@ x  -- If f reduced, keep x unchanged
-            else 
-              -- If f didn't reduce, try to reduce x
-              let x' = reduceOnce x
-              in if x' /= x
-                 then f :@ x'
-                 else term  -- Nothing can be reduced
-       _ -> term  -- No reduction possible
-
-
--- | reduction using transform 
-reduce' :: CL -> CL
-reduce' = transform reduceStep
+-- | One-step reduction with leftmost-outermost strategy
+-- Uses descend to try reduction at each level
+reduceOnce :: CL -> CL  
+reduceOnce term =
+  -- First try to reduce at the root
+  let rootReduced = reduceStep term
+  in if rootReduced /= term
+     then rootReduced
+     else 
+       -- If root doesn't reduce, use descend to try one level down
+       -- descend applies function to immediate children
+       let descended = descend reduceOnce' term
+       in if descended /= term
+          then descended
+          else term
