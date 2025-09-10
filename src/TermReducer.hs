@@ -1,6 +1,7 @@
 module TermReducer where
 
 import Data.Generics.Uniplate.Data (descend)
+import Control.Monad (ap)
 import CLTerm
 
 
@@ -40,16 +41,12 @@ reduceStep (Com T :@ t) = t
 reduceStep ((Com A :@ x) :@ y) = y  -- A combinator: λx y. y (like TRUE, selects second)
 -- For partial applications, don't reduce recursively in reduceStep
 reduceStep (f :@ x) = f :@ x  -- No reduction for general applications
---reduceStep x = x
-
 
 
 -- | reduction using uniplate with custom traversal
--- The key insight: we need to control the order of reduction
+-- Using 'until' from Prelude to iterate until fixed point
 reduce :: CL -> CL
-reduce = fixpoint reduceOnce
-  where
-    fixpoint f x = let x' = f x in if x' == x then x else fixpoint f x'
+reduce = until (ap (==) reduceOnce) reduceOnce
 
 -- | One-step reduction with leftmost-outermost strategy
 -- Uses descend to try reduction at each level
@@ -62,7 +59,7 @@ reduceOnce term =
      else 
        -- If root doesn't reduce, use descend to try one level down
        -- descend applies function to immediate children
-       let descended = descend reduceOnce' term
+       let descended = descend reduceOnce term
        in if descended /= term
           then descended
           else term
