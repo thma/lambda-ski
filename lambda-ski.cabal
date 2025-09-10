@@ -75,6 +75,7 @@ executable benchmark
 executable lambda-ski-exe
   main-is: Main.hs
   other-modules:
+      Eval
       Paths_lambda_ski
   hs-source-dirs:
       app

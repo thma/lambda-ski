@@ -1,79 +1,81 @@
 module TermReducer where
 
-import Data.Generics.Uniplate.Data
+import Data.Generics.Uniplate.Data 
 import CLTerm
-import Debug.Trace
 
--- reduce :: Exp -> Exp
--- reduce (((S :@ x) :@ y) :@ z) = (x :@ z) :@ (y :@ z)
--- reduce ((((S' :@ x) :@ y) :@ z) :@ w) = (x :@ (y :@ w)) :@ (z :@ w)
--- reduce ((K :@ x) :@ _y) = x
--- reduce ((A :@ _x) :@ y) = y
--- reduce ((U :@ x) :@ y) = y :@ x
--- reduce (I :@ x) = x
--- reduce (((B :@ x) :@ y) :@ z) = x :@ (y :@ z)
--- reduce ((((B' :@ x) :@ y) :@ z) :@ w) = (x :@ y) :@ (z :@ w)
--- reduce (((Z :@ x) :@ y) :@ _z) = x :@ y
--- reduce (((C :@ x) :@ y) :@ z) = (x :@ z) :@ y
--- reduce ((((C' :@ x) :@ y) :@ z) :@ w) = (x :@ (y :@ w)) :@ z
--- reduce (((P :@ x) :@ y) :@ z) = (z :@ x) :@ y
--- reduce (((R :@ x) :@ y) :@ z) = (y :@ z) :@ x
--- reduce ((((O :@ x) :@ y) :@ z) :@ w) = (w :@ x) :@ y
--- reduce (((K2 :@ x) :@ _y) :@ _z) = x
--- reduce ((((K3 :@ x) :@ _y) :@ _z) :@ _w) = x
--- reduce (((((K4 :@ x) :@ _y) :@ _z) :@ _w) :@ _v) = x
--- reduce ((((C'B :@ x) :@ y) :@ z) :@ w) = (x :@ z) :@ (y :@ w)
--- reduce (Label _ e) = e
--- reduce (Tick _ :@ e) = e
--- reduce e = e
 
 -- | Single step reduction - reduces only the outermost redex
 reduceStep :: CL -> CL
 reduceStep (Com c) = Com c
 reduceStep (INT i) = INT i
 reduceStep (Com I :@ t) = t
-reduceStep (Com K :@ t :@ u) = t
-reduceStep (Com S :@ x :@ y :@ z) = (x :@ z) :@ (y :@ z)
-reduceStep (Com B :@ f :@ g :@ x) = f :@ (g :@ x)      -- B F G X = F (G X)
-reduceStep (Com C :@ x :@ y :@ z) = x :@ z :@ y
-reduceStep yt@(Com Y :@ t) = t :@ yt
-reduceStep (Com P :@ t :@ u) = Com P :@ t :@ u
-reduceStep (Com R :@ t :@ u) = Com R :@ t :@ u
-reduceStep (Com ADD :@ INT i :@ INT j) = INT (i + j)
-reduceStep (Com SUB :@ INT i :@ INT j) = INT (i - j)
-reduceStep (Com MUL :@ INT i :@ INT j) = INT (i * j)
-reduceStep (Com DIV :@ INT i :@ INT j) = INT (i `div` j)
-reduceStep (Com REM :@ INT i :@ INT j) = INT (i `rem` j)
+reduceStep ((Com K :@ t) :@ u) = t
+reduceStep (((Com S :@ x) :@ y) :@ z) = (x :@ z) :@ (y :@ z)
+reduceStep (((Com B :@ f) :@ g) :@ x) = f :@ (g :@ x)      -- B F G X = F (G X)
+reduceStep (((Com C :@ x) :@ y) :@ z) = x :@ z :@ y
+-- Y combinator: expand only when it's applied to something
+-- Y f x should reduce to f (Y f) x, not Y f should reduce to f (Y f)
+reduceStep ((Com Y :@ f) :@ x) = (f :@ (Com Y :@ f)) :@ x
+--reduceStep (Com Y :@ t) = Com Y :@ t  -- Don't expand Y on its own
+reduceStep ((Com P :@ t) :@ u) = (Com P :@ t) :@ u  -- P doesn't reduce
+-- R takes 3 arguments: R F G X = G X F
+reduceStep (((Com R :@ f) :@ g) :@ x) = (g :@ x) :@ f
+reduceStep ((Com ADD :@ INT i) :@ INT j) = INT (i + j)
+reduceStep ((Com SUB :@ INT i) :@ INT j) = INT (i - j)
+reduceStep ((Com MUL :@ INT i) :@ INT j) = INT (i * j)
+reduceStep ((Com DIV :@ INT i) :@ INT j) = INT (i `div` j)
+reduceStep ((Com REM :@ INT i) :@ INT j) = INT (i `rem` j)
 reduceStep (Com SUB1 :@ INT i) = INT (i - 1)
-reduceStep (Com EQL :@ INT i :@ INT j) = if i == j then trueCL else falseCL
-reduceStep (Com GEQ :@ INT i :@ INT j) = if i >= j then trueCL else falseCL
+reduceStep ((Com EQL :@ INT i) :@ INT j) = if i == j then trueCL else falseCL
+reduceStep ((Com GEQ :@ INT i) :@ INT j) = if i >= j then trueCL else falseCL
 reduceStep (Com ZEROP :@ INT i) = if i == 0 then trueCL else falseCL
-reduceStep (Com ZEROP :@ i) = Com ZEROP :@ (reduce i)  -- Keep ZEROP combinator for non-integer terms
-reduceStep (Com B' :@ t :@ u :@ v) = t :@ (u :@ v)
-reduceStep (Com C' :@ t :@ u :@ v) = t :@ v :@ u
-reduceStep (Com S' :@ t :@ u :@ v) = (t :@ v) :@ (u :@ v)
+reduceStep (Com ZEROP :@ i) = Com ZEROP :@ reduceStep i  -- Reduce argument without calling full reduce
+-- B' takes 4 arguments: B' P Q R S = P Q (R S)
+reduceStep ((((Com B' :@ p) :@ q) :@ r) :@ s) = (p :@ q) :@ (r :@ s)
+-- C' takes 4 arguments: C' P Q R S = P (Q S) R
+reduceStep ((((Com C' :@ p) :@ q) :@ r) :@ s) = (p :@ (q :@ s)) :@ r
+-- S' takes 4 arguments: S' P Q R S = P (Q S) (R S)
+reduceStep ((((Com S' :@ p) :@ q) :@ r) :@ s) = (p :@ (q :@ s)) :@ (r :@ s)
 reduceStep (Com T :@ t) = t
-reduceStep (Com A :@ x :@ y) = y  -- A combinator: λx y. y (like FALSE)
--- For partial applications, try to reduce arguments
-reduceStep (f :@ x) = 
-  let f' = reduce f
-  in if f' == f 
-     then f :@ reduceStep x  -- Only reduce argument if function can't be reduced
-     else f' :@ x           -- Apply reduction to function first
+reduceStep ((Com A :@ x) :@ y) = y  -- A combinator: λx y. y (like TRUE, selects second)
+-- For partial applications, don't reduce recursively in reduceStep
+reduceStep (f :@ x) = f :@ x  -- No reduction for general applications
 reduceStep x = x
 
--- | Reduce with step limit to avoid infinite loops
+-- | Reduce with step limit using leftmost-outermost strategy
 reduceWithLimit :: Int -> CL -> CL
 reduceWithLimit 0 x = x
 reduceWithLimit n x = 
-  let x' = reduceStep (trace (show x) x)
+  let x' = reduceOnce x
   in if x' == x 
      then x  -- Normal form reached
      else reduceWithLimit (n-1) x'
 
+-- | Perform one reduction step using leftmost-outermost strategy
+reduceOnce :: CL -> CL
+reduceOnce term = 
+  -- First try direct reduction at the top level
+  let stepped = reduceStep term
+  in if stepped /= term
+     then stepped  -- A reduction happened at the top level
+     else case term of
+       -- For applications, use leftmost-outermost strategy
+       f :@ x -> 
+         -- Try to reduce f first (leftmost)
+         let f' = reduceOnce f
+         in if f' /= f
+            then f' :@ x  -- If f reduced, keep x unchanged
+            else 
+              -- If f didn't reduce, try to reduce x
+              let x' = reduceOnce x
+              in if x' /= x
+                 then f :@ x'
+                 else term  -- Nothing can be reduced
+       _ -> term  -- No reduction possible
+
 -- | Original reduce function - now with step limit
 reduce :: CL -> CL
-reduce = reduceWithLimit 50  -- Allow up to 50 reduction steps
+reduce = reduceWithLimit 1000  -- Increased limit for recursive functions
 
 -- | Deep reduction using transform (original approach)
 redDeep :: CL -> CL

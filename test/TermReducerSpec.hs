@@ -44,8 +44,8 @@ spec = do
       verify simpleComposition
     it "computes a simple If statement" $
       verify simpleIf
-    -- it "computes simple fac (recursive)" $
-    --    verify smallFactorial
+    it "computes simple fac (recursive)" $
+      verify smallFactorial
 
 -- Very simple non-recursive tests for TermReducer
 simpleConstant :: String
