@@ -46,6 +46,8 @@ spec = do
       verify simpleIf
     it "computes simple fac (recursive)" $
       verify smallFactorial
+    it "computes simple fib (recursive)" $
+      verify originalSmallFib
 
 -- Very simple non-recursive tests for TermReducer
 simpleConstant :: String
@@ -100,19 +102,18 @@ simpleIf = [r|
 
 smallFactorial :: String
 smallFactorial = [r| 
-  expected = 1
-  fact = y(λf n. if (is0 n) (* n (f (sub1 n))) 1)
+  expected = 120
+  fact = y(λf n. if (is0 n) 1 (* n (f (sub1 n))))
   --fact = \n. if (is0 n) (+ 2 21) (* 6 7)
   main = fact 5
 |]
 
 
--- Test that shows TermReducer can handle original TestSources
 originalSmallFib :: String
 originalSmallFib = [r| 
-  expected = 2
+  expected = 89
   fib  = y(λf n. if (is0 n) 1 (if (eql n 1) 1 (+ (f (sub1 n)) (f (sub n 2)))))
-  main = fib 2
+  main = fib 10
 |]
 
 verify :: String -> IO ()
@@ -130,8 +131,8 @@ runTest src = do
   result <- catch 
     (let actual = reduce aExp
       in do 
-        --putStrLn $ "Expected: " ++ show expected
-        --putStrLn $ "Actual: " ++ show actual 
+        putStrLn $ "Expected: " ++ show expected
+        putStrLn $ "Actual: " ++ show actual 
         return $ show expected == show actual)
     (\e -> do 
         putStrLn $ "Error during reduction: " ++ show (e :: SomeException)

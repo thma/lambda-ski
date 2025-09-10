@@ -40,16 +40,15 @@ reduceStep (Com T :@ t) = t
 reduceStep ((Com A :@ x) :@ y) = y  -- A combinator: λx y. y (like TRUE, selects second)
 -- For partial applications, don't reduce recursively in reduceStep
 reduceStep (f :@ x) = f :@ x  -- No reduction for general applications
-reduceStep x = x
+--reduceStep x = x
 
 -- | Reduce with step limit using leftmost-outermost strategy
-reduceWithLimit :: Int -> CL -> CL
-reduceWithLimit 0 x = x
-reduceWithLimit n x = 
+reduce :: CL -> CL
+reduce x = 
   let x' = reduceOnce x
   in if x' == x 
      then x  -- Normal form reached
-     else reduceWithLimit (n-1) x'
+     else reduce x'
 
 -- | Perform one reduction step using leftmost-outermost strategy
 reduceOnce :: CL -> CL
@@ -73,18 +72,7 @@ reduceOnce term =
                  else term  -- Nothing can be reduced
        _ -> term  -- No reduction possible
 
--- | Original reduce function - now with step limit
-reduce :: CL -> CL
-reduce = reduceWithLimit 1000  -- Increased limit for recursive functions
 
--- | Deep reduction using transform (original approach)
-redDeep :: CL -> CL
-redDeep = transform reduceStep
-
--- | Main reduction function - tries deep reduction first, then limited reduction
-red :: CL -> CL
-red x = 
-  let deepResult = redDeep x
-  in if deepResult == x
-     then reduce x  -- Try step-by-step if deep reduction doesn't help
-     else reduce deepResult  -- Apply step-by-step to the deep result
+-- | reduction using transform 
+reduce' :: CL -> CL
+reduce' = transform reduceStep
