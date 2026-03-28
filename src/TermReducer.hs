@@ -14,8 +14,7 @@ reduceStep ((Com K :@ t) :@ u) = t
 reduceStep (((Com S :@ x) :@ y) :@ z) = (x :@ z) :@ (y :@ z)
 reduceStep (((Com B :@ f) :@ g) :@ x) = f :@ (g :@ x)       -- B F G X = F (G X)
 reduceStep (((Com C :@ x) :@ y) :@ z) = x :@ z :@ y
-reduceStep ((Com Y :@ f) :@ x) = (f :@ (Com Y :@ f)) :@ x.  -- Y F X = (F (Y F)) X
---reduceStep ((Com P :@ t) :@ u) = (Com P :@ t) :@ u  
+reduceStep ((Com Y :@ f) :@ x) = (f :@ (Com Y :@ f)) :@ x  -- Y F X = (F (Y F)) X
 reduceStep (((Com R :@ f) :@ g) :@ x) = (g :@ x) :@ f
 reduceStep ((Com ADD :@ INT i) :@ INT j) = INT (i + j)
 reduceStep ((Com SUB :@ INT i) :@ INT j) = INT (i - j)
@@ -34,6 +33,7 @@ reduceStep (Com T :@ t) = t
 reduceStep ((Com A :@ x) :@ y) = y  -- A combinator: λx y. y (like TRUE, selects second)
 -- For partial applications, don't reduce recursively in reduceStep
 reduceStep (f :@ x) = f :@ x  -- No reduction for general applications
+
 
 
 -- | reduction using uniplate with custom traversal
