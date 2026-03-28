@@ -3,6 +3,9 @@ module ReductionBenchmarks where
 import Criterion.Main ( defaultMain, bench, nf, nfIO )
 import Parser ( parseEnvironment, Expr(Int, App) )
 import LambdaToSKI ( compileBracket )
+import CCC.Compiler (compileNumExpr)
+import CCC.Interpreter (interp)
+import CCC.FreeCat (FreeCat)
 import CLTerm
 import Kiselyov
 import GraphReduction ( allocate, normalForm, toString, Graph )
@@ -17,6 +20,15 @@ import qualified MicroHs.Main as MHS (main)
 import           System.Environment (withArgs)
 import System.IO (readFile')
 import MhsEval 
+
+loadCccMain :: SourceCode -> IO (FreeCat () Integer)
+loadCccMain src = do
+  let pEnv = parseEnvironment src
+      mainExpr = fromJust (lookup "main" pEnv)
+  return (compileNumExpr pEnv mainExpr)
+
+cccTest :: FreeCat () Integer -> Integer
+cccTest morph = interp morph ()
 
 loadTestCase :: SourceCode -> IO CL
 loadTestCase src = do
@@ -111,6 +123,10 @@ benchmarks = do
   akkBulkLog <- loadTestCaseBreakBulkLog ackermann
   gauBulkLog <- loadTestCaseBreakBulkLog gaussian
   takBulkLog <- loadTestCaseBreakBulkLog BenchmarkSources.tak
+  facCcc <- loadCccMain factorial
+  fibCcc <- loadCccMain fibonacci
+  akkCcc <- loadCccMain ackermann
+  takCcc <- loadCccMain BenchmarkSources.tak
 
   mhsContext <- createMhsContext
   let mhsFacEta = toMhsPrg facEta
@@ -163,6 +179,7 @@ benchmarks = do
       -- , bench "fibonacci HHI-Bulk-Log"     $ nf reducerTestLog fibBulk
       -- , bench "fibonacci HHI-Break-Bulk"   $ nf reducerTest fibBulkLinear
       -- , bench "fibonacci HHI-Break-Log"    $ nf reducerTestLog fibBulkLog
+      , bench "fibonacci CCC.Compiler"     $ nf cccTest fibCcc
       , bench "fibonacci MicroHs"          $ nfIO (microHsTest mhsContext mhsFibEta)
       , bench "fibonacci Native"           $ nf fibo 37
       -- , bench "ackermann Graph-Reduce"     $ nf graphTest akk
@@ -176,6 +193,7 @@ benchmarks = do
       -- , bench "ackermann HHI-Bulk-Log"     $ nf reducerTestLog akkBulk
       -- , bench "ackermann HHI-Break-Bulk"   $ nf reducerTest akkBulkLinear
       -- , bench "ackermann HHI-Break-Log"    $ nf reducerTestLog akkBulkLog
+      , bench "ackermann CCC.Compiler"     $ nf cccTest akkCcc
       , bench "ackermann MicroHs"          $ nfIO (microHsTest mhsContext mhsAckEta)
       , bench "ackermann Native"           $ nf ack_3 9
       -- -- , bench "gaussian  Graph-Reduce"     $ nf graphTest gau
@@ -196,9 +214,11 @@ benchmarks = do
       -- , bench "tak       HHI-Bulk-Log"     $ nf reducerTestLog takBulk
       -- , bench "tak       HHI-Break-Bulk"   $ nf reducerTest takBulkLinear
       -- , bench "tak       HHI-Break-Log"    $ nf reducerTestLog takBulkLog
+      , bench "tak       CCC.Compiler"     $ nf cccTest takCcc
       , bench "tak       MicroHs"          $ nfIO (run mhsContext mhsTakEta)
       , bench "tak       Native"           $ nf tak1 (18,6,3) 
       , bench "tak       MHS Haskell"      $ nfIO (microHsTest mhsContext mhsTak)
+      , bench "factorial CCC.Compiler"     $ nf cccTest facCcc
       ]
   closeMhsContext mhsContext
   putStrLn "Benchmarks completed."    

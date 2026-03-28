@@ -74,6 +74,7 @@ evalExpr env = evalWith []
     builtin "sub1" = intUnaryOp (subtract 1)
     builtin "is0" = intPred (== 0)
     builtin "eql" = intCompare (==)
+    builtin "leq" = intCompare (<=)
     builtin "geq" = intCompare (>=)
     builtin "if" = error "if must be applied to three arguments"
     builtin "y" = FunVal fixValue
