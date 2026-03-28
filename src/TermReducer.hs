@@ -12,14 +12,10 @@ reduceStep (INT i) = INT i
 reduceStep (Com I :@ t) = t
 reduceStep ((Com K :@ t) :@ u) = t
 reduceStep (((Com S :@ x) :@ y) :@ z) = (x :@ z) :@ (y :@ z)
-reduceStep (((Com B :@ f) :@ g) :@ x) = f :@ (g :@ x)      -- B F G X = F (G X)
+reduceStep (((Com B :@ f) :@ g) :@ x) = f :@ (g :@ x)       -- B F G X = F (G X)
 reduceStep (((Com C :@ x) :@ y) :@ z) = x :@ z :@ y
--- Y combinator: expand only when it's applied to something
--- Y f x should reduce to f (Y f) x, not Y f should reduce to f (Y f)
-reduceStep ((Com Y :@ f) :@ x) = (f :@ (Com Y :@ f)) :@ x
---reduceStep (Com Y :@ t) = Com Y :@ t  -- Don't expand Y on its own
-reduceStep ((Com P :@ t) :@ u) = (Com P :@ t) :@ u  -- P doesn't reduce
--- R takes 3 arguments: R F G X = G X F
+reduceStep ((Com Y :@ f) :@ x) = (f :@ (Com Y :@ f)) :@ x.  -- Y F X = (F (Y F)) X
+--reduceStep ((Com P :@ t) :@ u) = (Com P :@ t) :@ u  
 reduceStep (((Com R :@ f) :@ g) :@ x) = (g :@ x) :@ f
 reduceStep ((Com ADD :@ INT i) :@ INT j) = INT (i + j)
 reduceStep ((Com SUB :@ INT i) :@ INT j) = INT (i - j)
@@ -31,12 +27,9 @@ reduceStep ((Com EQL :@ INT i) :@ INT j) = if i == j then trueCL else falseCL
 reduceStep ((Com GEQ :@ INT i) :@ INT j) = if i >= j then trueCL else falseCL
 reduceStep (Com ZEROP :@ INT i) = if i == 0 then trueCL else falseCL
 reduceStep (Com ZEROP :@ i) = Com ZEROP :@ reduceStep i  -- Reduce argument without calling full reduce
--- B' takes 4 arguments: B' P Q R S = P Q (R S)
-reduceStep ((((Com B' :@ p) :@ q) :@ r) :@ s) = (p :@ q) :@ (r :@ s)
--- C' takes 4 arguments: C' P Q R S = P (Q S) R
-reduceStep ((((Com C' :@ p) :@ q) :@ r) :@ s) = (p :@ (q :@ s)) :@ r
--- S' takes 4 arguments: S' P Q R S = P (Q S) (R S)
-reduceStep ((((Com S' :@ p) :@ q) :@ r) :@ s) = (p :@ (q :@ s)) :@ (r :@ s)
+reduceStep ((((Com B' :@ p) :@ q) :@ r) :@ s) = (p :@ q) :@ (r :@ s) -- B' P Q R S = P Q (R S)
+reduceStep ((((Com C' :@ p) :@ q) :@ r) :@ s) = (p :@ (q :@ s)) :@ r -- C' P Q R S = P (Q S) R
+reduceStep ((((Com S' :@ p) :@ q) :@ r) :@ s) = (p :@ (q :@ s)) :@ (r :@ s) -- S' P Q R S = P (Q S) (R S)
 reduceStep (Com T :@ t) = t
 reduceStep ((Com A :@ x) :@ y) = y  -- A combinator: λx y. y (like TRUE, selects second)
 -- For partial applications, don't reduce recursively in reduceStep
