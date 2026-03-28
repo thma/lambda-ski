@@ -19,6 +19,7 @@
 module CCC.Compiler where
 
 import           CCC.FreeCat (FreeCat (..))
+import           CCC.Rewrite (simplify)
 import           Parser      (Environment, Expr (..))
 
 -- | A value that can represent lambda-calculus terms in a typed setting.
@@ -114,7 +115,9 @@ evalExpr env = evalWith []
 -- The result is a morphism of any input type to Integer.
 compileNumExpr :: Environment -> Expr -> FreeCat a Integer
 compileNumExpr env expr = case evalExpr env expr of
-  IntVal i -> IntConst i
+  -- Normalize compiled output so downstream consumers always get the
+  -- same simplified categorical term shape.
+  IntVal i -> simplify (IntConst i)
   v -> error $ "Expected integer result, got: " ++ show v
 
 
