@@ -18,47 +18,96 @@
 
 module CCC.Compiler where
 
-import Parser (Expr (..), Environment)
-import CCC.FreeCat (FreeCat (..))
+import           CCC.FreeCat (FreeCat (..))
+import           Parser      (Environment, Expr (..))
 
 -- | A value that can represent lambda-calculus terms in a typed setting.
 -- This bridges untyped lambda expressions with typed categorical morphisms.
 data Value 
   = IntVal Integer
+  | BoolVal Bool
   | FunVal (Value -> Value)
-  | ExprVal Expr  -- for unevaluated expressions
 
 instance Show Value where
   show (IntVal i) = show i
+  show (BoolVal b) = show b
   show (FunVal _) = "<function>"
-  show (ExprVal e) = show e
 
 
 -- | Evaluate an expression in an environment, returning a Value.
--- This evaluation is lazy and preserves unevaluated lambda abstractions.
+-- Built-ins are interpreted directly so the compiler can run example programs.
 evalExpr :: Environment -> Expr -> Value
-evalExpr env = \case
-  Int i -> IntVal i
-  
-  Var name -> case lookup name env of
-    Just e -> evalExpr env e
-    Nothing -> error $ "Unbound variable: " ++ name
-  
-  -- Lambda abstractions become first-class values
-  Lam param body -> FunVal $ \argVal -> 
-    evalExpr ((param, valueToExpr argVal) : env) body
-  
-  -- Application: apply function value to argument  
-  App f x -> case evalExpr env f of
-    FunVal fn -> fn (evalExpr env x)
-    v -> error $ "Cannot apply non-function value: " ++ show v
-  
+evalExpr env = evalWith []
   where
-    -- Convert a Value back to an Expr (lossy for functions)
-    valueToExpr :: Value -> Expr
-    valueToExpr (IntVal i) = Int i
-    valueToExpr (FunVal _) = error "Cannot represent function as expression"
-    valueToExpr (ExprVal e) = e
+    evalWith :: [(String, Value)] -> Expr -> Value
+    evalWith localEnv = \case
+      App (App (App (Var "if") cond) thenExpr) elseExpr ->
+        case evalWith localEnv cond of
+          BoolVal True  -> evalWith localEnv thenExpr
+          BoolVal False -> evalWith localEnv elseExpr
+          value         -> error $ "Expected boolean condition, got: " ++ show value
+      Int i -> IntVal i
+
+      Var name ->
+        case lookup name localEnv of
+          Just value -> value
+          Nothing ->
+            case lookup name env of
+              Just expr -> evalWith localEnv expr
+              Nothing   -> builtin name
+
+      Lam param body -> FunVal $ \argVal ->
+        evalWith ((param, argVal) : localEnv) body
+
+      App f x ->
+        case evalWith localEnv f of
+          FunVal fn -> fn (evalWith localEnv x)
+          value     -> error $ "Cannot apply non-function value: " ++ show value
+
+    builtin :: String -> Value
+    builtin "+" = intBinOp (+)
+    builtin "-" = intBinOp (-)
+    builtin "*" = intBinOp (*)
+    builtin "/" = intBinOp div
+    builtin "sub" = intBinOp (-)
+    builtin "sub1" = intUnaryOp (subtract 1)
+    builtin "is0" = intPred (== 0)
+    builtin "eql" = intCompare (==)
+    builtin "geq" = intCompare (>=)
+    builtin "if" = error "if must be applied to three arguments"
+    builtin "y" = FunVal fixValue
+    builtin "true" = BoolVal True
+    builtin "false" = BoolVal False
+    builtin name = error $ "Unbound variable: " ++ name
+
+    intUnaryOp :: (Integer -> Integer) -> Value
+    intUnaryOp op = FunVal $ \case
+      IntVal integer -> IntVal (op integer)
+      other          -> error $ "Expected integer argument, got: " ++ show other
+
+    intBinOp :: (Integer -> Integer -> Integer) -> Value
+    intBinOp op = FunVal $ \left -> FunVal $ \right ->
+      case (left, right) of
+        (IntVal leftInt, IntVal rightInt) -> IntVal (op leftInt rightInt)
+        _ -> error $ "Expected integer arguments, got: " ++ show left ++ " and " ++ show right
+
+    intPred :: (Integer -> Bool) -> Value
+    intPred predicate = FunVal $ \case
+      IntVal integer -> BoolVal (predicate integer)
+      other          -> error $ "Expected integer argument, got: " ++ show other
+
+    intCompare :: (Integer -> Integer -> Bool) -> Value
+    intCompare predicate = FunVal $ \left -> FunVal $ \right ->
+      case (left, right) of
+        (IntVal leftInt, IntVal rightInt) -> BoolVal (predicate leftInt rightInt)
+        _ -> error $ "Expected integer arguments, got: " ++ show left ++ " and " ++ show right
+
+    -- The source language uses Y for recursive function definitions.
+    fixValue :: Value -> Value
+    fixValue (FunVal step) = result
+      where
+        result = step result
+    fixValue other = error $ "Expected function argument to y, got: " ++ show other
 
 
 -- | Compile a numeric expression to a FreeCat integer morphism.
@@ -77,8 +126,8 @@ compileEnvironment env = map compileBinding env
     compileBinding (name, expr) =
       case evalExpr env expr of
         IntVal i -> (name, "IntConst " ++ show i)
+        BoolVal b -> (name, show b)
         FunVal _ -> (name, "<lambda function>")
-        ExprVal e -> (name, show e)
 
 
 -- | Try to compile an environment variable to a numeric morphism.

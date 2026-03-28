@@ -2,12 +2,16 @@ module CCCCompilerSpec where
 
 import           Control.Exception (evaluate)
 import           Data.List         (isInfixOf)
+import           Data.Maybe        (fromJust)
 import           Test.Hspec
 
 import           CCC.Compiler
 import           CCC.FreeCat   (FreeCat)
 import           CCC.Interpreter (interp)
-import           Parser         (Expr (..))
+import           Parser         (Expr (..), parseEnvironment)
+import           TestSources    (ackermann, cccAlias, cccConst, cccIdentity,
+                                 cccLiteral, factorial, fibonacci, gaussian,
+                                 tak)
 
 main :: IO ()
 main = hspec spec
@@ -71,3 +75,46 @@ spec = do
           out = compileEnvironment env
       lookup "a" out `shouldBe` Just "IntConst 3"
       lookup "id" out `shouldBe` Just "<lambda function>"
+
+  describe "CCC.Compiler integration with TestSources" $ do
+    it "parses and compiles a literal program" $ do
+      verifyMainMatchesExpected cccLiteral
+
+    it "parses and compiles an alias program" $ do
+      verifyMainMatchesExpected cccAlias
+
+    it "parses and compiles an identity application program" $ do
+      verifyMainMatchesExpected cccIdentity
+
+    it "parses and compiles a constant function program" $ do
+      verifyMainMatchesExpected cccConst
+
+    it "parses and compiles factorial" $ do
+      verifyMainMatchesExpected factorial
+
+    it "parses and compiles fibonacci" $ do
+      verifyMainMatchesExpected fibonacci
+
+    it "parses and compiles gaussian" $ do
+      verifyMainMatchesExpected gaussian
+
+    it "parses and compiles ackermann" $ do
+      verifyMainMatchesExpected ackermann
+
+    it "parses and compiles tak" $ do
+      verifyMainMatchesExpected tak
+
+verifyMainMatchesExpected :: String -> Expectation
+verifyMainMatchesExpected source = do
+  let env = parseEnvironment source
+  lookup "main" env `shouldSatisfy` (/= Nothing)
+  lookup "expected" env `shouldSatisfy` (/= Nothing)
+
+  let mainExpr = fromJust (lookup "main" env)
+      expectedExpr = fromJust (lookup "expected" env)
+      mainMorph :: FreeCat () Integer
+      mainMorph = compileNumExpr env mainExpr
+      expectedMorph :: FreeCat () Integer
+      expectedMorph = compileNumExpr env expectedExpr
+
+  interp mainMorph () `shouldBe` interp expectedMorph ()

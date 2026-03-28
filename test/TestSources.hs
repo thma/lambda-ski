@@ -39,3 +39,30 @@ tak = [r|
   tak  = y(λf x y z. (if (geq y x) z (f (f (sub1 x) y z) (f (sub1 y) z x) (f (sub1 z) x y ))))
   main = tak 7 4 2 --18 6 3
 |]
+
+cccLiteral :: SourceCode
+cccLiteral = [r|
+  expected = 5
+  main = 5
+|]
+
+cccAlias :: SourceCode
+cccAlias = [r|
+  expected = 13
+  value = 13
+  main = value
+|]
+
+cccIdentity :: SourceCode
+cccIdentity = [r|
+  expected = 9
+  id = λx. x
+  main = id 9
+|]
+
+cccConst :: SourceCode
+cccConst = [r|
+  expected = 12
+  const = λx y. x
+  main = const 12 0
+|]
