@@ -29,9 +29,9 @@ source-repository head
 library
   exposed-modules:
       CCC.Cat
+      CCC.CatExpr
       CCC.CCC
       CCC.Compiler
-      CCC.FreeCat
       CCC.Hask
       CCC.Interpreter
       CCC.Rewrite

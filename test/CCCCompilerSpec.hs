@@ -6,7 +6,7 @@ import           Data.Maybe        (fromJust)
 import           Test.Hspec
 
 import           CCC.Compiler
-import           CCC.FreeCat   (FreeCat)
+import           CCC.CatExpr   (CatExpr)
 import           CCC.Interpreter (interp)
 import           Parser         (Expr (..), parseEnvironment)
 import           TestSources    (ackermann, cccAlias, cccConst, cccIdentity,
@@ -34,17 +34,17 @@ spec = do
 
   describe "CCC.Compiler compileNumExpr" $ do
     it "compiles an integer literal to a constant morphism" $ do
-      let morph :: FreeCat () Integer
+      let morph :: CatExpr () Integer
           morph = compileNumExpr [] (Int 5)
       interp morph () `shouldBe` 5
 
     it "compiles variable lookup to a constant morphism" $ do
-      let morph :: FreeCat () Integer
+      let morph :: CatExpr () Integer
           morph = compileNumExpr [("n", Int 13)] (Var "n")
       interp morph () `shouldBe` 13
 
     it "rejects non-numeric compilation results" $ do
-      evaluate (interp (compileNumExpr [] (Lam "x" (Var "x")) :: FreeCat () Integer) ())
+      evaluate (interp (compileNumExpr [] (Lam "x" (Var "x")) :: CatExpr () Integer) ())
         `shouldThrow` anyErrorCall
 
   describe "CCC.Compiler environment helpers" $ do
@@ -112,9 +112,9 @@ verifyMainMatchesExpected source = do
 
   let mainExpr = fromJust (lookup "main" env)
       expectedExpr = fromJust (lookup "expected" env)
-      mainMorph :: FreeCat () Integer
+      mainMorph :: CatExpr () Integer
       mainMorph = compileNumExpr env mainExpr
-      expectedMorph :: FreeCat () Integer
+      expectedMorph :: CatExpr () Integer
       expectedMorph = compileNumExpr env expectedExpr
 
   interp mainMorph () `shouldBe` interp expectedMorph ()

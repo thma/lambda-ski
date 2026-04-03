@@ -1,24 +1,19 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 
-{-- This module provides compilation from lambda calculus expressions
-    (Expr) and environments to FreeCat categorical morphisms.
+{-- | Compilation from lambda calculus expressions (Expr) and environments
+    to CatExpr categorical morphisms.
     
     The compiler handles:
     - Variable lookup in environments
     - Integer constants
     - Lambda abstractions (converted to curried morphisms)
     - Function applications
-    
-    Example:
-    > let env = [("x", Int 5)]
-    > compileNumExpr env (Var "x")
-    IntConst 5 . Id
 --}
 
 module CCC.Compiler where
 
-import           CCC.FreeCat (FreeCat (..))
+import           CCC.CatExpr (CatExpr (..))
 import           CCC.Rewrite (simplify)
 import           Parser      (Environment, Expr (..))
 
@@ -112,12 +107,12 @@ evalExpr env = evalWith []
     fixValue other = error $ "Expected function argument to y, got: " ++ show other
 
 
--- | Compile a numeric expression to a FreeCat integer morphism.
+-- | Compile a numeric expression to a CatExpr integer morphism.
 -- The result is a morphism of any input type to Integer.
 --
 -- Important: compilation is symbolic and does not evaluate the source expression.
 -- Evaluation happens when the resulting morphism is interpreted.
-compileNumExpr :: Environment -> Expr -> FreeCat a Integer
+compileNumExpr :: Environment -> Expr -> CatExpr a Integer
 compileNumExpr env expr = simplify (Lift (\_ -> evalNumExpr env expr))
 
 -- | Evaluate an expression to an Integer value.
@@ -143,7 +138,7 @@ compileEnvironment env = map compileBinding env
 
 -- | Try to compile an environment variable to a numeric morphism.
 -- Returns either the compiled morphism or an error message.
-tryCompileVar :: Environment -> String -> Either String (FreeCat () Integer)
+tryCompileVar :: Environment -> String -> Either String (CatExpr () Integer)
 tryCompileVar env name = case lookup name env of
   Just expr -> case evalExpr env expr of
     IntVal _ -> Right (compileNumExpr env expr)

@@ -14,12 +14,10 @@
 {-# LANGUAGE UndecidableInstances   #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{-- This module exposes a compilation function toCCC, which takes a function as input 
-    and returns a closed cartesian category representation of that function.
+{-- | Compilation function to transform expressions into closed cartesian category form.
+    Use CatExpr as a compilation target to produce categorical morphisms.
 
-    In a typical use case you will use the GADT data type FreeCat as a compilation target:
-
-    > toCCC @FreeCat (\(x, y) -> x)
+    > toCCC @CatExpr (\(x, y) -> x)
     Comp Fst Id
 --}
 

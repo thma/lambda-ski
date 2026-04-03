@@ -2,23 +2,20 @@
 {-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE NoImplicitPrelude  #-}
 
-{-- This module exposes a function simplify which takes a FreeCat expression as input and
-    returns an equivalent yet syntactically simplified FreeCat expression.
+{-- | Simplification/normalization of categorical expressions (CatExpr).
+    Applies syntactic rewrite rules to produce equivalent simplified expressions.
 
-    > toCCC @FreeCat (\(x, y) -> x)
-    Comp Fst Id
-
-    > simplify $ toCCC (\(x, y) -> x)
+    > simplify (toCCC @CatExpr (\(x, y) -> x))
     Fst
 --}
 
 module CCC.Rewrite (simplify) where
 
 import           CCC.Cat
-import           CCC.FreeCat
+import           CCC.CatExpr
 import           Prelude hiding (id, (.))
 
-type Rule = forall a b. FreeCat a b -> Maybe (FreeCat a b)
+type Rule = forall a b. CatExpr a b -> Maybe (CatExpr a b)
 
 ruleParen :: Rule
 ruleParen (Comp (Comp f g) h) = Just (Comp f (Comp g h))
@@ -50,7 +47,7 @@ ruleParDup'' _ = Nothing
 
 -- parC dupC" forall f. (_parC f f) . _dupC = _dupC . f
 {- -- needs equality.
-ruleParDupEq :: Rule -- FreeCat a b -> Maybe (FreeCat a b)
+ruleParDupEq :: Rule -- CatExpr a b -> Maybe (CatExpr a b)
 ruleParDupEq (Comp (Par f g) Dup) | f == g = Just (Dup . f)
 ruleParDupEq _                             = Nothing
 --}
@@ -98,14 +95,14 @@ allRules =
 maxDepth :: Int
 maxDepth = 1000
 
--- Avoid infinite loops by allowing only a recursion depth of `maxDepth`
-recurseMatch :: Int -> Rule -> FreeCat a b -> Maybe (FreeCat a b)
+-- Avoid infinite loops by allowing only recursion depth of `maxDepth`
+recurseMatch :: Int -> Rule -> CatExpr a b -> Maybe (CatExpr a b)
 recurseMatch 0 _rule _x = Nothing
 recurseMatch depth rule x = case rule x of
-  Nothing -> goDown (recurseMatch (depth -1) rule) x -- This rule didn't match. Try going down and matching there.
+  Nothing -> goDown (recurseMatch (depth -1) rule) x
   Just x' -> Just x'
 
-goDown :: Rule -> Rule --FreeCat a b -> Maybe (FreeCat a b)
+goDown :: Rule -> Rule
 goDown z (Comp f g) = case z f of
   Nothing -> case z g of
     Nothing -> Nothing
@@ -113,25 +110,25 @@ goDown z (Comp f g) = case z f of
   Just x -> Just (Comp x g)
 goDown z (Par f g) = case z f of
   Nothing -> case z g of
-    Nothing -> Nothing -- nothing in either subtree macthed
-    Just x  -> Just (Par f x) --
-  Just x -> Just (Par x g) -- something in f matched the rule
+    Nothing -> Nothing
+    Just x  -> Just (Par f x)
+  Just x -> Just (Par x g)
 goDown z (Curry f) = case z f of
   Nothing -> Nothing
   Just x  -> Just (Curry x)
 goDown z (Uncurry f) = case z f of
   Nothing -> Nothing
   Just x  -> Just (Uncurry x)
-goDown _ _ = Nothing -- can't go down
+goDown _ _ = Nothing
 
-rewrite' :: [Rule] -> [Rule] -> FreeCat a b -> FreeCat a b
-rewrite' _ [] k = k -- no rules matched
+rewrite' :: [Rule] -> [Rule] -> CatExpr a b -> CatExpr a b
+rewrite' _ [] k = k
 rewrite' allrules (rule : rules) k = case recurseMatch maxDepth rule k of
-  Nothing -> rewrite' allrules rules k -- try the next rule
-  Just k' -> rewrite' allrules allrules k' -- start over from the beginning
+  Nothing -> rewrite' allrules rules k
+  Just k' -> rewrite' allrules allrules k'
 
-rewrite :: [Rule] -> FreeCat a b -> FreeCat a b
+rewrite :: [Rule] -> CatExpr a b -> CatExpr a b
 rewrite rules = rewrite' rules rules
 
-simplify :: FreeCat a b -> FreeCat a b
+simplify :: CatExpr a b -> CatExpr a b
 simplify = rewrite allRules

@@ -1,22 +1,30 @@
-{-# LANGUAGE AllowAmbiguousTypes   #-}
-{-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NoImplicitPrelude     #-}
 
 {-- This module contains definition of categories that are required for
     modelling Closed Cartesian Categories.
-    This includes the Category class itself, as well as Monoidal, Cartesian and Closed.
+  It re-exports Category from Control.Category and defines Monoidal, Cartesian and Closed.
     --}
 
-module CCC.Cat where
+module CCC.Cat
+  ( Category (..)
+  , Monoidal (..)
+  , Cartesian (..)
+  , Closed (..)
+  , fanC
+  , idC
+  , NumCat (..)
+  , BoolCat (..)
+  , BoolLike (..)
+  , EqLike (..)
+  , EqCat (..)
+  , IfValCat (..)
+  , FixCat (..)
+  , Cond (..)
+  ) where
 
+import           Control.Category (Category (..))
 import           Prelude hiding (id, (.))
-
-class Category cat where
-  id :: cat a a
-  (.) :: cat b c -> cat a b -> cat a c
 
 class Category k => Monoidal k where
   parC :: k a c -> k b d -> k (a, b) (c, d)
@@ -93,7 +101,7 @@ class Closed k => FixCat k where
 
 -- Conditional type class for source-level if-then-else
 -- Two-parameter class: c is the condition type, a is the branch type
--- This allows FreeCat z Bool as condition for FreeCat z a branches
+-- This allows CatExpr z Bool as condition for CatExpr z a branches
 class Cond c a where
   ite :: c -> a -> a -> a
 
@@ -102,13 +110,5 @@ instance Cond Bool Bool where
   ite False _ e = e
 
 instance Cond Bool Integer where
-  ite True  t _ = t
-  ite False _ e = e
-
-instance Cond Bool Int where
-  ite True  t _ = t
-  ite False _ e = e
-
-instance Cond Bool Double where
   ite True  t _ = t
   ite False _ e = e

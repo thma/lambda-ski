@@ -5,7 +5,7 @@ import Parser ( parseEnvironment, Environment, Expr(Int, App) )
 import LambdaToSKI ( compileBracket )
 import CCC.Compiler (compileNumExpr)
 import CCC.Interpreter (interp)
-import CCC.FreeCat (FreeCat)
+import CCC.CatExpr (CatExpr)
 import CLTerm
 import Kiselyov
 import GraphReduction ( allocate, normalForm, toString, Graph )
@@ -28,13 +28,13 @@ loadCccMainExpr src = do
       mainExpr = fromJust (lookup "main" pEnv)
   return (pEnv, mainExpr)
 
-loadCccMain :: SourceCode -> IO (FreeCat () Integer)
+loadCccMain :: SourceCode -> IO (CatExpr () Integer)
 loadCccMain src = do
   let pEnv = parseEnvironment src
       mainExpr = fromJust (lookup "main" pEnv)
   return (compileNumExpr pEnv mainExpr)
 
-cccTest :: FreeCat () Integer -> Integer
+cccTest :: CatExpr () Integer -> Integer
 cccTest morph = interp morph ()
 
 -- Build a fresh CCC term on each invocation from already-parsed input.
@@ -42,7 +42,7 @@ cccTest morph = interp morph ()
 -- out of the tight loop.
 cccInstantiateAndRun :: (Environment, Expr) -> Integer
 cccInstantiateAndRun (env, mainExpr) =
-  let morph = compileNumExpr env mainExpr :: FreeCat () Integer
+  let morph = compileNumExpr env mainExpr :: CatExpr () Integer
   in interp morph ()
 
 loadTestCase :: SourceCode -> IO CL

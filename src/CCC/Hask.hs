@@ -1,20 +1,13 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{-- This module contains instance definitions of (->) for all required type-classes.
-    This is required to allow interpretation of FreeCat terms as standard Haskell functions.
-
-    See for instance eval :: FreeCat a b -> (a -> b) in the Interpreter module.
+{-- | Type class instances for (->) enabling interpretation of CatExpr as functions.
+    Allows categorical expressions to be evaluated as standard Haskell functions.
 --}
 
 module CCC.Hask where
 
 import           CCC.Cat
 import qualified CCC.Cat as Cat
-import qualified GHC.Base
-
-instance Category (->) where
-  id = GHC.Base.id
-  (.) = (GHC.Base..)
 
 instance Monoidal (->) where
   parC f g (x, y) = (f x, g y) -- this could also be implemented as `bimap f g` (imported from Data.Bifunctor)
