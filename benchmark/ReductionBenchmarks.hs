@@ -1,7 +1,7 @@
 module ReductionBenchmarks where
 
 import Criterion.Main ( defaultMain, bench, nf, nfIO )
-import Parser ( parseEnvironment, Expr(Int, App) )
+import Parser ( parseEnvironment, Environment, Expr(Int, App) )
 import LambdaToSKI ( compileBracket )
 import CCC.Compiler (compileNumExpr)
 import CCC.Interpreter (interp)
@@ -19,7 +19,14 @@ import MicroHsExp ( toMhsPrg )
 import qualified MicroHs.Main as MHS (main)
 import           System.Environment (withArgs)
 import System.IO (readFile')
+import           Control.Exception (evaluate)
 import MhsEval 
+
+loadCccMainExpr :: SourceCode -> IO (Environment, Expr)
+loadCccMainExpr src = do
+  let pEnv = parseEnvironment src
+      mainExpr = fromJust (lookup "main" pEnv)
+  return (pEnv, mainExpr)
 
 loadCccMain :: SourceCode -> IO (FreeCat () Integer)
 loadCccMain src = do
@@ -29,6 +36,14 @@ loadCccMain src = do
 
 cccTest :: FreeCat () Integer -> Integer
 cccTest morph = interp morph ()
+
+-- Build a fresh CCC term on each invocation from already-parsed input.
+-- This avoids benchmarking a shared closed thunk while still keeping parse
+-- out of the tight loop.
+cccInstantiateAndRun :: (Environment, Expr) -> Integer
+cccInstantiateAndRun (env, mainExpr) =
+  let morph = compileNumExpr env mainExpr :: FreeCat () Integer
+  in interp morph ()
 
 loadTestCase :: SourceCode -> IO CL
 loadTestCase src = do
@@ -218,7 +233,6 @@ benchmarks = do
       , bench "tak       MicroHs"          $ nfIO (run mhsContext mhsTakEta)
       , bench "tak       Native"           $ nf tak1 (18,6,3) 
       , bench "tak       MHS Haskell"      $ nfIO (microHsTest mhsContext mhsTak)
-      , bench "factorial CCC.Compiler"     $ nf cccTest facCcc
       ]
   closeMhsContext mhsContext
   putStrLn "Benchmarks completed."    

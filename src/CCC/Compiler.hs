@@ -114,12 +114,19 @@ evalExpr env = evalWith []
 
 -- | Compile a numeric expression to a FreeCat integer morphism.
 -- The result is a morphism of any input type to Integer.
+--
+-- Important: compilation is symbolic and does not evaluate the source expression.
+-- Evaluation happens when the resulting morphism is interpreted.
 compileNumExpr :: Environment -> Expr -> FreeCat a Integer
-compileNumExpr env expr = case evalExpr env expr of
-  -- Normalize compiled output so downstream consumers always get the
-  -- same simplified categorical term shape.
-  IntVal i -> simplify (IntConst i)
-  v -> error $ "Expected integer result, got: " ++ show v
+compileNumExpr env expr = simplify (Lift (\_ -> evalNumExpr env expr))
+
+-- | Evaluate an expression to an Integer value.
+-- This is used by runtime interpretation of compiled Lift terms.
+evalNumExpr :: Environment -> Expr -> Integer
+evalNumExpr env expr =
+  case evalExpr env expr of
+    IntVal i -> i
+    v        -> error $ "Expected integer result, got: " ++ show v
 
 
 -- | Compile an expression, extracting environment variables to morphisms.

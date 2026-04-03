@@ -44,7 +44,7 @@ spec = do
       interp morph () `shouldBe` 13
 
     it "rejects non-numeric compilation results" $ do
-      evaluate (compileNumExpr [] (Lam "x" (Var "x")) :: FreeCat () Integer)
+      evaluate (interp (compileNumExpr [] (Lam "x" (Var "x")) :: FreeCat () Integer) ())
         `shouldThrow` anyErrorCall
 
   describe "CCC.Compiler environment helpers" $ do
