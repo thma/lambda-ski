@@ -3,16 +3,12 @@
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE GADTs                  #-}
 {-# LANGUAGE NoImplicitPrelude      #-}
-{-# LANGUAGE PolyKinds              #-}
 {-# LANGUAGE RankNTypes             #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeApplications       #-}
 {-# LANGUAGE TypeFamilies           #-}
-{-# LANGUAGE TypeOperators          #-}
 {-# LANGUAGE UndecidableInstances   #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {-- | Compilation function to transform expressions into closed cartesian category form.
     Use CatExpr as a compilation target to produce categorical morphisms.
@@ -24,7 +20,6 @@
 module CCC.CCC (toCCC, toCCCRec, Rec(..), fixRec) where
 
 import           CCC.Cat
-import           CCC.Hask    ()
 import           Prelude hiding (id, (.))
 
 -- Newtype wrapper for recursive functions in categorical style
@@ -69,17 +64,6 @@ instance (EitherTree a b o, out ~ Either q o) => EitherTree (Right a) b out wher
 instance (b ~ out) => EitherTree () b out where
   inj x = x
   ext x = x
-
-instance (Num b, Num a) => Num (Either a b) where
-  (Left f) + (Left g)   = Left (f + g)
-  (Right f) + (Right g) = Right (f + g)
-  (Left f) * (Left g)   = Left (f * g)
-  (Right f) * (Right g) = Right (f * g)
-  negate f = error "Todo"
-  f - g = error "todo"
-  abs f = error "todo"
-  signum = error "TODO"
-  fromInteger = error "TODO"
 
 type family Reverse a b where
   Reverse (Left a) b = Reverse a (Left b)
