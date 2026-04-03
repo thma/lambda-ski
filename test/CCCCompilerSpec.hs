@@ -47,6 +47,22 @@ spec = do
       evaluate (interp (compileNumExpr [] (Lam "x" (Var "x")) :: CatExpr () Integer) ())
         `shouldThrow` anyErrorCall
 
+    it "compiles unary y-recursion structurally using Fix" $ do
+      let expr = App (App (Var "y") (Lam "f" (Lam "n"
+                  (App (App (App (Var "if") (App (Var "is0") (Var "n")))
+                       (Int 1))
+                       (App (App (Var "*") (Var "n"))
+                            (App (Var "f") (App (Var "sub1") (Var "n"))))))))
+                 (Int 5)
+          morph = compileNumExpr [] expr :: CatExpr () Integer
+      show morph `shouldSatisfy` isInfixOf "Fix"
+      interp morph () `shouldBe` 120
+
+    it "keeps non-unary y-recursion on fallback path" $ do
+      let expr = App (App (App (Var "y") (Lam "f" (Lam "x" (Lam "y" (Var "x"))))) (Int 1)) (Int 2)
+          morph = compileNumExpr [] expr :: CatExpr () Integer
+      show morph `shouldSatisfy` isInfixOf "Lift"
+
   describe "CCC.Compiler environment helpers" $ do
     it "returns Right for numeric bindings" $ do
       case tryCompileVar [("k", Int 11)] "k" of
