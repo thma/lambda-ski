@@ -5,12 +5,26 @@
 
 {-- | Compilation from lambda calculus expressions (Expr) and environments
     to CatExpr categorical morphisms.
-    
-    The compiler handles:
-    - Variable lookup in environments
-    - Integer constants
-    - Lambda abstractions (converted to curried morphisms)
-    - Function applications
+
+    Two compilation strategies are used:
+
+    1. Normalization by Evaluation (NBE) for closed/non-recursive terms.
+       Terms are interpreted as 'SVal' in a Haskell semantic domain.
+       Lambdas become Haskell closures; application is Haskell application.
+       This implicitly encodes the CCC abstraction rules
+
+         absCCC (λx. x)   = id
+         absCCC (λx. c)   = const c          (x ∉ fv c)
+         absCCC (λx. p q) = apply ∘ (absCCC (λx.p) △ absCCC (λx.q))
+
+       without building explicit Curry/Uncurry/Apply nodes —
+       beta-reduction happens at the Haskell metalevel instead.
+
+    2. Direct CatExpr construction for recursive Fix bodies.
+       Inside a Fix step, 'RVal c' carries CatExpr nodes indexed by a
+       fixed context c = (recursive_fn, input_tuple), making tuple
+       projections and composition explicit.
+
 --}
 
 module CCC.Compiler
@@ -25,8 +39,13 @@ import           CCC.Cat     (fanC)
 import           CCC.Rewrite (simplify)
 import           Parser      (Environment, Expr (..))
 
+-- A closed morphism: valid in any input context z, i.e. a global element z → a.
+-- RankN quantification ensures the expression is truly context-independent.
 newtype Closed a = Closed (forall z. CatExpr z a)
 
+-- Semantic value domain for NBE compilation.
+-- SInt/SBool wrap closed morphisms (constants in the CCC sense).
+-- SFun is a Haskell-level function modelling an arrow without fixing a context type.
 data SVal
   = SInt (Closed Integer)
   | SBool (Closed Bool)
@@ -51,9 +70,24 @@ compileIntExpr env expr = do
     SInt compiled -> Right compiled
     _             -> Left "Expected integer expression"
 
+-- Core lambda-to-CCC correspondence implemented by compileExpr:
+--
+-- Lambda term           | CCC rule                             | Compiler mechanism
+-- n                     | absCCC (\x. n) = IntConst n          | Int i -> Closed (IntConst i)
+-- x                     | absCCC (\x. x) = id                  | Var p -> lookup p localEnv returns same SVal
+-- y (free)              | absCCC (\x. y) = const y             | same lookup path, yielding a Closed morphism
+-- \x. e                 | curry (absCCC (\(x,y). e))           | Lam p body -> SFun (\v -> compile body[p:=v])
+-- f g                   | apply . (f' △ g')                    | applySVal (compile f) (compile g) at meta-level
+-- a ⊕ b                 | op . (a' △ b')                       | Comp op (fanC (compile a) (compile b))
+-- y (\f a1...an. b)     | Fix step . (v1 △ ... △ vn)           | compileYGeneric -> Fix with context c = (f, input)
+
 compileExpr :: Environment -> [(String, SVal)] -> Expr -> Either String SVal
 compileExpr env localEnv = \case
+  -- n  ↦  IntConst n   (absCCC (λx. n) = const n)
   Int i -> Right (SInt (Closed (IntConst i)))
+  -- x  ↦  the SVal bound to x
+  --   absCCC (λx. x) = id    — the arg passed in is returned unchanged
+  --   absCCC (λx. y) = const y  — a Closed morphism, independent of x
   Var name ->
     case lookup name localEnv of
       Just value -> Right value
@@ -61,26 +95,41 @@ compileExpr env localEnv = \case
         case lookup name env of
           Just expr -> compileExpr env localEnv expr
           Nothing   -> compileBuiltin name
+  -- y is compiled structurally to Fix rather than treated as a generic function
   App (Var "y") stepExpr -> compileY env localEnv stepExpr
+  -- λx. e  ↦  Haskell closure; beta-reduction is deferred to apply time (NBE)
+  --   absCCC (λx. λy. e) = curry (absCCC (λ(x,y). e))
   Lam param body -> Right $ SFun $ \argVal -> compileExpr env ((param, argVal) : localEnv) body
+  -- f g  ↦  (compile f) applied to (compile g) at the Haskell level
+  --   absCCC (λx. p q) = apply ∘ (absCCC (λx.p) △ absCCC (λx.q))
   App f x -> do
     fVal <- compileExpr env localEnv f
     xVal <- compileExpr env localEnv x
     applySVal fVal xVal
 
+-- NBE application at the Haskell metalevel.
+-- Encodes  apply ∘ (compile f △ compile x)  without building CatExpr nodes;
+-- the result CatExpr is produced directly by the Haskell closure inside SFun.
 applySVal :: SVal -> SVal -> Either String SVal
 applySVal (SFun f) x = f x
 applySVal _ _ = Left "Cannot apply non-function value"
 
+-- Context-indexed values for direct Fix-body compilation.
+-- Unlike SVal (which abstracts over context via universal quantification),
+-- RVal c carries CatExpr nodes for a fixed context c, so projections
+-- Fst/Snd can be composed explicitly to construct the step morphism.
 data RVal c
   = RInt (CatExpr c Integer)
   | RBool (CatExpr c Bool)
   | RFun (RVal c -> Either String (RVal c))
 
+-- Encodes the arity shape of a recursive function as a type-level structure.
+-- n arguments map to the right-nested tuple type (Integer, (Integer, … Integer)).
 data IntArgs input where
-  OneArg :: IntArgs Integer
+  OneArg  :: IntArgs Integer
   MoreArgs :: IntArgs rest -> IntArgs (Integer, rest)
 
+-- Existential wrapper for IntArgs, used when arity is determined at runtime.
 data SomeIntArgs where
   SomeIntArgs :: IntArgs input -> SomeIntArgs
 
@@ -116,6 +165,12 @@ compileYGeneric env outerLocal args fName params body = buildCurried args []
         SInt arg -> buildCurried rest (acc ++ [arg])
         _ -> Left "y expects Integer argument"
 
+    -- Encodes the Fix rule:
+    --   y (λf a₁…aₙ. body) at inputs (v₁,…,vₙ)
+    --     = Comp (Fix stepBody) (v₁ △ … △ vₙ)
+    -- Context for stepBody is c = (CatExpr input Integer, input):
+    --   f   ↦  buildRecFun → Apply ∘ fanC Fst (a₁ △ … △ aₙ)
+    --   aᵢ  ↦  i-th projection of Snd (see argProjections)
     applyFix :: [Closed Integer] -> Either String (Closed Integer)
     applyFix actualArgs = do
       recFun <- buildRecFun args
@@ -129,12 +184,16 @@ compileYGeneric env outerLocal args fName params body = buildCurried args []
 
 compileRecExpr :: Environment -> [(String, SVal)] -> [(String, RVal c)] -> Expr -> Either String (RVal c)
 compileRecExpr env outerLocal local = \case
+  -- n  ↦  IntConst n
   Int i -> Right (RInt (IntConst i))
+  -- x  ↦  the RVal projection bound to x (Snd, Fst∘Snd, Fst∘Snd∘Snd, …)
   Var name ->
     case lookup name local of
       Just v  -> Right v
       Nothing -> compileEnvVar name
+  -- λx. e  ↦  Haskell closure (same NBE trick as compileExpr)
   Lam param expr -> Right (RFun (\arg -> compileRecExpr env outerLocal ((param, arg) : local) expr))
+  -- if c t e  ↦  IfVal ∘ (compile c △ (compile t △ compile e))
   App (App (App (Var "if") cond) thenExpr) elseExpr -> do
     condV <- compileRecExpr env outerLocal local cond
     thenV <- compileRecExpr env outerLocal local thenExpr
@@ -142,6 +201,8 @@ compileRecExpr env outerLocal local = \case
     case (condV, thenV, elseV) of
       (RBool c, RInt t, RInt e) -> Right (RInt (Comp IfVal (fanC c (fanC t e))))
       _ -> Left "if expects (Bool, Int, Int)"
+  -- f g  ↦  (compile f) `applyRVal` (compile g)
+  -- RFun closures build Comp/fanC nodes, so apply ∘ (compile f △ compile g) emerges in output.
   App f x -> do
     fVal <- compileRecExpr env outerLocal local f
     xVal <- compileRecExpr env outerLocal local x
@@ -181,6 +242,8 @@ rIntUnary op = RFun $ \case
   RInt x -> Right (RInt (op x))
   _      -> Left "Expected integer argument"
 
+-- Encodes:  compile(a ⊕ b) = Comp op (fanC (compile a) (compile b))
+-- i.e.  op ∘ (compile a △ compile b) :: CatExpr c Integer
 rIntBin :: CatExpr (Integer, Integer) Integer -> RVal c
 rIntBin op = RFun $ \left -> Right $ RFun $ \right ->
   case (left, right) of
@@ -214,6 +277,11 @@ expectRInt :: String -> RVal c -> Either String (CatExpr c Integer)
 expectRInt _ (RInt out) = Right out
 expectRInt msg _        = Left msg
 
+-- Builds the RVal for the recursive function 'f' inside the Fix body.
+-- Context is c = (CatExpr input Integer, input), so:
+--   Fst :: c → CatExpr input Integer   (the step function itself)
+--   Snd :: c → input                   (the argument tuple)
+-- A recursive call f a₁…aₙ is:  Apply ∘ fanC Fst (a₁ △ … △ aₙ)
 buildRecFun :: forall input. IntArgs input -> Either String (RVal (CatExpr input Integer, input))
 buildRecFun args = build args []
   where
@@ -229,6 +297,10 @@ buildRecFun args = build args []
         RInt arg -> build rest (acc ++ [arg])
         _ -> Left "Recursive call expects Integer argument"
 
+-- Extracts individual integer argument projections from a right-nested tuple.
+-- For OneArg:    the tuple is the integer itself → [tupleExpr]
+-- For MoreArgs:  first arg = Fst ∘ tuple,  rest = projections on Snd ∘ tuple
+-- Called as 'argProjections args Snd', yielding: Snd, Fst∘Snd, Fst∘Snd∘Snd, …
 argProjections :: IntArgs input -> CatExpr c input -> [CatExpr c Integer]
 argProjections OneArg tupleExpr = [tupleExpr]
 argProjections (MoreArgs rest) tupleExpr = Comp Fst tupleExpr : argProjections rest (Comp Snd tupleExpr)
@@ -285,6 +357,9 @@ sIntUnaryOp op = SFun $ \case
   SInt (Closed x) -> Right (SInt (Closed (op x)))
   _               -> Left "Expected integer argument"
 
+-- Same rule in the closed (NBE) domain:
+--   compile(a ⊕ b) = Comp op (fanC (compile a) (compile b))
+-- Both arguments are Closed (∀z), so fanC yields a valid closed morphism.
 sIntBinOp :: CatExpr (Integer, Integer) Integer -> SVal
 sIntBinOp op = SFun $ \left -> Right $ SFun $ \right ->
   case (left, right) of
