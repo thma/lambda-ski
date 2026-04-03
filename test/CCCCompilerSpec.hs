@@ -18,20 +18,6 @@ main = hspec spec
 
 spec :: Spec
 spec = do
-  describe "CCC.Compiler evalExpr" $ do
-    it "evaluates integer literals" $ do
-      show (evalExpr [] (Int 42)) `shouldBe` "42"
-
-    it "resolves variables through the environment" $ do
-      show (evalExpr [("x", Int 7)] (Var "x")) `shouldBe` "7"
-
-    it "evaluates lambda application" $ do
-      let expr = App (Lam "x" (Var "x")) (Int 9)
-      show (evalExpr [] expr) `shouldBe` "9"
-
-    it "throws for unbound variables" $ do
-      evaluate (evalExpr [] (Var "missing")) `shouldThrow` anyErrorCall
-
   describe "CCC.Compiler compileNumExpr" $ do
     it "compiles an integer literal to a constant morphism" $ do
       let morph :: CatExpr () Integer
@@ -58,10 +44,19 @@ spec = do
       show morph `shouldSatisfy` isInfixOf "Fix"
       interp morph () `shouldBe` 120
 
-    it "keeps non-unary y-recursion on fallback path" $ do
+    it "compiles non-unary y-recursion structurally" $ do
       let expr = App (App (App (Var "y") (Lam "f" (Lam "x" (Lam "y" (Var "x"))))) (Int 1)) (Int 2)
           morph = compileNumExpr [] expr :: CatExpr () Integer
-      show morph `shouldSatisfy` isInfixOf "Lift"
+      show morph `shouldSatisfy` isInfixOf "Fix"
+      interp morph () `shouldBe` 1
+
+    it "compiles y-recursion structurally beyond arity 3" $ do
+      let expr = App (App (App (App (App (Var "y")
+                    (Lam "f" (Lam "a" (Lam "b" (Lam "c" (Lam "d" (Var "c")))))))
+                    (Int 1)) (Int 2)) (Int 3)) (Int 4)
+          morph = compileNumExpr [] expr :: CatExpr () Integer
+      show morph `shouldSatisfy` isInfixOf "Fix"
+      interp morph () `shouldBe` 3
 
   describe "CCC.Compiler environment helpers" $ do
     it "returns Right for numeric bindings" $ do

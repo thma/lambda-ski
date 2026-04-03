@@ -1,5 +1,7 @@
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 {-- | Compilation from lambda calculus expressions (Expr) and environments
     to CatExpr categorical morphisms.
@@ -12,9 +14,7 @@
 --}
 
 module CCC.Compiler
-  ( Value,
-    evalExpr,
-    compileNumExpr,
+  ( compileNumExpr,
     compileEnvironment,
     tryCompileVar,
     compileNumericBindings
@@ -32,108 +32,17 @@ data SVal
   | SBool (Closed Bool)
   | SFun (SVal -> Either String SVal)
 
--- | A value that can represent lambda-calculus terms in a typed setting.
--- This bridges untyped lambda expressions with typed categorical morphisms.
-data Value 
-  = IntVal Integer
-  | BoolVal Bool
-  | FunVal (Value -> Value)
-
-instance Show Value where
-  show (IntVal i) = show i
-  show (BoolVal b) = show b
-  show (FunVal _) = "<function>"
-
-
--- | Legacy evaluator for Expr.
--- Used by helper APIs and as a fallback when structural CatExpr compilation
--- does not yet support a construct (for example recursion via y).
-evalExpr :: Environment -> Expr -> Value
-evalExpr env = evalWith []
-  where
-    evalWith :: [(String, Value)] -> Expr -> Value
-    evalWith localEnv = \case
-      App (App (App (Var "if") cond) thenExpr) elseExpr ->
-        case evalWith localEnv cond of
-          BoolVal True  -> evalWith localEnv thenExpr
-          BoolVal False -> evalWith localEnv elseExpr
-          value         -> error $ "Expected boolean condition, got: " ++ show value
-      Int i -> IntVal i
-
-      Var name ->
-        case lookup name localEnv of
-          Just value -> value
-          Nothing ->
-            case lookup name env of
-              Just expr -> evalWith localEnv expr
-              Nothing   -> builtin name
-
-      Lam param body -> FunVal $ \argVal ->
-        evalWith ((param, argVal) : localEnv) body
-
-      App f x ->
-        case evalWith localEnv f of
-          FunVal fn -> fn (evalWith localEnv x)
-          value     -> error $ "Cannot apply non-function value: " ++ show value
-
-    builtin :: String -> Value
-    builtin "+" = intBinOp (+)
-    builtin "-" = intBinOp (-)
-    builtin "*" = intBinOp (*)
-    builtin "/" = intBinOp div
-    builtin "sub" = intBinOp (-)
-    builtin "sub1" = intUnaryOp (subtract 1)
-    builtin "is0" = intPred (== 0)
-    builtin "eql" = intCompare (==)
-    builtin "leq" = intCompare (<=)
-    builtin "geq" = intCompare (>=)
-    builtin "if" = error "if must be applied to three arguments"
-    builtin "y" = FunVal fixValue
-    builtin "true" = BoolVal True
-    builtin "false" = BoolVal False
-    builtin name = error $ "Unbound variable: " ++ name
-
-    intUnaryOp :: (Integer -> Integer) -> Value
-    intUnaryOp op = FunVal $ \case
-      IntVal integer -> IntVal (op integer)
-      other          -> error $ "Expected integer argument, got: " ++ show other
-
-    intBinOp :: (Integer -> Integer -> Integer) -> Value
-    intBinOp op = FunVal $ \left -> FunVal $ \right ->
-      case (left, right) of
-        (IntVal leftInt, IntVal rightInt) -> IntVal (op leftInt rightInt)
-        _ -> error $ "Expected integer arguments, got: " ++ show left ++ " and " ++ show right
-
-    intPred :: (Integer -> Bool) -> Value
-    intPred predicate = FunVal $ \case
-      IntVal integer -> BoolVal (predicate integer)
-      other          -> error $ "Expected integer argument, got: " ++ show other
-
-    intCompare :: (Integer -> Integer -> Bool) -> Value
-    intCompare predicate = FunVal $ \left -> FunVal $ \right ->
-      case (left, right) of
-        (IntVal leftInt, IntVal rightInt) -> BoolVal (predicate leftInt rightInt)
-        _ -> error $ "Expected integer arguments, got: " ++ show left ++ " and " ++ show right
-
-    -- The source language uses Y for recursive function definitions.
-    fixValue :: Value -> Value
-    fixValue (FunVal step) = result
-      where
-        result = step result
-    fixValue other = error $ "Expected function argument to y, got: " ++ show other
-
 
 -- | Compile a numeric expression to a CatExpr integer morphism.
 -- The result is a morphism of any input type to Integer.
 --
--- Compilation first attempts a structural translation to CatExpr.
--- Unsupported constructs currently fall back to the legacy evaluator via Lift.
+-- Compilation is a structural translation to CatExpr.
+-- Unsupported constructs fail explicitly.
 compileNumExpr :: Environment -> Expr -> CatExpr a Integer
 compileNumExpr env expr =
   case compileIntExpr env expr of
     Right (Closed cat) -> simplify cat
-    -- Keep old behavior for currently unsupported forms (notably recursion via y).
-    Left _             -> simplify (Lift (\_ -> evalNumExpr env expr))
+    Left err           -> error ("Structural compilation failed: " ++ err)
 
 compileIntExpr :: Environment -> Expr -> Either String (Closed Integer)
 compileIntExpr env expr = do
@@ -152,7 +61,7 @@ compileExpr env localEnv = \case
         case lookup name env of
           Just expr -> compileExpr env localEnv expr
           Nothing   -> compileBuiltin name
-  App (Var "y") stepExpr -> compileUnaryY env localEnv stepExpr
+  App (Var "y") stepExpr -> compileY env localEnv stepExpr
   Lam param body -> Right $ SFun $ \argVal -> compileExpr env ((param, argVal) : localEnv) body
   App f x -> do
     fVal <- compileExpr env localEnv f
@@ -163,126 +72,196 @@ applySVal :: SVal -> SVal -> Either String SVal
 applySVal (SFun f) x = f x
 applySVal _ _ = Left "Cannot apply non-function value"
 
-type RecCtx = (CatExpr Integer Integer, Integer)
+data RVal c
+  = RInt (CatExpr c Integer)
+  | RBool (CatExpr c Bool)
+  | RFun (RVal c -> Either String (RVal c))
 
-data RVal
-  = RInt (CatExpr RecCtx Integer)
-  | RBool (CatExpr RecCtx Bool)
-  | RFun (RVal -> Either String RVal)
+data IntArgs input where
+  OneArg :: IntArgs Integer
+  MoreArgs :: IntArgs rest -> IntArgs (Integer, rest)
 
-compileUnaryY :: Environment -> [(String, SVal)] -> Expr -> Either String SVal
-compileUnaryY env outerLocal = \case
-  Lam fName (Lam nName body) ->
-    Right $ SFun $ \case
-      SInt (Closed arg) -> do
-        stepBody <- compileRecBody env outerLocal fName nName body
-        Right (SInt (Closed (Comp (Fix stepBody) arg)))
-      _ -> Left "y expects Integer argument"
-  _ -> Left "Only unary y (\\f n. body) is structurally supported"
+data SomeIntArgs where
+  SomeIntArgs :: IntArgs input -> SomeIntArgs
 
-compileRecBody ::
+compileY :: Environment -> [(String, SVal)] -> Expr -> Either String SVal
+compileY env outerLocal = \case
+  Lam fName stepExpr ->
+    case collectLams stepExpr of
+      (params, body) ->
+        case mkIntArgs (length params) of
+          Just (SomeIntArgs args) -> compileYGeneric env outerLocal args fName params body
+          Nothing                 -> Left "y expects at least one integer argument"
+  _ -> Left "y expects a lambda step function"
+
+compileYGeneric ::
   Environment ->
   [(String, SVal)] ->
+  IntArgs input ->
   String ->
-  String ->
+  [String] ->
   Expr ->
-  Either String (CatExpr RecCtx Integer)
-compileRecBody env outerLocal fName nName body = do
-  compiled <- go initialLocal body
-  case compiled of
-    RInt out -> Right out
-    _        -> Left "Recursive body must compile to Integer"
+  Either String SVal
+compileYGeneric env outerLocal args fName params body = buildCurried args []
   where
-    initialLocal =
-      [ (fName, RFun recCall),
-        (nName, RInt Snd)
-      ] ++ mapMaybeS outerLocal
+    buildCurried :: IntArgs remaining -> [Closed Integer] -> Either String SVal
+    buildCurried OneArg acc =
+      Right $ SFun $ \case
+        SInt arg -> do
+          applied <- applyFix (acc ++ [arg])
+          Right (SInt applied)
+        _ -> Left "y expects Integer argument"
+    buildCurried (MoreArgs rest) acc =
+      Right $ SFun $ \case
+        SInt arg -> buildCurried rest (acc ++ [arg])
+        _ -> Left "y expects Integer argument"
 
-    recCall :: RVal -> Either String RVal
-    recCall (RInt x) = Right (RInt (Comp Apply (fanC Fst x)))
-    recCall _        = Left "Recursive call expects Integer argument"
+    applyFix :: [Closed Integer] -> Either String (Closed Integer)
+    applyFix actualArgs = do
+      recFun <- buildRecFun args
+      Closed paramTuple <- tupleFromArgs args actualArgs
+      let local =
+            (fName, recFun) :
+            zipWith (\name projection -> (name, RInt projection)) params (argProjections args Snd) ++
+            liftOuterLocal outerLocal
+      stepBody <- compileRecExpr env outerLocal local body >>= expectRInt "Recursive body must compile to Integer"
+      Right (Closed (Comp (Fix stepBody) paramTuple))
 
-    go :: [(String, RVal)] -> Expr -> Either String RVal
-    go local = \case
-      Int i -> Right (RInt (IntConst i))
-      Var name ->
-        case lookup name local of
-          Just v  -> Right v
-          Nothing -> compileEnvVar name
-      Lam param expr -> Right (RFun (\arg -> go ((param, arg) : local) expr))
-      App (App (App (Var "if") cond) thenExpr) elseExpr -> do
-        condV <- go local cond
-        thenV <- go local thenExpr
-        elseV <- go local elseExpr
-        case (condV, thenV, elseV) of
-          (RBool c, RInt t, RInt e) -> Right (RInt (Comp IfVal (fanC c (fanC t e))))
-          _ -> Left "if expects (Bool, Int, Int)"
-      App f x -> do
-        fVal <- go local f
-        xVal <- go local x
-        applyRVal fVal xVal
-
-    compileEnvVar :: String -> Either String RVal
+compileRecExpr :: Environment -> [(String, SVal)] -> [(String, RVal c)] -> Expr -> Either String (RVal c)
+compileRecExpr env outerLocal local = \case
+  Int i -> Right (RInt (IntConst i))
+  Var name ->
+    case lookup name local of
+      Just v  -> Right v
+      Nothing -> compileEnvVar name
+  Lam param expr -> Right (RFun (\arg -> compileRecExpr env outerLocal ((param, arg) : local) expr))
+  App (App (App (Var "if") cond) thenExpr) elseExpr -> do
+    condV <- compileRecExpr env outerLocal local cond
+    thenV <- compileRecExpr env outerLocal local thenExpr
+    elseV <- compileRecExpr env outerLocal local elseExpr
+    case (condV, thenV, elseV) of
+      (RBool c, RInt t, RInt e) -> Right (RInt (Comp IfVal (fanC c (fanC t e))))
+      _ -> Left "if expects (Bool, Int, Int)"
+  App f x -> do
+    fVal <- compileRecExpr env outerLocal local f
+    xVal <- compileRecExpr env outerLocal local x
+    applyRVal fVal xVal
+  where
     compileEnvVar name =
       case lookup name env of
         Just expr -> do
           compiled <- compileExpr env outerLocal expr
-          case compiled of
-            SInt (Closed c)  -> Right (RInt c)
-            SBool (Closed c) -> Right (RBool c)
-            _                -> Left ("Unsupported environment value in recursive body: " ++ name)
+          case sValToRVal compiled of
+            Just v  -> Right v
+            Nothing -> Left ("Unsupported environment value in recursive body: " ++ name)
         Nothing ->
           case compileRecBuiltin name of
             Just v  -> Right v
             Nothing -> Left ("Unbound variable: " ++ name)
 
-    compileRecBuiltin :: String -> Maybe RVal
-    compileRecBuiltin "+" = Just (rIntBin Add)
-    compileRecBuiltin "-" = Just (rIntBin Sub)
-    compileRecBuiltin "*" = Just (rIntBin Mul)
-    compileRecBuiltin "sub" = Just (rIntBin Sub)
-    compileRecBuiltin "sub1" = Just (rIntUnary (\x -> Comp Sub (fanC x (IntConst 1))))
-    compileRecBuiltin "is0" = Just (rIntPred (\x -> Comp Eql (fanC x (IntConst 0))))
-    compileRecBuiltin "eql" = Just (rIntCmp Eql)
-    compileRecBuiltin "leq" = Just (rIntCmp Leq)
-    compileRecBuiltin "geq" = Just (rIntCmp Geq)
-    compileRecBuiltin "true" = Just (RBool T)
-    compileRecBuiltin "false" = Just (RBool F)
-    compileRecBuiltin _ = Nothing
-
-    applyRVal :: RVal -> RVal -> Either String RVal
     applyRVal (RFun f) x = f x
     applyRVal _ _        = Left "Cannot apply non-function value"
 
-    rIntUnary :: (CatExpr RecCtx Integer -> CatExpr RecCtx Integer) -> RVal
-    rIntUnary op = RFun $ \case
-      RInt x -> Right (RInt (op x))
-      _      -> Left "Expected integer argument"
+compileRecBuiltin :: String -> Maybe (RVal c)
+compileRecBuiltin "+" = Just (rIntBin Add)
+compileRecBuiltin "-" = Just (rIntBin Sub)
+compileRecBuiltin "*" = Just (rIntBin Mul)
+compileRecBuiltin "sub" = Just (rIntBin Sub)
+compileRecBuiltin "sub1" = Just (rIntUnary (\x -> Comp Sub (fanC x (IntConst 1))))
+compileRecBuiltin "is0" = Just (rIntPred (\x -> Comp Eql (fanC x (IntConst 0))))
+compileRecBuiltin "eql" = Just (rIntCmp Eql)
+compileRecBuiltin "leq" = Just (rIntCmp Leq)
+compileRecBuiltin "geq" = Just (rIntCmp Geq)
+compileRecBuiltin "true" = Just (RBool T)
+compileRecBuiltin "false" = Just (RBool F)
+compileRecBuiltin _ = Nothing
 
-    rIntBin :: CatExpr (Integer, Integer) Integer -> RVal
-    rIntBin op = RFun $ \left -> Right $ RFun $ \right ->
-      case (left, right) of
-        (RInt x, RInt y) -> Right (RInt (Comp op (fanC x y)))
-        _                -> Left "Expected integer arguments"
+rIntUnary :: (CatExpr c Integer -> CatExpr c Integer) -> RVal c
+rIntUnary op = RFun $ \case
+  RInt x -> Right (RInt (op x))
+  _      -> Left "Expected integer argument"
 
-    rIntPred :: (CatExpr RecCtx Integer -> CatExpr RecCtx Bool) -> RVal
-    rIntPred predicate = RFun $ \case
-      RInt x -> Right (RBool (predicate x))
-      _      -> Left "Expected integer argument"
+rIntBin :: CatExpr (Integer, Integer) Integer -> RVal c
+rIntBin op = RFun $ \left -> Right $ RFun $ \right ->
+  case (left, right) of
+    (RInt x, RInt y) -> Right (RInt (Comp op (fanC x y)))
+    _                -> Left "Expected integer arguments"
 
-    rIntCmp :: CatExpr (Integer, Integer) Bool -> RVal
-    rIntCmp op = RFun $ \left -> Right $ RFun $ \right ->
-      case (left, right) of
-        (RInt x, RInt y) -> Right (RBool (Comp op (fanC x y)))
-        _                -> Left "Expected integer arguments"
+rIntPred :: (CatExpr c Integer -> CatExpr c Bool) -> RVal c
+rIntPred predicate = RFun $ \case
+  RInt x -> Right (RBool (predicate x))
+  _      -> Left "Expected integer argument"
 
-mapMaybeS :: [(String, SVal)] -> [(String, RVal)]
-mapMaybeS [] = []
-mapMaybeS ((name, value) : rest) =
-  case value of
-    SInt (Closed c)  -> (name, RInt c) : mapMaybeS rest
-    SBool (Closed c) -> (name, RBool c) : mapMaybeS rest
-    SFun _           -> mapMaybeS rest
+rIntCmp :: CatExpr (Integer, Integer) Bool -> RVal c
+rIntCmp op = RFun $ \left -> Right $ RFun $ \right ->
+  case (left, right) of
+    (RInt x, RInt y) -> Right (RBool (Comp op (fanC x y)))
+    _                -> Left "Expected integer arguments"
+
+sValToRVal :: SVal -> Maybe (RVal c)
+sValToRVal (SInt (Closed c)) = Just (RInt c)
+sValToRVal (SBool (Closed c)) = Just (RBool c)
+sValToRVal (SFun _) = Nothing
+
+liftOuterLocal :: [(String, SVal)] -> [(String, RVal c)]
+liftOuterLocal [] = []
+liftOuterLocal ((name, value) : rest) =
+  case sValToRVal value of
+    Just value' -> (name, value') : liftOuterLocal rest
+    Nothing     -> liftOuterLocal rest
+
+expectRInt :: String -> RVal c -> Either String (CatExpr c Integer)
+expectRInt _ (RInt out) = Right out
+expectRInt msg _        = Left msg
+
+buildRecFun :: forall input. IntArgs input -> Either String (RVal (CatExpr input Integer, input))
+buildRecFun args = build args []
+  where
+    build :: forall remaining. IntArgs remaining -> [CatExpr (CatExpr input Integer, input) Integer] -> Either String (RVal (CatExpr input Integer, input))
+    build OneArg acc =
+      Right $ RFun $ \case
+        RInt arg -> do
+          tupleExpr <- tupleFromExprs args (acc ++ [arg])
+          Right (RInt (Comp Apply (fanC Fst tupleExpr)))
+        _ -> Left "Recursive call expects Integer argument"
+    build (MoreArgs rest) acc =
+      Right $ RFun $ \case
+        RInt arg -> build rest (acc ++ [arg])
+        _ -> Left "Recursive call expects Integer argument"
+
+argProjections :: IntArgs input -> CatExpr c input -> [CatExpr c Integer]
+argProjections OneArg tupleExpr = [tupleExpr]
+argProjections (MoreArgs rest) tupleExpr = Comp Fst tupleExpr : argProjections rest (Comp Snd tupleExpr)
+
+tupleFromArgs :: forall input. IntArgs input -> [Closed Integer] -> Either String (Closed input)
+tupleFromArgs args actualArgs = Right (Closed tupleExpr)
+  where
+    tupleExpr :: forall z. CatExpr z input
+    tupleExpr =
+      case tupleFromExprs args [expr | Closed expr <- actualArgs] of
+        Right built -> built
+        Left err    -> error err
+
+tupleFromExprs :: IntArgs input -> [CatExpr c Integer] -> Either String (CatExpr c input)
+tupleFromExprs OneArg [arg] = Right arg
+tupleFromExprs (MoreArgs rest) (arg : restArgs) = do
+  restTuple <- tupleFromExprs rest restArgs
+  Right (fanC arg restTuple)
+tupleFromExprs _ _ = Left "Incorrect recursive arity"
+
+mkIntArgs :: Int -> Maybe SomeIntArgs
+mkIntArgs n
+  | n <= 0 = Nothing
+mkIntArgs 1 = Just (SomeIntArgs OneArg)
+mkIntArgs n = do
+  SomeIntArgs rest <- mkIntArgs (n - 1)
+  Just (SomeIntArgs (MoreArgs rest))
+
+collectLams :: Expr -> ([String], Expr)
+collectLams = go []
+  where
+    go params (Lam p expr) = go (params ++ [p]) expr
+    go params expr         = (params, expr)
 
 compileBuiltin :: String -> Either String SVal
 compileBuiltin "+" = Right (sIntBinOp Add)
@@ -330,35 +309,29 @@ sIfFun = SFun $ \cond -> Right $ SFun $ \thenVal -> Right $ SFun $ \elseVal ->
       Right (SInt (Closed (Comp IfVal (fanC c (fanC t e)))))
     _ -> Left "if expects (Bool, Int, Int)"
 
--- | Evaluate an expression to an Integer value.
--- This is used by runtime interpretation of compiled Lift terms.
-evalNumExpr :: Environment -> Expr -> Integer
-evalNumExpr env expr =
-  case evalExpr env expr of
-    IntVal i -> i
-    v        -> error $ "Expected integer result, got: " ++ show v
-
-
 -- | Compile an expression, extracting environment variables to morphisms.
 -- Returns a list of (name, morphism_string_representation) for inspection.
 compileEnvironment :: Environment -> [(String, String)]
 compileEnvironment env = map compileBinding env
   where
     compileBinding (name, expr) =
-      case evalExpr env expr of
-        IntVal i -> (name, "IntConst " ++ show i)
-        BoolVal b -> (name, show b)
-        FunVal _ -> (name, "<lambda function>")
+      case compileExpr env [] expr of
+        Right (SInt (Closed cat)) -> (name, show (simplify cat))
+        Right (SBool (Closed cat)) -> (name, show (simplify cat))
+        Right (SFun _) -> (name, "<lambda function>")
+        Left err -> (name, "<compile error: " ++ err ++ ">")
 
 
 -- | Try to compile an environment variable to a numeric morphism.
 -- Returns either the compiled morphism or an error message.
 tryCompileVar :: Environment -> String -> Either String (CatExpr () Integer)
-tryCompileVar env name = case lookup name env of
-  Just expr -> case evalExpr env expr of
-    IntVal _ -> Right (compileNumExpr env expr)
-    v -> Left $ "Expected numeric value for '" ++ name ++ "', got: " ++ show v
-  Nothing -> Left $ "Variable '" ++ name ++ "' not found in environment"
+tryCompileVar env name =
+  case lookup name env of
+    Just expr ->
+      case compileIntExpr env expr of
+        Right (Closed cat) -> Right (simplify cat)
+        Left err -> Left $ "Expected numeric value for '" ++ name ++ "', got: " ++ err
+    Nothing -> Left $ "Variable '" ++ name ++ "' not found in environment"
 
 
 -- | Compile all numeric definitions in an environment.
