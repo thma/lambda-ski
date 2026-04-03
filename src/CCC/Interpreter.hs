@@ -1,7 +1,4 @@
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE PartialTypeSignatures #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE GADTs #-}
 
 {-- | Semantic interpretation of categorical expressions (CatExpr) to functions.
     Interprets a CatExpr morphism as a function in the (->) category.
@@ -13,11 +10,10 @@
 
 module CCC.Interpreter (interp) where
 
-import           CCC.Cat     (BoolCat (andC, ifTE, notC, orC),
+import           CCC.Cat     (BoolCat (andC, notC, orC),
                           BoolLike (false, true), Cartesian (dupC),
                           EqCat (eqlC), Monoidal (parC),
-                          NumCat (addC, geqC, greC, leqC, lesC, mulC, subC),
-                          applyC)
+                          NumCat (addC, geqC, greC, leqC, lesC, mulC, subC))
 import           CCC.CatExpr (CatExpr (..))
 import           CCC.Hask    ()
 

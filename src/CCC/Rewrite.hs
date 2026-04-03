@@ -52,13 +52,9 @@ ruleParDupEq (Comp (Par f g) Dup) | f == g = Just (Dup . f)
 ruleParDupEq _                             = Nothing
 --}
 
--- build the curry rules.
 ruleCurry :: Rule
 ruleCurry (Curry (Uncurry f)) = Just f
 ruleCurry _                   = Nothing
-
-ruleCurry' :: Rule
-ruleCurry' _ = Nothing
 
 ruleCurryApply :: Rule
 ruleCurryApply (Curry Apply) = Just Id
@@ -83,7 +79,6 @@ allRules =
     ruleParDup',
     ruleParDup'',
     ruleCurry,
-    ruleCurry',
     ruleCurryApply,
     ruleParen
   ]
