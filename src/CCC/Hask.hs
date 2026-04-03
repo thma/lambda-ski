@@ -1,16 +1,14 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{-- | Type class instances for (->) enabling interpretation of CatExpr as functions.
-    Allows categorical expressions to be evaluated as standard Haskell functions.
---}
+{-- | Instance-only module for interpreting categorical terms in the (->) category. --}
 
-module CCC.Hask where
+module CCC.Hask () where
 
 import           CCC.Cat
 import qualified CCC.Cat as Cat
 
 instance Monoidal (->) where
-  parC f g (x, y) = (f x, g y) -- this could also be implemented as `bimap f g` (imported from Data.Bifunctor)
+  parC f g (x, y) = (f x, g y)
 
 instance Cartesian (->) where
   fstC (x, _y) = x
@@ -28,11 +26,10 @@ instance NumCat (->) where
   addC = uncurry (+)
   subC = uncurry (-)
   absC = abs
-  -- Need explicit type annotations since BoolLike is polymorphic
-  leqC (x, y) = if x <= y then true else false
-  geqC (x, y) = if x >= y then true else false
-  lesC (x, y) = if x < y then true else false
-  greC (x, y) = if x > y then true else false
+  leqC = ordPred (<=)
+  geqC = ordPred (>=)
+  lesC = ordPred (<)
+  greC = ordPred (>)
 
 instance BoolCat (->) where
   andC = uncurry (Cat.&&)
@@ -47,6 +44,8 @@ instance IfValCat (->) where
   ifValC (test, (t, e)) = if test then t else e
 
 instance FixCat (->) where
-  -- The step function takes (rec, input) and produces output
-  -- We tie the knot by making rec = fixC step
   fixC step = let f a = step (f, a) in f
+
+-- BoolLike result type prevents using plain uncurry comparison directly.
+ordPred :: (Ord a, BoolLike b) => (a -> a -> Bool) -> (a, a) -> b
+ordPred op (x, y) = if op x y then true else false

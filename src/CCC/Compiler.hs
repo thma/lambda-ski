@@ -1,4 +1,3 @@
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 
 {-- | Compilation from lambda calculus expressions (Expr) and environments
@@ -11,7 +10,14 @@
     - Function applications
 --}
 
-module CCC.Compiler where
+module CCC.Compiler
+  ( Value,
+    evalExpr,
+    compileNumExpr,
+    compileEnvironment,
+    tryCompileVar,
+    compileNumericBindings
+  ) where
 
 import           CCC.CatExpr (CatExpr (..))
 import           CCC.Rewrite (simplify)
@@ -150,7 +156,7 @@ tryCompileVar env name = case lookup name env of
 -- Collects successful numeric compilations and reports failures.
 compileNumericBindings :: Environment -> ([(String, String)], [String])
 compileNumericBindings env = 
-  let results = map (\(name, expr) -> (name, tryCompileVar env name)) env
+  let results = map (\(name, _expr) -> (name, tryCompileVar env name)) env
       successes = [(n, show m) | (n, Right m) <- results]
       failures = [e | (_, Left e) <- results]
   in (successes, failures)
