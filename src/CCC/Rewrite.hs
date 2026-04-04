@@ -14,6 +14,7 @@ module CCC.Rewrite (simplify) where
 import           CCC.Cat
 import           CCC.CatExpr
 import           Prelude hiding (id, (.))
+import           Debug.Trace (trace)
 
 type Rule = forall a b. CatExpr a b -> Maybe (CatExpr a b)
 
@@ -94,7 +95,8 @@ recurseMatch :: Int -> Rule -> CatExpr a b -> Maybe (CatExpr a b)
 recurseMatch 0 _rule _x = Nothing
 recurseMatch depth rule x = case rule x of
   Nothing -> goDown (recurseMatch (depth -1) rule) x
-  Just x' -> Just x'
+  Just x' ->
+    trace ("Rule applied: " ++ show rule ++ " to " ++ show x ++ " => " ++ show x') $ Just x'
 
 goDown :: Rule -> Rule
 goDown z (Comp f g) = case z f of

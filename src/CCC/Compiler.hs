@@ -36,7 +36,6 @@ module CCC.Compiler
 
 import           CCC.CatExpr (CatExpr (..))
 import           CCC.Cat     (fanC)
-import           CCC.Rewrite (simplify)
 import           Parser      (Environment, Expr (..))
 
 -- A closed morphism: valid in any input context z, i.e. a global element z → a.
@@ -65,7 +64,7 @@ newtype ClosedSel = ClosedSel (forall z. CatExpr z (CatExpr (Integer, Integer) I
 compileNumExpr :: Environment -> Expr -> CatExpr a Integer
 compileNumExpr env expr =
   case compileIntExpr env expr of
-    Right (Closed cat) -> simplify cat
+    Right (Closed cat) -> cat
     Left err           -> error ("Structural compilation failed: " ++ err)
 
 compileIntExpr :: Environment -> Expr -> Either String (Closed Integer)
@@ -446,8 +445,8 @@ compileEnvironment env = map compileBinding env
   where
     compileBinding (name, expr) =
       case compileExpr env [] expr of
-        Right (SInt (Closed cat)) -> (name, show (simplify cat))
-        Right (SSel (ClosedSel cat)) -> (name, show (simplify cat))
+        Right (SInt (Closed cat)) -> (name, show cat)
+        Right (SSel (ClosedSel cat)) -> (name, show cat)
         Right (SFun _) -> (name, "<lambda function>")
         Left err -> (name, "<compile error: " ++ err ++ ">")
 
@@ -459,7 +458,7 @@ tryCompileVar env name =
   case lookup name env of
     Just expr ->
       case compileIntExpr env expr of
-        Right (Closed cat) -> Right (simplify cat)
+        Right (Closed cat) -> Right cat
         Left err -> Left $ "Expected numeric value for '" ++ name ++ "', got: " ++ err
     Nothing -> Left $ "Variable '" ++ name ++ "' not found in environment"
 
