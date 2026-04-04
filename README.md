@@ -616,6 +616,117 @@ Using this implementation of the Y-combinator instead of the source level define
 The [sourcecode for this section can be found here](https://github.com/thma/lambda-ski/blob/main/src/LambdaToSKI.hs).
 
 
+## Evaluating Combinator Expressions as Haskell Functions
+
+The graph-reduction machine described above is not the only evaluation backend in this project.
+Two further evaluators follow a different philosophy: instead of allocating terms into a mutable graph and rewriting it in place, they compile source expressions into an intermediate representation and then execute that representation by mapping it directly to Haskell functions.
+Both are implemented in the `src/` tree and are exercised by the same benchmark programs (factorial, fibonacci, Ackermann, tak).
+
+### The HhiReducer
+
+[`src/HhiReducer.hs`](src/HhiReducer.hs) operates on combinator terms (`CL` / `CExpr`).
+The pipeline has three stages:
+
+1. **Compile** — a λ-expression is bracket-abstracted to a `CL` combinator tree (by `Kiselyov.compileEta` / `compileBulk`).
+2. **Translate** — `translate :: CL -> CExpr` turns the combinator tree into a `CExpr` value.
+   `CExpr` is an untyped ADT with four constructors:
+   ```haskell
+   data CExpr = CComb Combinator | CApp CExpr CExpr | CFun (CExpr -> CExpr) | CInt Integer
+   ```
+3. **Link & execute** — `link primitives :: CExpr -> CExpr` replaces every `CComb` node with its
+   Haskell-function definition from the `primitives` table, and reduces every `CApp` node with the
+   `(!)` operator, which pattern-matches on `CFun f` and applies it:
+   ```haskell
+   (!) :: CExpr -> CExpr -> CExpr
+   (CFun f) ! x = f x
+   ```
+   The final result is a `CInt` (or a `CFun` for partially applied programs).
+
+Recursion comes from the `Y` entry in `primitives`:
+```haskell
+Y --> CFun (\(CFun f) -> fix f)
+```
+Booleans are Scott-encoded: `TRUE = A` (select second) and `FALSE = K` (select first).
+Comparison primitives like `EQL` and `GEQ` return `trueCExpr` / `falseCExpr` combinator values that continue as selectors in conditionals.
+
+### The CCC Pipeline
+
+[`src/CCC/Compiler.hs`](src/CCC/Compiler.hs) and [`src/CCC/Interpreter.hs`](src/CCC/Interpreter.hs)
+follow a categorical approach.
+
+1. **Compile** — `compileNumExpr :: Environment -> Expr -> CatExpr a Integer` translates a λ-expression
+   directly to a `CatExpr`, a *typed GADT* of categorical morphisms:
+   ```haskell
+   data CatExpr a b where
+     Comp   :: CatExpr b c -> CatExpr a b -> CatExpr a c
+     Fst    :: CatExpr (a, b) a
+     Snd    :: CatExpr (a, b) b
+     Apply  :: CatExpr (CatExpr a b, a) b
+     Curry  :: CatExpr (a, b) c -> CatExpr a (CatExpr b c)
+     Fix    :: CatExpr (CatExpr a b, a) b -> CatExpr a b
+     Add    :: CatExpr (a, a) a
+     IfVal  :: CatExpr (Bool, (a, a)) a
+     -- … and more
+   ```
+   The compiler uses a mixed strategy: for ordinary terms it applies Normalisation by Evaluation (NBE),
+   keeping lambdas as Haskell closures at compile time and never building explicit `Curry`/`Uncurry`
+   nodes for them; for recursive `y`-expressions it builds an explicit `Fix` node in the output.
+
+2. **Interpret** — `interp :: CatExpr a b -> (a -> b)` gives each constructor its meaning as a
+   Haskell function in the `(->)` category:
+   ```haskell
+   interp (Comp f g)   = interp f . interp g
+   interp Fst          = fst
+   interp Apply        = uncurry interp
+   interp (Fix step)   = \a -> let rec = Fix step in interp step (rec, a)
+   interp Add          = addC       -- (+) via the NumCat class
+   interp IfVal        = \(test,(t,e)) -> if test then t else e
+   -- …
+   ```
+   The result is an ordinary Haskell function; calling it on an input computes the final value.
+
+Because `CatExpr` is a GADT, type errors such as `Comp Add Fst` (mismatched types) are rejected at
+compile time by GHC, not at run time.
+
+### Similarities
+
+Both approaches share the same fundamental idea:
+
+- **Staged execution** — source λ-expressions are first compiled to an intermediate language; execution
+  is a separate pass over that language, not a direct recursive walk of the source AST.
+- **Haskell functions as semantic objects** — in both cases the "values" that circulate at run time are
+  Haskell functions (either `CFun (CExpr -> CExpr)` or a Haskell closure produced by `interp`).
+- **Haskell evaluation drives computation** — neither backend has its own explicit reduction loop for
+  the full program at run time; once linking or interpretation has mapped combinators/morphisms to
+  native functions, GHC's own evaluator takes over.
+- **Same recursion host** — both ultimately delegate fixed-point recursion to Haskell's `fix`
+  (HhiReducer via the `Y` primitive, CCC via the `Fix` constructor in `interp`).
+- **Same benchmark programs** — factorial, fibonacci, gaussian, Ackermann, and tak all work through
+  both backends, verified by `test/ReducerKiselyovSpec.hs` and `test/CCCCompilerSpec.hs`.
+
+### Differences
+
+| Dimension | HhiReducer | CCC Pipeline |
+|---|---|---|
+| **Intermediate language** | `CExpr` — untyped ADT (`CComb \| CApp \| CFun \| CInt`) | `CatExpr a b` — typed GADT of categorical morphisms |
+| **Typing** | Untyped; bad applications fail at runtime via pattern-match (`can't handle`) | Strongly typed; ill-typed compositions rejected by GHC |
+| **Source input** | `CL` combinator tree produced by bracket abstraction | `Expr` λ-term compiled directly without prior bracket abstraction |
+| **Compilation strategy** | Structural translation of combinator application tree | Mixed NBE (for ordinary terms) + direct `Fix`-node construction (for `y`-recursion) |
+| **Application model** | `(!) :: CExpr -> CExpr -> CExpr` — pattern-matches on `CFun f` and applies it | `interp Apply = uncurry interp` — functions are first-class `CatExpr` values |
+| **Booleans** | Scott-encoded: `TRUE = A (= λt e. e)`, `FALSE = K (= λt e. t)`; comparisons return combinator values | Primitive `T`, `F` constructors; conditionals via `IfVal :: CatExpr (Bool,(a,a)) a` |
+| **Branching** | Continuation-passing via Scott-encoding: `if c t e` → `c t e` reduces by combinator rule | `interp IfVal = \(test,(t,e)) -> if test then t else e` — native Haskell `if` |
+| **Arithmetic** | `arith op = CFun \(CInt a) -> CFun \(CInt b) -> CInt (op a b)` wraps native operators as `CFun` | `Add`, `Sub`, `Mul` GADT constructors; `interp Add = addC` via `NumCat` type class |
+| **Recursion** | `Y --> CFun (\(CFun f) -> fix f)` in `primitives` | `Fix` constructor in `CatExpr`; `interp (Fix step) = let rec = Fix step in interp step (rec, a)` |
+| **Structure of terms** | Binary application trees (left-nested `CApp` chains, like the combinator spine) | Cartesian products and projections (`Fst`, `Snd`, `Dup`, `Par`) carry the argument structure |
+| **Normal form** | The final `CInt` (or partial `CFun`) reached after all `(!)` applications are exhausted | The value of type `b` returned when the Haskell function `interp morph` is applied to its input |
+| **Failure mode** | `error` via explicit `can't handle` match or arithmetic pattern failure | `error` in `compileNumExpr` for unsupported terms; type-level safety otherwise |
+
+In short: HhiReducer is an *operational* evaluator — it treats programs as trees of combinator applications and executes them by a chain of function lookups and applications.
+The CCC pipeline is a *denotational* evaluator — it gives each morphism a direct mathematical meaning as a function in the `(->)` category and computes by interpreting that meaning.
+Both reach the same results, but the CCC route preserves more structure explicitly in the intermediate representation and leverages the Haskell type system to rule out malformed programs.
+
+---
+
 ## Next steps
 
 Here are some ideas for possible future extensions and improvements.
@@ -623,21 +734,8 @@ Here are some ideas for possible future extensions and improvements.
 - Extending this very basic setup to a fully working pogramming environment with a REPL
 - Implement direct and mutual recursion (i.e. `letrec`) for global function definitions
 - experimemnt with different bracket abstraction algorithms to improve object code size and execution time.
-- Implement bracket abstraction from λ-expressions to [closed cartesian categories](https://thma.github.io/posts/2021-04-04-Lambda-Calculus-Combinatory-Logic-and-Cartesian-Closed-Categories.html) and extend the graph-reduction to also cover the resulting combinators `apply` and `(△)`.
+
 - extend the language to include lists, maybe even provide it with a LISPKIT frontend.
 - Add support for implicit and explicit parallelism of the graph-reduction engine.
   (implicit parallelism for strict operations, and an explicit `P`-combinator)
 
-## Todo
-# FFI Library target (wrapper around mhseval)
-MHSEVAL_LIB = libmhseval.so
-MHSEVAL_HEADER = src/runtime/mhseval.h
-MHSEVAL_SOURCE = src/runtime/mhseval.c
-
-$(MHSEVAL_LIB): $(MHSEVAL_SOURCE) $(MHSEVAL_HEADER)
-	$(CC) $(RTSINC) -fPIC -O2 -Wall -DWANT_STDIO=1 -DWANT_FLOAT=1 -shared -o $@ $(MHSEVAL_SOURCE)
-
-mhseval-lib: $(MHSEVAL_LIB)
-
-mhseval-clean: 
-	rm -f $(MHSEVAL_LIB)
