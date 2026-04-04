@@ -1,9 +1,12 @@
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-
 {-- This module contains definition of categories that are required for
     modelling Closed Cartesian Categories.
   It re-exports Category from Control.Category and defines Monoidal, Cartesian and Closed.
+
+  Booleans are Scott-encoded as selector morphisms:
+    TRUE  = sndC  (selects second from a pair, like A combinator: λt e. e)
+    FALSE = fstC  (selects first from a pair, like K combinator: λt e. t)
+  Comparison operators return selector morphisms k (b,b) b instead of Bool values.
+  Conditionals are just application of the selector to a pair of alternatives.
     --}
 
 module CCC.Cat
@@ -14,13 +17,8 @@ module CCC.Cat
   , fanC
   , idC
   , NumCat (..)
-  , BoolCat (..)
-  , BoolLike (..)
-  , EqLike (..)
   , EqCat (..)
-  , IfValCat (..)
   , FixCat (..)
-  , Cond (..)
   ) where
 
 import           Control.Category (Category (..))
@@ -51,64 +49,17 @@ class Cartesian k => NumCat k where
   addC :: Num a => k (a, a) a
   subC :: Num a => k (a, a) a
   absC :: Num a => k a a
+  -- Comparison operators return Scott-encoded booleans (selector morphisms)
+  leqC :: Ord a => k (a, a) (k (b, b) b)
+  geqC :: Ord a => k (a, a) (k (b, b) b)
+  lesC :: Ord a => k (a, a) (k (b, b) b)
+  greC :: Ord a => k (a, a) (k (b, b) b)
 
-  --  eqlC :: (Eq a, BoolLike b)  => k (a,a) b
-  leqC :: (Ord a, BoolLike b) => k (a, a) b
-  geqC :: (Ord a, BoolLike b) => k (a, a) b
-  lesC :: (Ord a, BoolLike b) => k (a, a) b
-  greC :: (Ord a, BoolLike b) => k (a, a) b
-
-class Cartesian k => BoolCat k where
-  andC :: BoolLike a => k (a, a) a
-  orC :: BoolLike a => k (a, a) a
-  notC :: BoolLike a => k a a
-  ifTE :: k (Bool, (k b d, k b d)) (k b d)
-
-class BoolLike a where
-  (&&) :: a -> a -> a
-  (||) :: a -> a -> a
-  not :: a -> a
-  true :: a
-  false :: a
-
-instance BoolLike Bool where
-  (&&) = (Prelude.&&)
-  (||) = (Prelude.||)
-  not = Prelude.not
-  true = True
-  false = False
-
-class (BoolLike b) => EqLike a b where
-  (==) :: a -> a -> b
-
-instance EqLike Integer Bool where
-  (==) = (Prelude.==)
-
-instance EqLike Bool Bool where
-  (==) = (Prelude.==)
-
+-- Equality comparison returns a Scott-encoded boolean (selector morphism)
 class Cartesian k => EqCat k where
-  eqlC :: (EqLike a b, BoolLike b) => k (a, a) b
-
--- Value-level conditional: selects between two values based on boolean
-class Cartesian k => IfValCat k where
-  ifValC :: k (Bool, (a, a)) a
+  eqlC :: Eq a => k (a, a) (k (b, b) b)
 
 -- Fixpoint combinator for recursive definitions
 -- Takes a step function (rec, input) -> output and produces the fixed point
 class Closed k => FixCat k where
   fixC :: k (k a b, a) b -> k a b
-
--- Conditional type class for source-level if-then-else
--- Two-parameter class: c is the condition type, a is the branch type
--- This allows CatExpr z Bool as condition for CatExpr z a branches
-class Cond c a where
-  ite :: c -> a -> a -> a
-
-instance Cond Bool Bool where
-  ite True  t _ = t
-  ite False _ e = e
-
-instance Cond Bool Integer where
-  ite True  t _ = t
-  ite False _ e = e

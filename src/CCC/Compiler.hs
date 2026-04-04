@@ -44,12 +44,17 @@ import           Parser      (Environment, Expr (..))
 newtype Closed a = Closed (forall z. CatExpr z a)
 
 -- Semantic value domain for NBE compilation.
--- SInt/SBool wrap closed morphisms (constants in the CCC sense).
+-- SInt wraps closed integer morphisms (constants in the CCC sense).
+-- SSel wraps closed selector morphisms (Scott-encoded booleans: Fst=FALSE, Snd=TRUE).
 -- SFun is a Haskell-level function modelling an arrow without fixing a context type.
 data SVal
   = SInt (Closed Integer)
-  | SBool (Closed Bool)
+  | SSel (ClosedSel)
   | SFun (SVal -> Either String SVal)
+
+-- A closed selector morphism: a Scott-encoded boolean valid in any context.
+-- Specialized to Integer since the compiler only handles integer programs.
+newtype ClosedSel = ClosedSel (forall z. CatExpr z (CatExpr (Integer, Integer) Integer))
 
 
 -- | Compile a numeric expression to a CatExpr integer morphism.
@@ -120,9 +125,12 @@ applySVal _ _ = Left "Cannot apply non-function value"
 -- Unlike SVal (which abstracts over context via universal quantification),
 -- RVal c carries CatExpr nodes for a fixed context c, so projections
 -- Fst/Snd can be composed explicitly to construct the step morphism.
+--
+-- RSel carries a Scott-encoded boolean: a selector morphism CatExpr (a,a) a
+-- represented as CatExpr c (CatExpr (Integer,Integer) Integer) in the fixed context.
 data RVal c
   = RInt (CatExpr c Integer)
-  | RBool (CatExpr c Bool)
+  | RSel (CatExpr c (CatExpr (Integer, Integer) Integer))
   | RFun (RVal c -> Either String (RVal c))
 
 -- Encodes the arity shape of a recursive function as a type-level structure.
@@ -215,14 +223,6 @@ compileRecExpr env outerLocal local = \case
       Nothing -> compileEnvVar name
   -- λx. e  ↦  Haskell closure (same NBE trick as compileExpr)
   Lam param expr -> Right (RFun (\arg -> compileRecExpr env outerLocal ((param, arg) : local) expr))
-  -- if c t e  ↦  IfVal ∘ (compile c △ (compile t △ compile e))
-  App (App (App (Var "if") cond) thenExpr) elseExpr -> do
-    condV <- compileRecExpr env outerLocal local cond
-    thenV <- compileRecExpr env outerLocal local thenExpr
-    elseV <- compileRecExpr env outerLocal local elseExpr
-    case (condV, thenV, elseV) of
-      (RBool c, RInt t, RInt e) -> Right (RInt (Comp IfVal (fanC c (fanC t e))))
-      _ -> Left "if expects (Bool, Int, Int)"
   -- f g  ↦  (compile f) `applyRVal` (compile g)
   -- RFun closures build Comp/fanC nodes, so apply ∘ (compile f △ compile g) emerges in output.
   App f x -> do
@@ -251,12 +251,15 @@ compileRecBuiltin "-" = Just (rIntBin Sub)
 compileRecBuiltin "*" = Just (rIntBin Mul)
 compileRecBuiltin "sub" = Just (rIntBin Sub)
 compileRecBuiltin "sub1" = Just (rIntUnary (\x -> Comp Sub (fanC x (IntConst 1))))
-compileRecBuiltin "is0" = Just (rIntPred (\x -> Comp Eql (fanC x (IntConst 0))))
-compileRecBuiltin "eql" = Just (rIntCmp Eql)
-compileRecBuiltin "leq" = Just (rIntCmp Leq)
-compileRecBuiltin "geq" = Just (rIntCmp Geq)
-compileRecBuiltin "true" = Just (RBool T)
-compileRecBuiltin "false" = Just (RBool F)
+compileRecBuiltin "is0" = Just (rIntToSel (\x -> Comp Eql (fanC x (IntConst 0))))
+compileRecBuiltin "eql" = Just (rIntCmpSel Eql)
+compileRecBuiltin "leq" = Just (rIntCmpSel Leq)
+compileRecBuiltin "geq" = Just (rIntCmpSel Geq)
+-- Scott-encoded booleans: TRUE = Snd (select second), FALSE = Fst (select first)
+compileRecBuiltin "true" = Just (rSelConst Snd)
+compileRecBuiltin "false" = Just (rSelConst Fst)
+-- if selector thenVal elseVal = Apply ∘ ⟨selector, ⟨thenVal, elseVal⟩⟩
+compileRecBuiltin "if" = Just rIfFun
 compileRecBuiltin _ = Nothing
 
 rIntUnary :: (CatExpr c Integer -> CatExpr c Integer) -> RVal c
@@ -272,20 +275,40 @@ rIntBin op = RFun $ \left -> Right $ RFun $ \right ->
     (RInt x, RInt y) -> Right (RInt (Comp op (fanC x y)))
     _                -> Left "Expected integer arguments"
 
-rIntPred :: (CatExpr c Integer -> CatExpr c Bool) -> RVal c
-rIntPred predicate = RFun $ \case
-  RInt x -> Right (RBool (predicate x))
+-- Predicate returning a Scott-encoded boolean (selector morphism)
+-- is0 n → Comp Eql (fanC n (IntConst 0)) :: CatExpr c (CatExpr (Integer,Integer) Integer)
+rIntToSel :: (CatExpr c Integer -> CatExpr c (CatExpr (Integer, Integer) Integer)) -> RVal c
+rIntToSel predicate = RFun $ \case
+  RInt x -> Right (RSel (predicate x))
   _      -> Left "Expected integer argument"
 
-rIntCmp :: CatExpr (Integer, Integer) Bool -> RVal c
-rIntCmp op = RFun $ \left -> Right $ RFun $ \right ->
+-- Comparison returning a Scott-encoded boolean (selector morphism)
+rIntCmpSel :: (forall b. CatExpr (Integer, Integer) (CatExpr (b, b) b)) -> RVal c
+rIntCmpSel op = RFun $ \left -> Right $ RFun $ \right ->
   case (left, right) of
-    (RInt x, RInt y) -> Right (RBool (Comp op (fanC x y)))
+    (RInt x, RInt y) -> Right (RSel (Comp op (fanC x y)))
     _                -> Left "Expected integer arguments"
+
+-- A constant Scott boolean (selector): true = Snd, false = Fst
+rSelConst :: CatExpr (Integer, Integer) Integer -> RVal c
+rSelConst sel = RSel (Lift (const sel))
+
+-- Scott-encoded if: applies selector to pair of alternatives
+-- if selector thenVal elseVal = Apply ∘ ⟨selector, ⟨elseVal, thenVal⟩⟩
+-- Pair is (else, then) because TRUE=Snd selects second=then, FALSE=Fst selects first=else
+-- This matches SICKBY convention: if = λc t e. c e t
+rIfFun :: RVal c
+rIfFun = RFun $ \case
+  RSel sel -> Right $ RFun $ \case
+    RInt t -> Right $ RFun $ \case
+      RInt e -> Right (RInt (Comp Apply (fanC sel (fanC e t))))
+      _      -> Left "if: else branch must be integer"
+    _      -> Left "if: then branch must be integer"
+  _        -> Left "if: condition must be a Scott boolean (selector)"
 
 sValToRVal :: SVal -> Maybe (RVal c)
 sValToRVal (SInt (Closed c)) = Just (RInt c)
-sValToRVal (SBool (Closed c)) = Just (RBool c)
+sValToRVal (SSel (ClosedSel c)) = Just (RSel c)
 sValToRVal (SFun _) = Nothing
 
 liftOuterLocal :: [(String, SVal)] -> [(String, RVal c)]
@@ -363,13 +386,14 @@ compileBuiltin "-" = Right (sIntBinOp Sub)
 compileBuiltin "*" = Right (sIntBinOp Mul)
 compileBuiltin "sub" = Right (sIntBinOp Sub)
 compileBuiltin "sub1" = Right (sIntUnaryOp (\x -> Comp Sub (fanC x (IntConst 1))))
-compileBuiltin "is0" = Right (sIntPred (\x -> Comp Eql (fanC x (IntConst 0))))
-compileBuiltin "eql" = Right (sIntCompare Eql)
-compileBuiltin "leq" = Right (sIntCompare Leq)
-compileBuiltin "geq" = Right (sIntCompare Geq)
+compileBuiltin "is0" = Right (sIntToSel (\x -> Comp Eql (fanC x (IntConst 0))))
+compileBuiltin "eql" = Right (sIntCmpSel Eql)
+compileBuiltin "leq" = Right (sIntCmpSel Leq)
+compileBuiltin "geq" = Right (sIntCmpSel Geq)
 compileBuiltin "if" = Right sIfFun
-compileBuiltin "true" = Right (SBool (Closed T))
-compileBuiltin "false" = Right (SBool (Closed F))
+-- Scott-encoded booleans: TRUE = Snd (select second), FALSE = Fst (select first)
+compileBuiltin "true" = Right (SSel (ClosedSel (Lift (const Snd))))
+compileBuiltin "false" = Right (SSel (ClosedSel (Lift (const Fst))))
 compileBuiltin "y" = Left "Recursion via fixpoint operators is structurally compiled"
 compileBuiltin "fix" = Left "Recursion via fixpoint operators is structurally compiled"
 compileBuiltin "/" = Left "Division is not currently supported in CatExpr compilation"
@@ -389,23 +413,31 @@ sIntBinOp op = SFun $ \left -> Right $ SFun $ \right ->
     (SInt (Closed x), SInt (Closed y)) -> Right (SInt (Closed (Comp op (fanC x y))))
     _                                   -> Left "Expected integer arguments"
 
-sIntPred :: (forall z. CatExpr z Integer -> CatExpr z Bool) -> SVal
-sIntPred predicate = SFun $ \case
-  SInt (Closed x) -> Right (SBool (Closed (predicate x)))
+-- Predicate returning a Scott-encoded boolean (selector morphism)
+sIntToSel :: (forall z. CatExpr z Integer -> CatExpr z (CatExpr (Integer, Integer) Integer)) -> SVal
+sIntToSel predicate = SFun $ \case
+  SInt (Closed x) -> Right (SSel (ClosedSel (predicate x)))
   _               -> Left "Expected integer argument"
 
-sIntCompare :: CatExpr (Integer, Integer) Bool -> SVal
-sIntCompare op = SFun $ \left -> Right $ SFun $ \right ->
+-- Comparison returning a Scott-encoded boolean (selector morphism)
+sIntCmpSel :: (forall b. CatExpr (Integer, Integer) (CatExpr (b, b) b)) -> SVal
+sIntCmpSel op = SFun $ \left -> Right $ SFun $ \right ->
   case (left, right) of
-    (SInt (Closed x), SInt (Closed y)) -> Right (SBool (Closed (Comp op (fanC x y))))
+    (SInt (Closed x), SInt (Closed y)) -> Right (SSel (ClosedSel (Comp op (fanC x y))))
     _                                   -> Left "Expected integer arguments"
 
+-- Scott-encoded if: applies selector to pair of alternatives
+-- if selector thenVal elseVal = Apply ∘ ⟨selector, ⟨elseVal, thenVal⟩⟩
+-- Pair is (else, then) because TRUE=Snd selects second=then, FALSE=Fst selects first=else
+-- This matches SICKBY convention: if = λc t e. c e t
 sIfFun :: SVal
-sIfFun = SFun $ \cond -> Right $ SFun $ \thenVal -> Right $ SFun $ \elseVal ->
-  case (cond, thenVal, elseVal) of
-    (SBool (Closed c), SInt (Closed t), SInt (Closed e)) ->
-      Right (SInt (Closed (Comp IfVal (fanC c (fanC t e)))))
-    _ -> Left "if expects (Bool, Int, Int)"
+sIfFun = SFun $ \case
+  SSel (ClosedSel sel) -> Right $ SFun $ \case
+    SInt (Closed t) -> Right $ SFun $ \case
+      SInt (Closed e) -> Right (SInt (Closed (Comp Apply (fanC sel (fanC e t)))))
+      _               -> Left "if: else branch must be integer"
+    _               -> Left "if: then branch must be integer"
+  _                  -> Left "if: condition must be a Scott boolean (selector)"
 
 -- | Compile an expression, extracting environment variables to morphisms.
 -- Returns a list of (name, morphism_string_representation) for inspection.
@@ -415,7 +447,7 @@ compileEnvironment env = map compileBinding env
     compileBinding (name, expr) =
       case compileExpr env [] expr of
         Right (SInt (Closed cat)) -> (name, show (simplify cat))
-        Right (SBool (Closed cat)) -> (name, show (simplify cat))
+        Right (SSel (ClosedSel cat)) -> (name, show (simplify cat))
         Right (SFun _) -> (name, "<lambda function>")
         Left err -> (name, "<compile error: " ++ err ++ ">")
 

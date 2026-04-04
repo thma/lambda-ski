@@ -4,12 +4,16 @@
     This module provides the necessary type class instances to treat Haskell functions 
     as morphisms in the (->) category, allowing us to interpret CatExpr morphisms 
     as actual Haskell functions without needing to define the logic of those functions ourselves.
+
+    Booleans are Scott-encoded: comparison operators return selector functions
+    that pick the first or second element from a pair.
+      TRUE  = sndC (selects second, like A combinator)
+      FALSE = fstC (selects first, like K combinator)
 --}
 
 module CCC.Hask () where
 
 import           CCC.Cat
-import qualified CCC.Cat as Cat
 
 instance Monoidal (->) where
   parC f g (x, y) = (f x, g y)
@@ -30,26 +34,14 @@ instance NumCat (->) where
   addC = uncurry (+)
   subC = uncurry (-)
   absC = abs
-  leqC = ordPred (<=)
-  geqC = ordPred (>=)
-  lesC = ordPred (<)
-  greC = ordPred (>)
-
-instance BoolCat (->) where
-  andC = uncurry (Cat.&&)
-  orC = uncurry (Cat.||)
-  notC = Cat.not
-  ifTE (test, (f, g)) x = if test then f x else g x
+  -- Comparisons return Scott-encoded booleans (selector functions)
+  leqC (x, y) = if x <= y then sndC else fstC
+  geqC (x, y) = if x >= y then sndC else fstC
+  lesC (x, y) = if x < y then sndC else fstC
+  greC (x, y) = if x > y then sndC else fstC
 
 instance EqCat (->) where
-  eqlC = uncurry (Cat.==)
-
-instance IfValCat (->) where
-  ifValC (test, (t, e)) = if test then t else e
+  eqlC (x, y) = if x == y then sndC else fstC
 
 instance FixCat (->) where
   fixC step = let f a = step (f, a) in f
-
--- BoolLike result type prevents using plain uncurry comparison directly.
-ordPred :: (Ord a, BoolLike b) => (a -> a -> Bool) -> (a, a) -> b
-ordPred op (x, y) = if op x y then true else false

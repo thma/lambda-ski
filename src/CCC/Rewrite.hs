@@ -83,9 +83,8 @@ allRules =
     ruleParen
   ]
 
--- Note: Rewrite rules for IfThenElse (if True => f, if False => g)
--- are complex due to GADT type constraints. These could be added
--- later with appropriate type witnesses.
+-- Note: Scott-encoded booleans (Fst/Snd as selectors) benefit from
+-- existing Fst/Snd rewrite rules without needing special boolean rules.
 
 maxDepth :: Int
 maxDepth = 1000
