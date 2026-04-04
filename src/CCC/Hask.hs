@@ -1,6 +1,10 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{-- | Instance-only module for interpreting categorical terms in the (->) category. --}
+{-- | Instance-only module for interpreting categorical terms in the (->) category. 
+    This module provides the necessary type class instances to treat Haskell functions 
+    as morphisms in the (->) category, allowing us to interpret CatExpr morphisms 
+    as actual Haskell functions without needing to define the logic of those functions ourselves.
+--}
 
 module CCC.Hask () where
 

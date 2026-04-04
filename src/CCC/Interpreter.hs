@@ -11,10 +11,13 @@
 module CCC.Interpreter (interp) where
 
 import           CCC.Cat     (BoolCat (andC, notC, orC),
-                          BoolLike (false, true), Cartesian (dupC),
+                          BoolLike (false, true), Cartesian (fstC, sndC, dupC),
                           EqCat (eqlC), Monoidal (parC),
                           NumCat (addC, geqC, greC, leqC, lesC, mulC, subC))
 import           CCC.CatExpr (CatExpr (..))
+-- Hask is imported for its instance definitions, not for any specific functions or types
+-- This allows us to interpret CatExpr morphisms as actual Haskell functions without needing to 
+--define the logic of those functions ourselves.
 import           CCC.Hask    ()
 
 interp :: CatExpr a b -> (a -> b)
@@ -26,8 +29,8 @@ interp Apply        = uncurry interp
 interp Id           = id
 interp (IntConst i) = const i
 interp FromInt      = fromInteger
-interp Fst          = fst
-interp Snd          = snd
+interp Fst          = fstC
+interp Snd          = sndC
 interp Dup          = dupC
 interp Add          = addC
 interp Sub          = subC
