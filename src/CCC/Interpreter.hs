@@ -18,7 +18,7 @@ module CCC.Interpreter (interp) where
 
 import           CCC.Cat     (Cartesian (fstC, sndC, dupC), Monoidal (parC),
                           NumCat (addC, mulC, subC))
-import           CCC.CatExpr (CatExpr (..))
+import           CCC.CatExpr (CatExpr (..), scottBool)
 import           CCC.Hask    ()
 
 interp :: CatExpr a b -> (a -> b)
@@ -40,12 +40,12 @@ interp Neg          = negate
 interp Mul          = mulC
 interp (Lift f)     = f
 -- Comparison operators return Scott-encoded booleans:
--- TRUE = Snd (selects second), FALSE = Fst (selects first)
-interp Eql          = \(x, y) -> if x == y then Snd else Fst
-interp Leq          = \(x, y) -> if x <= y then Snd else Fst
-interp Geq          = \(x, y) -> if x >= y then Snd else Fst
-interp Les          = \(x, y) -> if x < y then Snd else Fst
-interp Gre          = \(x, y) -> if x > y then Snd else Fst
+-- scottBool reifies Haskell Bool into CatExpr selectors (TRUE=Snd, FALSE=Fst)
+interp Eql          = scottBool . uncurry (==)
+interp Leq          = scottBool . uncurry (<=)
+interp Geq          = scottBool . uncurry (>=)
+interp Les          = scottBool . uncurry (<)
+interp Gre          = scottBool . uncurry (>)
 -- Fixpoint: step function is a CatExpr morphism, recursion stays categorical
 interp (Fix step)   = \a ->
   let rec = Fix step

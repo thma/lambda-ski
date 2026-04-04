@@ -108,6 +108,29 @@ instance FixCat CatExpr where
 applyF :: CatExpr z (CatExpr a b) -> CatExpr z a -> CatExpr z b
 applyF f x = Apply . fanC f x
 
+-- | Reify a Haskell Bool into a Scott-encoded selector.
+scottBool :: Bool -> CatExpr (a, a) a
+scottBool True  = Snd
+scottBool False = Fst
+
+-- | Scott-encoded NOT: swap the selector.
+scottNot :: CatExpr (a, a) a -> CatExpr (a, a) a
+scottNot Snd = Fst
+scottNot Fst = Snd
+scottNot _   = error "scottNot: expected Fst or Snd"
+
+-- | Scott-encoded AND: if a then b else FALSE.
+scottAnd :: CatExpr (a, a) a -> CatExpr (a, a) a -> CatExpr (a, a) a
+scottAnd Fst _ = Fst
+scottAnd Snd b = b
+scottAnd _   _ = error "scottAnd: expected Fst or Snd"
+
+-- | Scott-encoded OR: if a then TRUE else b.
+scottOr :: CatExpr (a, a) a -> CatExpr (a, a) a -> CatExpr (a, a) a
+scottOr Snd _ = Snd
+scottOr Fst b = b
+scottOr _   _ = error "scottOr: expected Fst or Snd"
+
 instance Eq (CatExpr a b) where
   f == g = f Prelude.== g
 
