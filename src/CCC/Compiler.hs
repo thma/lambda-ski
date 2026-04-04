@@ -79,7 +79,7 @@ compileIntExpr env expr = do
 -- \x. e                 | curry (absCCC (\(x,y). e))           | Lam p body -> SFun (\v -> compile body[p:=v])
 -- f g                   | apply . (f' △ g')                    | applySVal (compile f) (compile g) at meta-level
 -- a ⊕ b                 | op . (a' △ b')                       | Comp op (fanC (compile a) (compile b))
--- y (\f a1...an. b)     | Fix step . (v1 △ ... △ vn)           | compileYGeneric -> Fix with context c = (f, input)
+-- fixOp (\f a1...an. b) | Fix step . (v1 △ ... △ vn)           | compileFixGeneric -> Fix with context c = (f, input)
 
 compileExpr :: Environment -> [(String, SVal)] -> Expr -> Either String SVal
 compileExpr env localEnv = \case
@@ -95,8 +95,10 @@ compileExpr env localEnv = \case
         case lookup name env of
           Just expr -> compileExpr env localEnv expr
           Nothing   -> compileBuiltin name
-  -- y is compiled structurally to Fix rather than treated as a generic function
-  App (Var "y") stepExpr -> compileY env localEnv stepExpr
+  -- Structural recursion is detected by a fixpoint operator head (y/fix/alias)
+  -- and compiled to CatExpr Fix instead of being interpreted as a regular function.
+  App fixHead stepExpr
+    | isFixOperator env localEnv fixHead -> compileFix env localEnv stepExpr
   -- λx. e  ↦  Haskell closure; beta-reduction is deferred to apply time (NBE)
   --   absCCC (λx. λy. e) = curry (absCCC (λ(x,y). e))
   Lam param body -> Right $ SFun $ \argVal -> compileExpr env ((param, argVal) : localEnv) body
@@ -133,17 +135,17 @@ data IntArgs input where
 data SomeIntArgs where
   SomeIntArgs :: IntArgs input -> SomeIntArgs
 
-compileY :: Environment -> [(String, SVal)] -> Expr -> Either String SVal
-compileY env outerLocal = \case
+compileFix :: Environment -> [(String, SVal)] -> Expr -> Either String SVal
+compileFix env outerLocal = \case
   Lam fName stepExpr ->
     case collectLams stepExpr of
       (params, body) ->
         case mkIntArgs (length params) of
-          Just (SomeIntArgs args) -> compileYGeneric env outerLocal args fName params body
-          Nothing                 -> Left "y expects at least one integer argument"
-  _ -> Left "y expects a lambda step function"
+          Just (SomeIntArgs args) -> compileFixGeneric env outerLocal args fName params body
+          Nothing                 -> Left "fix expects at least one integer argument"
+  _ -> Left "fix expects a lambda step function"
 
-compileYGeneric ::
+compileFixGeneric ::
   Environment ->
   [(String, SVal)] ->
   IntArgs input ->
@@ -151,7 +153,7 @@ compileYGeneric ::
   [String] ->
   Expr ->
   Either String SVal
-compileYGeneric env outerLocal args fName params body = buildCurried args []
+compileFixGeneric env outerLocal args fName params body = buildCurried args []
   where
     buildCurried :: IntArgs remaining -> [Closed Integer] -> Either String SVal
     buildCurried OneArg acc =
@@ -159,14 +161,14 @@ compileYGeneric env outerLocal args fName params body = buildCurried args []
         SInt arg -> do
           applied <- applyFix (acc ++ [arg])
           Right (SInt applied)
-        _ -> Left "y expects Integer argument"
+        _ -> Left "fix expects Integer argument"
     buildCurried (MoreArgs rest) acc =
       Right $ SFun $ \case
         SInt arg -> buildCurried rest (acc ++ [arg])
-        _ -> Left "y expects Integer argument"
+        _ -> Left "fix expects Integer argument"
 
     -- Encodes the Fix rule:
-    --   y (λf a₁…aₙ. body) at inputs (v₁,…,vₙ)
+    --   fix (λf a₁…aₙ. body) at inputs (v₁,…,vₙ)
     --     = Comp (Fix stepBody) (v₁ △ … △ vₙ)
     -- Context for stepBody is c = (CatExpr input Integer, input):
     --   f   ↦  buildRecFun → Apply ∘ fanC Fst (a₁ △ … △ aₙ)
@@ -181,6 +183,26 @@ compileYGeneric env outerLocal args fName params body = buildCurried args []
             liftOuterLocal outerLocal
       stepBody <- compileRecExpr env outerLocal local body >>= expectRInt "Recursive body must compile to Integer"
       Right (Closed (Comp (Fix stepBody) paramTuple))
+
+-- Detects whether an expression head denotes the structural fixpoint operator.
+-- Recognized forms:
+--   - direct builtins: y, fix
+--   - environment aliases that resolve to those names
+-- Local bindings shadow fixpoint names.
+isFixOperator :: Environment -> [(String, SVal)] -> Expr -> Bool
+isFixOperator env localEnv = go []
+  where
+    go _ (Int _) = False
+    go _ (Lam _ _) = False
+    go _ (App _ _) = False
+    go seen (Var name)
+      | name `elem` map fst localEnv = False
+      | name == "y" || name == "fix" = True
+      | name `elem` seen = False
+      | otherwise =
+          case lookup name env of
+            Just expr -> go (name : seen) expr
+            Nothing   -> False
 
 compileRecExpr :: Environment -> [(String, SVal)] -> [(String, RVal c)] -> Expr -> Either String (RVal c)
 compileRecExpr env outerLocal local = \case
@@ -348,7 +370,8 @@ compileBuiltin "geq" = Right (sIntCompare Geq)
 compileBuiltin "if" = Right sIfFun
 compileBuiltin "true" = Right (SBool (Closed T))
 compileBuiltin "false" = Right (SBool (Closed F))
-compileBuiltin "y" = Left "Recursion via y is not yet structurally compiled"
+compileBuiltin "y" = Left "Recursion via fixpoint operators is structurally compiled"
+compileBuiltin "fix" = Left "Recursion via fixpoint operators is structurally compiled"
 compileBuiltin "/" = Left "Division is not currently supported in CatExpr compilation"
 compileBuiltin name = Left ("Unbound variable: " ++ name)
 

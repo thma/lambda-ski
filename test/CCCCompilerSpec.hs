@@ -58,6 +58,29 @@ spec = do
       show morph `shouldSatisfy` isInfixOf "Fix"
       interp morph () `shouldBe` 3
 
+    it "compiles recursion structurally via fix alias" $ do
+      let expr = App (App (Var "fix") (Lam "f" (Lam "n"
+                  (App (App (App (Var "if") (App (Var "is0") (Var "n")))
+                       (Int 1))
+                       (App (App (Var "*") (Var "n"))
+                            (App (Var "f") (App (Var "sub1") (Var "n"))))))))
+                 (Int 5)
+          morph = compileNumExpr [] expr :: CatExpr () Integer
+      show morph `shouldSatisfy` isInfixOf "Fix"
+      interp morph () `shouldBe` 120
+
+    it "compiles recursion structurally via environment alias" $ do
+      let expr = App (App (Var "myFix") (Lam "f" (Lam "n"
+                  (App (App (App (Var "if") (App (Var "is0") (Var "n")))
+                       (Int 1))
+                       (App (App (Var "*") (Var "n"))
+                            (App (Var "f") (App (Var "sub1") (Var "n"))))))))
+                 (Int 5)
+          env = [("myFix", Var "y")]
+          morph = compileNumExpr env expr :: CatExpr () Integer
+      show morph `shouldSatisfy` isInfixOf "Fix"
+      interp morph () `shouldBe` 120
+
   describe "CCC.Compiler environment helpers" $ do
     it "returns Right for numeric bindings" $ do
       case tryCompileVar [("k", Int 11)] "k" of
