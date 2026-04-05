@@ -138,6 +138,42 @@ spec = do
     it "parses and compiles tak" $ do
       verifyMainMatchesExpected tak
 
+  describe "CCC.Compiler compileNumExprNaive" $ do
+    it "compiles an integer literal" $ do
+      let morph :: CatExpr () Integer
+          morph = compileNumExprNaive [] (Int 5)
+      interp morph () `shouldBe` 5
+
+    it "compiles variable lookup" $ do
+      let morph :: CatExpr () Integer
+          morph = compileNumExprNaive [("n", Int 13)] (Var "n")
+      interp morph () `shouldBe` 13
+
+    it "compiles unary y-recursion structurally using Fix" $ do
+      let expr = App (App (Var "y") (Lam "f" (Lam "n"
+                  (App (App (App (Var "if") (App (Var "is0") (Var "n")))
+                       (Int 1))
+                       (App (App (Var "*") (Var "n"))
+                            (App (Var "f") (App (Var "sub1") (Var "n"))))))))
+                 (Int 5)
+          morph = compileNumExprNaive [] expr :: CatExpr () Integer
+      show morph `shouldSatisfy` isInfixOf "Fix"
+      interp morph () `shouldBe` 120
+
+    it "produces same results as NBE for all TestSources programs" $ do
+      mapM_ verifyNaiveMatchesNBE [cccLiteral, cccAlias, cccIdentity, cccConst,
+                                    factorial, fibonacci, gaussian, ackermann, tak]
+
+verifyNaiveMatchesNBE :: String -> Expectation
+verifyNaiveMatchesNBE source = do
+  let env = parseEnvironment source
+      mainExpr = fromJust (lookup "main" env)
+      nbeMorph :: CatExpr () Integer
+      nbeMorph = compileNumExpr env mainExpr
+      naiveMorph :: CatExpr () Integer
+      naiveMorph = compileNumExprNaive env mainExpr
+  interp naiveMorph () `shouldBe` interp nbeMorph ()
+
 verifyMainMatchesExpected :: String -> Expectation
 verifyMainMatchesExpected source = do
   let env = parseEnvironment source
