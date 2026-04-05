@@ -48,7 +48,7 @@ newtype Closed a = Closed (forall z. CatExpr z a)
 -- SFun is a Haskell-level function modelling an arrow without fixing a context type.
 data SVal
   = SInt (Closed Integer)
-  | SSel (ClosedSel)
+  | SSel ClosedSel
   | SFun (SVal -> Either String SVal)
 
 -- A closed selector morphism: a Scott-encoded boolean valid in any context.

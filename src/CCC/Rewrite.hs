@@ -57,9 +57,49 @@ ruleCurry :: Rule
 ruleCurry (Curry (Uncurry f)) = Just f
 ruleCurry _                   = Nothing
 
+-- Dual: uncurry (curry f) = f
+ruleUncurry :: Rule
+ruleUncurry (Uncurry (Curry f)) = Just f
+ruleUncurry _                   = Nothing
+
 ruleCurryApply :: Rule
 ruleCurryApply (Curry Apply) = Just Id
 ruleCurryApply _             = Nothing
+
+-- CCC beta rule: apply ∘ (curry f × id) = f
+-- This eliminates redundant Apply ∘ Curry pairs from explicit abstraction.
+ruleApplyCurry :: Rule
+ruleApplyCurry (Comp Apply (Par (Curry f) Id)) = Just f
+ruleApplyCurry _                               = Nothing
+
+-- Projection through product: fst ∘ (f × g) = f ∘ fst
+-- Combined with fst ∘ dup = id, this reduces fst ∘ ⟨f, g⟩ → f.
+ruleFstPar :: Rule
+ruleFstPar (Comp Fst (Par f _)) = Just (Comp f Fst)
+ruleFstPar _                    = Nothing
+
+-- Projection through product: snd ∘ (f × g) = g ∘ snd
+-- Combined with snd ∘ dup = id, this reduces snd ∘ ⟨f, g⟩ → g.
+ruleSndPar :: Rule
+ruleSndPar (Comp Snd (Par _ g)) = Just (Comp g Snd)
+ruleSndPar _                    = Nothing
+
+-- Par-composition fusion: (f × g) ∘ (h × k) = (f ∘ h) × (g ∘ k)
+ruleParComp :: Rule
+ruleParComp (Comp (Par f g) (Par h k)) = Just (Par (Comp f h) (Comp g k))
+ruleParComp _                          = Nothing
+
+-- Fan-composition distribution: ⟨f, g⟩ ∘ h = ⟨f ∘ h, g ∘ h⟩
+-- Since fanC f g = (f × g) ∘ dup, and ruleParen normalizes to (f × g) ∘ (dup ∘ h),
+-- this rewrites to ((f ∘ h) × (g ∘ h)) ∘ dup, i.e. fanC (f ∘ h) (g ∘ h).
+ruleFanComp :: Rule
+ruleFanComp (Comp (Par f g) (Comp Dup h)) = Just (Comp (Par (Comp f h) (Comp g h)) Dup)
+ruleFanComp _                             = Nothing
+
+-- Trivial parallel identity: id × id = id
+ruleParId :: Rule
+ruleParId (Par Id Id) = Just Id
+ruleParId _           = Nothing
 
 ruleIdLeft :: Rule
 ruleIdLeft (Comp Id f) = Just f
@@ -76,11 +116,18 @@ allRules =
     ruleIdLeft,
     ruleFstDup,
     ruleSndDup,
+    ruleFstPar,
+    ruleSndPar,
     ruleParDup,
     ruleParDup',
     ruleParDup'',
+    ruleParComp,
+    ruleFanComp,
+    ruleParId,
     ruleCurry,
+    ruleUncurry,
     ruleCurryApply,
+    ruleApplyCurry,
     ruleParen
   ]
 
