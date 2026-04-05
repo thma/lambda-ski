@@ -15,11 +15,10 @@
 --}
 
 module CCC.Interpreter (interp) where
-
-import           CCC.Cat     (Cartesian (fstC, sndC, dupC), Monoidal (parC),
-                          NumCat (addC, mulC, subC))
+   
 import           CCC.CatExpr (CatExpr (..), scottBool)
-import           CCC.Hask    ()
+--import           CCC.Cat  
+--import           CCC.Hask    ()
 
 interp :: CatExpr a b -> (a -> b)
 interp (Comp f g)   = interp f . interp g
@@ -50,3 +49,24 @@ interp Gre          = scottBool . uncurry (>)
 interp (Fix step)   = \a ->
   let rec = Fix step
   in interp step (rec, a)
+
+parC :: (a -> b) -> (c -> d) -> ((a, c) -> (b, d))
+parC f g (a, c) = (f a, g c)
+
+fstC :: (a, b) -> a
+fstC (a, _b) = a
+
+sndC :: (a, b) -> b
+sndC (_a, b) = b
+
+dupC :: a -> (a, a)
+dupC a = (a, a)
+
+addC :: (Num a) => (a, a) -> a
+addC (x, y) = x + y
+
+subC :: (Num a) => (a, a) -> a
+subC (x, y) = x - y
+
+mulC :: (Num a) => (a, a) -> a
+mulC (x, y) = x * y
