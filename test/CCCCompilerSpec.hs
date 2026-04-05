@@ -6,6 +6,7 @@ import           Data.Maybe        (fromJust)
 import           Test.Hspec
 
 import           CCC.Compiler
+import           CCC.CompilerNaive
 import           CCC.CatExpr   (CatExpr)
 import           CCC.Interpreter (interp)
 import           Parser         (Expr (..), parseEnvironment)

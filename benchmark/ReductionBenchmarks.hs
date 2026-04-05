@@ -4,6 +4,7 @@ import Criterion.Main ( defaultMain, bench, nf, nfIO )
 import Parser ( parseEnvironment, Environment, Expr(Int, App) )
 import LambdaToSKI ( compileBracket )
 import CCC.Compiler (compileNumExpr)
+--import CCC.CompilerNaive (compileNumExprNaive)
 import CCC.Interpreter (interp)
 import CCC.CatExpr (CatExpr)
 import CLTerm
@@ -21,6 +22,7 @@ import           System.Environment (withArgs)
 import System.IO (readFile')
 import           Control.Exception (evaluate)
 import MhsEval 
+--import CCC.Rewrite (simplify)
 
 loadCccMainExpr :: SourceCode -> IO (Environment, Expr)
 loadCccMainExpr src = do
@@ -189,28 +191,28 @@ benchmarks = do
       --, bench "fibonacci Graph-Reduce-Lin" $ nf graphTest fibBulkLinear
       --, bench "fibonacci Graph-Reduce-Log" $ nf graphTest fibBulkLog
       --, bench "fibonacci HHI-Reduce"       $ nf reducerTest fib
-       bench "fibonacci HHI-Eta"          $ nf reducerTest fibEta
+      -- bench "fibonacci HHI-Eta"          $ nf reducerTest fibEta
       -- , bench "fibonacci HHi-Bulk"         $ nf reducerTest fibBulk
       -- , bench "fibonacci HHI-Bulk-Log"     $ nf reducerTestLog fibBulk
       -- , bench "fibonacci HHI-Break-Bulk"   $ nf reducerTest fibBulkLinear
       -- , bench "fibonacci HHI-Break-Log"    $ nf reducerTestLog fibBulkLog
-      , bench "fibonacci CCC.Compiler"     $ nf cccTest fibCcc
-      , bench "fibonacci MicroHs"          $ nfIO (microHsTest mhsContext mhsFibEta)
-      , bench "fibonacci Native"           $ nf fibo 37
+      --, bench "fibonacci CCC.Compiler"     $ nf cccTest fibCcc
+      --, bench "fibonacci MicroHs"          $ nfIO (microHsTest mhsContext mhsFibEta)
+      --, bench "fibonacci Native"           $ nf fibo 37
       -- , bench "ackermann Graph-Reduce"     $ nf graphTest akk
       --, bench "ackermann Graph-Reduce-Eta" $ nf graphTest akkEta
       -- , bench "ackermann Graph-Reduce-Lin" $ nf graphTest akkBulkLinear
       -- , bench "ackermann Graph-Reduce-Log" $ nf graphTest akkBulkLog
-      , bench "fibonacci MHS Haskell"      $ nfIO (microHsTest mhsContext mhsFib)
-      , bench "ackermann HHI-Reduce"       $ nf reducerTest akkEta
+      --, bench "fibonacci MHS Haskell"      $ nfIO (microHsTest mhsContext mhsFib)
+      --, bench "ackermann HHI-Reduce"       $ nf reducerTest akkEta
       -- , bench "ackermann HHI-Eta"          $ nf reducerTest akkEta
       -- , bench "ackermann HHI-Bulk"         $ nf reducerTest akkBulk
       -- , bench "ackermann HHI-Bulk-Log"     $ nf reducerTestLog akkBulk
       -- , bench "ackermann HHI-Break-Bulk"   $ nf reducerTest akkBulkLinear
       -- , bench "ackermann HHI-Break-Log"    $ nf reducerTestLog akkBulkLog
-      , bench "ackermann CCC.Compiler"     $ nf cccTest akkCcc
-      , bench "ackermann MicroHs"          $ nfIO (microHsTest mhsContext mhsAckEta)
-      , bench "ackermann Native"           $ nf ack_3 9
+      --, bench "ackermann CCC.Compiler"     $ nf cccTest akkCcc
+      --, bench "ackermann MicroHs"          $ nfIO (microHsTest mhsContext mhsAckEta)
+      --, bench "ackermann Native"           $ nf ack_3 9
       -- -- , bench "gaussian  Graph-Reduce"     $ nf graphTest gau
       -- -- , bench "gaussian  Graph-Reduce-Eta" $ nf graphTest gauEta
       -- -- , bench "gaussian  HHI-Reduce"       $ nf reducerTest gau
@@ -223,14 +225,14 @@ benchmarks = do
       -- , bench "tak       Graph-Reduce-Lin" $ nf graphTest takBulkLinear
       -- , bench "tak       Graph-Reduce-Log" $ nf graphTest takBulkLog
       -- , bench "tak       HHI-Reduce"       $ nf reducerTest tak
-      , bench "ackermann MHS Haskell"      $ nfIO (microHsTest mhsContext mhsAkk)
-      , bench "tak       HHI-Eta"          $ nf reducerTest takEta
+      --, bench "ackermann MHS Haskell"      $ nfIO (microHsTest mhsContext mhsAkk)
+        bench "tak       HHI-Eta"          $ nf reducerTest takEta
       -- , bench "tak       HHI-Bulk"         $ nf reducerTest takBulk
       -- , bench "tak       HHI-Bulk-Log"     $ nf reducerTestLog takBulk
       -- , bench "tak       HHI-Break-Bulk"   $ nf reducerTest takBulkLinear
       -- , bench "tak       HHI-Break-Log"    $ nf reducerTestLog takBulkLog
       , bench "tak       CCC.Compiler"     $ nf cccTest takCcc
-      , bench "tak       MicroHs"          $ nfIO (run mhsContext mhsTakEta)
+      --, bench "tak       MicroHs"          $ nfIO (run mhsContext mhsTakEta)
       , bench "tak       Native"           $ nf tak1 (18,6,3) 
       , bench "tak       MHS Haskell"      $ nfIO (microHsTest mhsContext mhsTak)
       ]

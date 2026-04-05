@@ -29,10 +29,20 @@
 
 module CCC.Compiler
   ( compileNumExpr,
-    compileNumExprNaive,
     compileEnvironment,
     tryCompileVar,
-    compileNumericBindings
+    compileNumericBindings,
+    -- * Internal: shared with CCC.CompilerNaive
+    RVal (..),
+    IntArgs (..),
+    SomeIntArgs (..),
+    compileRecBuiltin,
+    collectLams,
+    mkIntArgs,
+    buildRecFun,
+    argProjections,
+    tupleFromExprs,
+    expectRInt,
   ) where
 
 import           CCC.CatExpr (CatExpr (..))
@@ -246,21 +256,7 @@ compileRecExpr env outerLocal local = \case
     applyRVal _ _        = Left "Cannot apply non-function value"
 
 compileRecBuiltin :: String -> Maybe (RVal c)
-compileRecBuiltin "+" = Just (rIntBin Add)
-compileRecBuiltin "-" = Just (rIntBin Sub)
-compileRecBuiltin "*" = Just (rIntBin Mul)
-compileRecBuiltin "sub" = Just (rIntBin Sub)
-compileRecBuiltin "sub1" = Just (rIntUnary (\x -> Comp Sub (fanC x (IntConst 1))))
-compileRecBuiltin "is0" = Just (rIntToSel (\x -> Comp Eql (fanC x (IntConst 0))))
-compileRecBuiltin "eql" = Just (rIntCmpSel Eql)
-compileRecBuiltin "leq" = Just (rIntCmpSel Leq)
-compileRecBuiltin "geq" = Just (rIntCmpSel Geq)
--- Scott-encoded booleans: TRUE = Snd (select second), FALSE = Fst (select first)
-compileRecBuiltin "true" = Just (rSelConst Snd)
-compileRecBuiltin "false" = Just (rSelConst Fst)
--- if selector thenVal elseVal = Apply ∘ ⟨selector, ⟨thenVal, elseVal⟩⟩
-compileRecBuiltin "if" = Just rIfFun
-compileRecBuiltin _ = Nothing
+compileRecBuiltin name = builtinToRVal <$> lookupBuiltin name
 
 rIntUnary :: (CatExpr c Integer -> CatExpr c Integer) -> RVal c
 rIntUnary op = RFun $ \case
@@ -305,6 +301,48 @@ rIfFun = RFun $ \case
       _      -> Left "if: else branch must be integer"
     _      -> Left "if: then branch must be integer"
   _        -> Left "if: condition must be a Scott boolean (selector)"
+
+-- Builtin descriptor: captures the shape of each primitive operation once.
+-- Interpreted into both SVal (NBE) and RVal (direct) domains by
+-- builtinToSVal and builtinToRVal respectively.
+data Builtin where
+  BinOp     :: CatExpr (Integer, Integer) Integer -> Builtin
+  UnaryOp   :: (forall c. CatExpr c Integer -> CatExpr c Integer) -> Builtin
+  Predicate :: (forall c. CatExpr c Integer -> CatExpr c (CatExpr (Integer, Integer) Integer)) -> Builtin
+  CmpOp     :: (forall b. CatExpr (Integer, Integer) (CatExpr (b, b) b)) -> Builtin
+  SelConst  :: CatExpr (Integer, Integer) Integer -> Builtin
+  IfOp      :: Builtin
+
+lookupBuiltin :: String -> Maybe Builtin
+lookupBuiltin "+"     = Just (BinOp Add)
+lookupBuiltin "-"     = Just (BinOp Sub)
+lookupBuiltin "*"     = Just (BinOp Mul)
+lookupBuiltin "sub"   = Just (BinOp Sub)
+lookupBuiltin "sub1"  = Just (UnaryOp (\x -> Comp Sub (fanC x (IntConst 1))))
+lookupBuiltin "is0"   = Just (Predicate (\x -> Comp Eql (fanC x (IntConst 0))))
+lookupBuiltin "eql"   = Just (CmpOp Eql)
+lookupBuiltin "leq"   = Just (CmpOp Leq)
+lookupBuiltin "geq"   = Just (CmpOp Geq)
+lookupBuiltin "true"  = Just (SelConst Snd)
+lookupBuiltin "false" = Just (SelConst Fst)
+lookupBuiltin "if"    = Just IfOp
+lookupBuiltin _       = Nothing
+
+builtinToRVal :: Builtin -> RVal c
+builtinToRVal (BinOp op)     = rIntBin op
+builtinToRVal (UnaryOp op)   = rIntUnary op
+builtinToRVal (Predicate p)  = rIntToSel p
+builtinToRVal (CmpOp op)     = rIntCmpSel op
+builtinToRVal (SelConst sel)  = rSelConst sel
+builtinToRVal IfOp            = rIfFun
+
+builtinToSVal :: Builtin -> SVal
+builtinToSVal (BinOp op)     = sIntBinOp op
+builtinToSVal (UnaryOp op)   = sIntUnaryOp op
+builtinToSVal (Predicate p)  = sIntToSel p
+builtinToSVal (CmpOp op)     = sIntCmpSel op
+builtinToSVal (SelConst sel)  = SSel (ClosedSel (Lift (const sel)))
+builtinToSVal IfOp            = sIfFun
 
 sValToRVal :: SVal -> Maybe (RVal c)
 sValToRVal (SInt (Closed c)) = Just (RInt c)
@@ -381,23 +419,12 @@ collectLams = go []
     go params expr         = (params, expr)
 
 compileBuiltin :: String -> Either String SVal
-compileBuiltin "+" = Right (sIntBinOp Add)
-compileBuiltin "-" = Right (sIntBinOp Sub)
-compileBuiltin "*" = Right (sIntBinOp Mul)
-compileBuiltin "sub" = Right (sIntBinOp Sub)
-compileBuiltin "sub1" = Right (sIntUnaryOp (\x -> Comp Sub (fanC x (IntConst 1))))
-compileBuiltin "is0" = Right (sIntToSel (\x -> Comp Eql (fanC x (IntConst 0))))
-compileBuiltin "eql" = Right (sIntCmpSel Eql)
-compileBuiltin "leq" = Right (sIntCmpSel Leq)
-compileBuiltin "geq" = Right (sIntCmpSel Geq)
-compileBuiltin "if" = Right sIfFun
--- Scott-encoded booleans: TRUE = Snd (select second), FALSE = Fst (select first)
-compileBuiltin "true" = Right (SSel (ClosedSel (Lift (const Snd))))
-compileBuiltin "false" = Right (SSel (ClosedSel (Lift (const Fst))))
-compileBuiltin "y" = Left "Recursion via fixpoint operators is structurally compiled"
+compileBuiltin name
+  | Just b <- lookupBuiltin name = Right (builtinToSVal b)
+compileBuiltin "y"   = Left "Recursion via fixpoint operators is structurally compiled"
 compileBuiltin "fix" = Left "Recursion via fixpoint operators is structurally compiled"
-compileBuiltin "/" = Left "Division is not currently supported in CatExpr compilation"
-compileBuiltin name = Left ("Unbound variable: " ++ name)
+compileBuiltin "/"   = Left "Division is not currently supported in CatExpr compilation"
+compileBuiltin name  = Left ("Unbound variable: " ++ name)
 
 sIntUnaryOp :: (forall z. CatExpr z Integer -> CatExpr z Integer) -> SVal
 sIntUnaryOp op = SFun $ \case
@@ -438,116 +465,6 @@ sIfFun = SFun $ \case
       _               -> Left "if: else branch must be integer"
     _               -> Left "if: then branch must be integer"
   _                  -> Left "if: condition must be a Scott boolean (selector)"
-
--- ---------------------------------------------------------------------------
--- Naive (explicit CatExpr) compilation — no NBE
--- ---------------------------------------------------------------------------
-
--- | Naive CCC compilation: builds explicit CatExpr nodes directly.
--- Unlike compileNumExpr (which uses NBE with Haskell closures for
--- beta-reduction), this compiles into the RVal domain from a unit
--- context, producing explicit Comp/fanC/Apply nodes at every step.
---
--- For first-order integer programs (no higher-order function passing),
--- the output is identical to the NBE version — NBE only gains an
--- advantage for higher-order terms where it can beta-reduce at compile time.
-compileNumExprNaive :: Environment -> Expr -> CatExpr () Integer
-compileNumExprNaive env expr =
-  case compileNaive env [] expr of
-    Right (RInt e) -> e
-    Right _        -> error "Naive compilation: expected integer result"
-    Left err       -> error ("Naive compilation failed: " ++ err)
-
--- Direct CatExpr compilation (no NBE).
--- Uses the same RVal machinery as compileRecExpr but starts from any context.
--- Builtins are RFun closures (primitives), user-level code builds explicit nodes.
---
--- Key difference from compileExpr (NBE):
---   NBE:   Lam → Haskell closure;  App → Haskell application (beta-reduces)
---   Naive: Lam → RFun closure;     App → RFun application (same node building)
--- For first-order programs, both produce identical CatExpr output because
--- builtins build the same Comp/fanC nodes. The difference appears only
--- with higher-order terms where NBE can beta-reduce at compile time.
-compileNaive :: forall c. Environment -> [(String, RVal c)] -> Expr -> Either String (RVal c)
-compileNaive env local = \case
-  Int i -> Right (RInt (IntConst i))
-  Var name ->
-    case lookup name local of
-      Just v  -> Right v
-      Nothing -> compileNaiveVar name
-  App fixHead stepExpr
-    | isNaiveFixOp env local fixHead -> compileNaiveFix env stepExpr
-  Lam param body ->
-    Right (RFun (\arg -> compileNaive env ((param, arg) : local) body))
-  App f x -> do
-    fVal <- compileNaive env local f
-    xVal <- compileNaive env local x
-    applyNaiveVal fVal xVal
-  where
-    compileNaiveVar name =
-      case lookup name env of
-        Just expr -> compileNaive env local expr
-        Nothing   -> case compileRecBuiltin name of
-                       Just v  -> Right v
-                       Nothing -> Left ("Unbound variable: " ++ name)
-
-    applyNaiveVal (RFun fn) x = fn x
-    applyNaiveVal _ _          = Left "Cannot apply non-function value"
-
-isNaiveFixOp :: Environment -> [(String, RVal c)] -> Expr -> Bool
-isNaiveFixOp env local = go []
-  where
-    go _ (Int _) = False
-    go _ (Lam _ _) = False
-    go _ (App _ _) = False
-    go seen (Var name)
-      | name `elem` map fst local = False
-      | name == "y" || name == "fix" = True
-      | name `elem` seen = False
-      | otherwise =
-          case lookup name env of
-            Just expr -> go (name : seen) expr
-            Nothing   -> False
-
-compileNaiveFix :: forall c. Environment -> Expr -> Either String (RVal c)
-compileNaiveFix env = \case
-  Lam fName stepExpr ->
-    case collectLams stepExpr of
-      (params, body) ->
-        case mkIntArgs (length params) of
-          Just (SomeIntArgs args) -> compileNaiveFixGeneric env args fName params body
-          Nothing                 -> Left "fix expects at least one integer argument"
-  _ -> Left "fix expects a lambda step function"
-
-compileNaiveFixGeneric ::
-  forall c input.
-  Environment ->
-  IntArgs input ->
-  String ->
-  [String] ->
-  Expr ->
-  Either String (RVal c)
-compileNaiveFixGeneric env args fName params body = buildCurried args []
-  where
-    buildCurried :: IntArgs remaining -> [CatExpr c Integer] -> Either String (RVal c)
-    buildCurried OneArg acc =
-      Right $ RFun $ \case
-        RInt arg -> applyNaiveFix (acc ++ [arg])
-        _        -> Left "fix expects Integer argument"
-    buildCurried (MoreArgs rest) acc =
-      Right $ RFun $ \case
-        RInt arg -> buildCurried rest (acc ++ [arg])
-        _        -> Left "fix expects Integer argument"
-
-    applyNaiveFix :: [CatExpr c Integer] -> Either String (RVal c)
-    applyNaiveFix actualArgs = do
-      paramTuple <- tupleFromExprs args actualArgs
-      recFun <- buildRecFun args
-      let fixLocal =
-            (fName, recFun) :
-            zipWith (\name proj -> (name, RInt proj)) params (argProjections args Snd)
-      stepBody <- compileNaive env fixLocal body >>= expectRInt "Recursive body must compile to Integer"
-      Right (RInt (Comp (Fix stepBody) paramTuple))
 
 -- | Compile an expression, extracting environment variables to morphisms.
 -- Returns a list of (name, morphism_string_representation) for inspection.
