@@ -12,8 +12,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - ghc-version: '9.2.8'
-            allow-failure: false
           - ghc-version: '9.4.8'
             allow-failure: false
           - ghc-version: '9.6.6'
