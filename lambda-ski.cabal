@@ -32,7 +32,6 @@ library
       CCC.CatExpr
       CCC.CCC
       CCC.Compiler
-      CCC.CompilerNaive
       CCC.Hask
       CCC.Interpreter
       CCC.Rewrite

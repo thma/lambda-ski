@@ -54,19 +54,19 @@ parC :: (a -> b) -> (c -> d) -> ((a, c) -> (b, d))
 parC f g (a, c) = (f a, g c)
 
 fstC :: (a, b) -> a
-fstC (a, _b) = a
+fstC = fst
 
 sndC :: (a, b) -> b
-sndC (_a, b) = b
+sndC = snd
 
 dupC :: a -> (a, a)
-dupC a = (a, a)
+dupC x = (x, x)
 
 addC :: (Num a) => (a, a) -> a
-addC (x, y) = x + y
+addC = uncurry (+)
 
 subC :: (Num a) => (a, a) -> a
-subC (x, y) = x - y
+subC = uncurry (-)
 
 mulC :: (Num a) => (a, a) -> a
-mulC (x, y) = x * y
+mulC = uncurry (*)

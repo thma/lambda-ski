@@ -4,7 +4,6 @@ import Criterion.Main ( defaultMain, bench, nf, nfIO )
 import Parser ( parseEnvironment, Environment, Expr(Int, App) )
 import LambdaToSKI ( compileBracket )
 import CCC.Compiler (compileNumExpr)
---import CCC.CompilerNaive (compileNumExprNaive)
 import CCC.Interpreter (interp)
 import CCC.CatExpr (CatExpr)
 import CLTerm

@@ -5,8 +5,11 @@ import           Data.List         (isInfixOf)
 import           Data.Maybe        (fromJust)
 import           Test.Hspec
 
-import           CCC.Compiler
-import           CCC.CompilerNaive
+import CCC.Compiler
+    ( compileNumExpr,
+      compileEnvironment,
+      tryCompileVar,
+      compileNumericBindings ) 
 import           CCC.CatExpr   (CatExpr)
 import           CCC.Interpreter (interp)
 import           Parser         (Expr (..), parseEnvironment)
@@ -139,15 +142,15 @@ spec = do
     it "parses and compiles tak" $ do
       verifyMainMatchesExpected tak
 
-  describe "CCC.Compiler compileNumExprNaive" $ do
+  describe "CCC.Compiler compileNumExpr" $ do
     it "compiles an integer literal" $ do
       let morph :: CatExpr () Integer
-          morph = compileNumExprNaive [] (Int 5)
+          morph = compileNumExpr [] (Int 5)
       interp morph () `shouldBe` 5
 
     it "compiles variable lookup" $ do
       let morph :: CatExpr () Integer
-          morph = compileNumExprNaive [("n", Int 13)] (Var "n")
+          morph = compileNumExpr [("n", Int 13)] (Var "n")
       interp morph () `shouldBe` 13
 
     it "compiles unary y-recursion structurally using Fix" $ do
@@ -157,7 +160,7 @@ spec = do
                        (App (App (Var "*") (Var "n"))
                             (App (Var "f") (App (Var "sub1") (Var "n"))))))))
                  (Int 5)
-          morph = compileNumExprNaive [] expr :: CatExpr () Integer
+          morph = compileNumExpr [] expr :: CatExpr () Integer
       show morph `shouldSatisfy` isInfixOf "Fix"
       interp morph () `shouldBe` 120
 
@@ -172,7 +175,7 @@ verifyNaiveMatchesNBE source = do
       nbeMorph :: CatExpr () Integer
       nbeMorph = compileNumExpr env mainExpr
       naiveMorph :: CatExpr () Integer
-      naiveMorph = compileNumExprNaive env mainExpr
+      naiveMorph = compileNumExpr env mainExpr
   interp naiveMorph () `shouldBe` interp nbeMorph ()
 
 verifyMainMatchesExpected :: String -> Expectation
