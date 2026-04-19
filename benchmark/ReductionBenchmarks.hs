@@ -21,7 +21,6 @@ import           System.Environment (withArgs)
 import System.IO (readFile')
 import           Control.Exception (evaluate)
 import MhsEval 
---import CCC.Rewrite (simplify)
 
 loadCccMainExpr :: SourceCode -> IO (Environment, Expr)
 loadCccMainExpr src = do
