@@ -32,7 +32,7 @@ spec = do
       verify Simple.basicSubtraction
     it "computes basic multiplication" $
       verify Simple.basicMultiplication
-      
+
   describe "TermReducer - Complex Recursive Tests" $ do
     it "computes simple constant" $
       verify simpleConstant
@@ -48,6 +48,8 @@ spec = do
       verify smallFactorial
     it "computes simple fib (recursive)" $
       verify originalSmallFib
+    it "computes fac with explicit Y combinator" $
+      verify fixFactorial
 
 -- Very simple non-recursive tests for TermReducer
 simpleConstant :: String
@@ -104,7 +106,14 @@ smallFactorial :: String
 smallFactorial = [r| 
   expected = 120
   fact = y(λf n. if (is0 n) 1 (* n (f (sub1 n))))
-  --fact = \n. if (is0 n) (+ 2 21) (* 6 7)
+  main = fact 5
+|]
+
+fixFactorial :: String
+fixFactorial = [r| 
+  expected = 120
+  fix  = λf . (λx . x x)(λx . f(x x))
+  fact = fix(λf n. if (is0 n) 1 (* n (f (sub1 n))))
   main = fact 5
 |]
 
@@ -120,22 +129,20 @@ verify :: String -> IO ()
 verify src = do
   result <- runTest src
   result `shouldBe` True
-  
+
 runTest :: String -> IO Bool
 runTest src = do
   let pEnv = parseEnvironment src
       aExp = compile pEnv abstractToSKI
       expected = toCL $ fromJust (lookup "expected" pEnv)
-  
+
   -- Capture result with timeout handling
-  result <- catch 
+  catch
     (let actual = reduce aExp
-      in do 
+      in do
         putStrLn $ "Expected: " ++ show expected
-        putStrLn $ "Actual: " ++ show actual 
+        putStrLn $ "Actual: " ++ show actual
         return $ show expected == show actual)
-    (\e -> do 
+    (\e -> do
         putStrLn $ "Error during reduction: " ++ show (e :: SomeException)
         return False)
-  
-  return result
