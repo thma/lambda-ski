@@ -15,10 +15,7 @@ import           Parser      (Environment, Expr (..))
 
 compileNumExpr :: Environment -> Expr -> CatExpr () Integer
 compileNumExpr env expr =
-  either (\e -> error ("Compilation failed: " ++ e)) id (compileIntExpr env expr)
-  where
-    compileIntExpr :: Environment -> Expr -> Either String (CatExpr () Integer)
-    compileIntExpr env expr = compile env [] expr >>= expectInt
+  either (\e -> error ("Compilation failed: " ++ e)) id (compile env [] expr >>= expectInt)
 
 -- Core compilation ------------------------------------------------------------
 
@@ -64,21 +61,18 @@ compileFix :: forall c. Environment -> Expr -> Either String (RVal c)
 compileFix env = \case
   Lam fName body ->
     let (params, bodyExpr) = collectLams body
-    in case mkIntArgs (length params) of
-         Just (SomeIntArgs args) -> Right $ compileFixBody env args fName params bodyExpr
-         Nothing -> Left "fix expects at least one integer argument"
+    in maybe (Left "fix expects at least one integer argument") Right $
+         withIntArgs (length params) $ \args ->
+           curryIntArgs args $ \actualArgs -> do
+             paramTuple <- tupleFromExprs args actualArgs
+             let recCall = curryIntArgs args $ \recArgs -> do
+                   t <- tupleFromExprs args recArgs
+                   Right (RInt (Comp Apply (fanC Fst t)))
+             let fixLocal = (fName, recCall) :
+                   zipWith (\n p -> (n, RInt p)) params (projections args Snd)
+             stepBody <- compile env fixLocal bodyExpr >>= expectInt
+             Right (RInt (Comp (Fix stepBody) paramTuple))
   _ -> Left "fix expects a lambda step function"
-
-compileFixBody ::
-  forall c input. Environment -> IntArgs input ->
-  String -> [String] -> Expr -> RVal c
-compileFixBody env args fName params body =
-  curryIntArgs args $ \actualArgs -> do
-    paramTuple <- tupleFromExprs args actualArgs
-    let fixLocal = (fName, recFun args) :
-          zipWith (\n p -> (n, RInt p)) params (projections args Snd)
-    stepBody <- compile env fixLocal body >>= expectInt
-    Right (RInt (Comp (Fix stepBody) paramTuple))
 
 -- | Build a curried RVal that collects n integer arguments, then applies a continuation.
 curryIntArgs :: forall c input. IntArgs input -> ([CatExpr c Integer] -> Either String (RVal c)) -> RVal c
@@ -92,27 +86,16 @@ curryIntArgs args k = go args []
       RInt a -> Right (go rest (a : acc))
       _      -> Left "Expected Integer argument"
 
--- | Build the recursive-call RVal inside a Fix body.
--- Context is (CatExpr input Integer, input), so Fst projects the step function
--- and a recursive call f a1...an becomes: Apply . fanC Fst (a1 ... an)
-recFun :: forall input. IntArgs input -> RVal (CatExpr input Integer, input)
-recFun args = curryIntArgs args $ \actualArgs -> do
-  t <- tupleFromExprs args actualArgs
-  Right (RInt (Comp Apply (fanC Fst t)))
-
 -- IntArgs helpers -------------------------------------------------------------
 
 data IntArgs input where
   OneArg   :: IntArgs Integer
   MoreArgs :: IntArgs rest -> IntArgs (Integer, rest)
 
-data SomeIntArgs where
-  SomeIntArgs :: IntArgs input -> SomeIntArgs
-
-mkIntArgs :: Int -> Maybe SomeIntArgs
-mkIntArgs n | n <= 0 = Nothing
-mkIntArgs 1 = Just (SomeIntArgs OneArg)
-mkIntArgs n = (\(SomeIntArgs r) -> SomeIntArgs (MoreArgs r)) <$> mkIntArgs (n - 1)
+withIntArgs :: Int -> (forall input. IntArgs input -> r) -> Maybe r
+withIntArgs n _ | n <= 0 = Nothing
+withIntArgs 1 k = Just (k OneArg)
+withIntArgs n k = withIntArgs (n - 1) (k . MoreArgs)
 
 tupleFromExprs :: IntArgs input -> [CatExpr c Integer] -> Either String (CatExpr c input)
 tupleFromExprs OneArg [a]              = Right a
